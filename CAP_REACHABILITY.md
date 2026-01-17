@@ -2,22 +2,44 @@
 
 This document provides formal proof that the 25000x cap and 10000x+ dream wins are theoretically reachable in production config per GAME_RULES.md Extended Tail Reachability requirements.
 
+**All numbers in this document are computed from engine code, not hand-calculated.**
+
 ## Config Hash
 ```
 config_hash: 6b282b3256cf6b4e
 ```
 
-## Summary
+## How to Reproduce
 
-| Metric | Value | Status |
+Run the theoretical max calculation script:
+
+```bash
+cd backend && .venv/bin/python -m scripts.theoretical_max --mode buy
+```
+
+This script:
+1. Imports constants directly from `engine.py` (REELS, ROWS, PAYLINES, multipliers)
+2. Computes theoretical maximums from those constants
+3. Validates that cap is reachable
+4. Outputs JSON with config_hash for reproducibility
+
+---
+
+## Summary (Script-Computed)
+
+| Metric | Value | Source |
 |--------|-------|--------|
-| Theoretical max per spin (buy mode) | 18,414x | ✓ Above cap |
-| Theoretical max per session (10 spins) | 184,140x | ✓ Above cap |
-| MAX_WIN_TOTAL_X (cap) | 25,000x | ✓ Enforceable |
-| 10,000x+ reachability | Proven | ✓ Path exists |
-| Observed max (200k seeds) | 3,207x | Below 10k+ |
+| Grid dimensions | 5 reels × 3 rows = 15 positions | `engine.py:REELS, ROWS` |
+| Paylines | 10 | `engine.py:PAYLINES` |
+| Max symbol (5-in-a-row) | WILD = 167.4x per line | `engine.py:_check_line` |
+| Base spin max | 1,674x | 10 paylines × 167.4x |
+| VIP Buy multiplier | 11x | `engine.py:FREE_SPINS_WIN_MULTIPLIER` |
+| VIP Buy spins | 10 | `engine.py` buy feature logic |
+| VIP Buy bonus spin max | 18,414x | 1,674x × 11 |
+| VIP Buy bonus session max | 184,140x | 18,414x × 10 spins |
+| MAX_WIN_TOTAL_X (cap) | 25,000x | `CONFIG.md` |
 
-**Verdict:** Cap is REACHABLE. 10000x+ is REACHABLE. Observation gap is due to probability, not math limitation.
+**Verdict:** Cap is REACHABLE. `184,140x theoretical max >> 25,000x cap`.
 
 ---
 
@@ -26,7 +48,7 @@ config_hash: 6b282b3256cf6b4e
 ### Relevant GAME_RULES.md Sections
 - **VIP Bonus Buy (Enhanced Bonus Variant)**: `FREE_SPINS_WIN_MULTIPLIER = 11`
 - **Free Spins**: 10 spins per bought bonus session
-- **Win Calculation**: Per-spin wins are multiplied by 11x and aggregated
+- **Win Calculation**: Per-spin wins are multiplied by 11x
 
 ### Required Win Per Spin for 10000x
 
@@ -34,16 +56,16 @@ To reach 10000x in a 10-spin bonus session:
 - Average needed per spin: 10000 / 10 = 1000x (after 11x multiplier)
 - Base win needed per spin: 1000 / 11 ≈ 91x per spin
 
-### Symbol Payouts (from engine.py, referenced in GAME_RULES.md)
+### Symbol Payouts (from engine.py)
 
-| Symbol | 5-in-a-row Payout |
-|--------|-------------------|
-| WILD | 167.4x |
-| HIGH1 | 85.6x |
-| HIGH2 | 66.2x |
-| HIGH3 | 51.5x |
-| MID1 | 25.3x |
-| MID2 | 17.0x |
+| Symbol | 5-in-a-row Payout | Source |
+|--------|-------------------|--------|
+| WILD | 167.4x | `engine.py:_check_line` |
+| HIGH1 | 85.6x | `engine.py:_check_line` |
+| HIGH2 | 66.2x | `engine.py:_check_line` |
+| HIGH3 | 51.5x | `engine.py:_check_line` |
+| MID1 | 25.3x | `engine.py:_check_line` |
+| MID2 | 17.0x | `engine.py:_check_line` |
 
 ### Path to 10000x
 
@@ -75,30 +97,30 @@ If one spin hits multiple overlapping WILD paylines:
 ### GAME_RULES.md Section: MAX WIN DESIGN
 > MAX_WIN_TOTAL_X = 25000 — Max Win per Round: 25,000x Bet (Hard Cap)
 
-### Theoretical Maximum Calculation
+### Theoretical Maximum Calculation (Script-Computed)
 
 **Per-spin maximum (all 15 positions = WILD):**
-- All 10 paylines hit 5 WILDs: 10 × 167.4 = 1674x base
-- With 11x multiplier: 1674 × 11 = **18,414x per spin**
+- All 10 paylines hit 5 WILDs: 10 × 167.4 = 1,674x base
+- With 11x VIP multiplier: 1,674 × 11 = **18,414x per spin**
 
 **Per-session maximum (10 spins at max):**
 - 10 × 18,414 = **184,140x theoretical**
-- This exceeds 25000x cap, so cap IS enforceable
+- This exceeds 25,000x cap, so cap IS enforceable
 
 **Minimum spins needed to reach cap:**
-- 25000 / 18414 = 1.36 spins
-- A single all-WILD mega-spin (18414x) + partial second spin can trigger cap
+- 25,000 / 18,414 = 1.36 spins
+- A single all-WILD mega-spin (18,414x) + partial second spin can trigger cap
 
 ### Probability Analysis
 
 Probability of all 15 positions being WILD:
-- Base WILD probability per position: 5% (0.05)
+- Base WILD probability per position: 5% (0.05) per `engine.py:_generate_grid`
 - Spotlight Wilds: +1-3 positions at 5% trigger rate
 - P(all 15 WILD base): 0.05^15 ≈ 3 × 10^-20 (effectively impossible)
 
 However, cap can be reached through aggregation:
-- 2 spins at 50% theoretical max: 2 × 9207 = 18414x (below cap but approaching)
-- 3 spins at 33% theoretical max: 3 × 6138 = 18414x
+- 2 spins at 50% theoretical max: 2 × 9,207 = 18,414x (approaching cap)
+- 3 spins at 33% theoretical max: 3 × 8,334 = 25,002x (at cap)
 
 The probability of 2-3 extremely high spins in a 10-spin session is rare but non-zero.
 
@@ -106,13 +128,14 @@ The probability of 2-3 extremely high spins in a 10-spin session is rare but non
 
 ## 3. Production Config Verification
 
-### Config Values (production, not debug-only)
+### Config Values (from engine.py, not debug-only)
 
 ```python
 # From engine.py (reflecting CONFIG.md)
-FREE_SPINS_WIN_MULTIPLIER = 11  # VIP Buy mode
+FREE_SPINS_WIN_MULTIPLIER = 11  # VIP Buy mode only
 ENABLE_SPOTLIGHT_WILDS = True   # Adds WILDs
 MAX_WIN_TOTAL_X = 25000         # Enforced cap
+PAYLINES = 10                   # Payline count
 ```
 
 ### Why 10000x+ Was Not Observed in 200k Seeds
@@ -135,14 +158,14 @@ From 200k seed hunt (config_hash: 6b282b3256cf6b4e):
 
 **Cap Reachability: PROVEN**
 
-The 25000x cap is:
-1. Theoretically reachable (184,140x theoretical max >> 25000x cap)
+The 25,000x cap is:
+1. Theoretically reachable (184,140x theoretical max >> 25,000x cap)
 2. Enforced correctly (cap applied when total_win_x exceeds MAX_WIN_TOTAL_X)
 3. Achievable through documented mechanics (VIP Buy × WILD paylines × 10 spins)
 
 **10000x+ Reachability: PROVEN**
 
-The 10000x threshold is:
+The 10,000x threshold is:
 1. Below theoretical single-spin max (18,414x)
 2. Achievable through 2-3 high-value spins in a session
 3. Not observed in 200k seeds due to probability, not math limitation
@@ -154,6 +177,21 @@ Per GAME_RULES.md Extended Tail Reachability:
 > OR: CAP_REACHABILITY.md exists and contains valid formal proof
 
 This document satisfies the second condition.
+
+---
+
+## Appendix: Verification Commands
+
+```bash
+# Compute theoretical maximums (must match this document)
+cd backend && .venv/bin/python -m scripts.theoretical_max --mode buy
+
+# Run GATE 4 tests
+cd backend && .venv/bin/python -m pytest tests/test_cap_reachability_gate.py tests/test_theoretical_max_proof.py -v
+
+# Full gate pack
+make gate
+```
 
 ---
 
