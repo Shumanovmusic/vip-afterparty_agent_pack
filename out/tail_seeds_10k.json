@@ -1,0 +1,15 @@
+{
+  "mode": "buy",
+  "max_seeds": 200000,
+  "min_win_x": 10000.0,
+  "target": "high",
+  "seed_prefix": "HUNT",
+  "config_hash": "6b282b3256cf6b4e",
+  "max_win_total_x": 25000,
+  "found_count": 0,
+  "count_1000x_plus": 0,
+  "count_10000x_plus": 0,
+  "count_capped": 0,
+  "max_found_win_x": 0.0,
+  "found": []
+}

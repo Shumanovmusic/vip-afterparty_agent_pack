@@ -10,7 +10,9 @@ Usage:
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +36,28 @@ def get_config_hash() -> str:
     }
     canonical = json.dumps(config_snapshot, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
+
+
+def get_git_commit() -> str:
+    """Get current git commit hash (short)."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent.parent,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return "unknown"
+
+
+def get_timestamp_iso() -> str:
+    """Get ISO 8601 UTC timestamp."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def seed_to_int(seed_str: str) -> int:
@@ -249,13 +273,18 @@ def main() -> int:
     max_found_win_x = sorted_found[0]["total_win_x"] if sorted_found else 0.0
 
     output = {
+        # Metadata first (per plan)
+        "timestamp": get_timestamp_iso(),
+        "git_commit": get_git_commit(),
+        "config_hash": config_hash,
+        # Hunt parameters
         "mode": args.mode,
         "max_seeds": args.max_seeds,
         "min_win_x": args.min_win_x,
         "target": args.target,
         "seed_prefix": args.seed_prefix,
-        "config_hash": config_hash,
         "max_win_total_x": MAX_WIN_TOTAL_X,
+        # Results
         "found_count": len(found),
         # Summary stats for GATE 4
         "count_1000x_plus": count_1000x_plus,
