@@ -97,11 +97,19 @@
 ### bonus_triggered
 Поля:
 - `bonus_type`: `freespins|pick|wheel|other`
+- `bonus_is_bought`: `boolean`
+- `bonus_variant`: `standard|vip_buy`
+- `bonus_multiplier_applied`: `number`
 - `config_hash`: `string`
 
 ### bonus_end
 Поля:
 - `bonus_type`: `freespins|pick|wheel|other`
+- `bonus_is_bought`: `boolean`
+- `bonus_variant`: `standard|vip_buy`
+- `bonus_multiplier_applied`: `number`
+- `bonus_total_win_x_pre_multiplier`: `number`
+- `bonus_total_win_x_post_multiplier`: `number`
 - `total_win_x`: `number`
 - `finale_path`: `upgrade|multiplier|standard`
 - `config_hash`: `string`

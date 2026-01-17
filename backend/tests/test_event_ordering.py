@@ -18,17 +18,18 @@ from app.logic.rng import SeededRNG
 from app.protocol import SpinMode
 
 
-# Event type priority order per protocol_v1.md
+# Event type priority order per protocol_v1.md + EVENT_SYSTEM.md
 EVENT_ORDER = [
-    "reveal",           # 1. Always first
-    "spotlightWilds",   # 2. Optional base modifier
-    "winLine",          # 3. Win presentation
-    "eventStart",       # 4. Event boundaries (start)
-    "enterFreeSpins",   # 5. Mode transitions
-    "heatUpdate",       # 6. Progression
-    "bonusEnd",         # 7. Bonus closure
-    "eventEnd",         # 8. Event boundaries (end)
-    "winTier",          # 9. Celebration (always last)
+    "reveal",               # 1. Always first
+    "spotlightWilds",       # 2. Optional base modifier
+    "winLine",              # 3. Win presentation
+    "afterpartyMeterUpdate",# 4. Afterparty Meter state change (may trigger rage)
+    "eventStart",           # 5. Event boundaries (start)
+    "enterFreeSpins",       # 6. Mode transitions
+    "heatUpdate",           # 7. Progression
+    "bonusEnd",             # 8. Bonus closure
+    "eventEnd",             # 9. Event boundaries (end)
+    "winTier",              # 10. Celebration (always last)
 ]
 
 
@@ -353,6 +354,7 @@ class TestEventContent:
             "heatUpdate",
             "bonusEnd",
             "winTier",
+            "afterpartyMeterUpdate",  # Afterparty Meter state change
         }
 
         rng = SeededRNG(seed=42)

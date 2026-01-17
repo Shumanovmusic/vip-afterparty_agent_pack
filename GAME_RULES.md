@@ -27,6 +27,29 @@
 - Max win либо наблюдается в симуляции, либо предоставляется доказательство достижимости через перебор/перечень состояний (с указанием условий и вероятностей), подтверждённое ревью.
 - Никакая выплата не превышает `MAX_WIN_TOTAL_X`.
 
+### Extended Tail Reachability (GATE 4: Cap Reachability)
+The "dream wins" (10000x+ and 25000x cap) MUST be theoretically reachable in production config.
+This is enforced via `CAP_REACHABILITY_STRATEGY` in `CONFIG.md`:
+
+#### Strategy: seed (default)
+- Run `seed_hunt.py --mode buy --min_win_x 10000 --target high --max_seeds 200000`
+- MUST find at least 1 seed producing >=10000x total win in buy mode
+- If found: log seed, total_win_x, is_capped, cap_reason, bonus_variant, config_hash
+- If NOT found within budget: FAIL gate with explicit message "Tail unreachable"
+
+#### Strategy: proof
+- If `CAP_REACHABILITY_STRATEGY=proof` is set in CONFIG.md, OR if seed strategy fails:
+- `CAP_REACHABILITY.md` MUST exist at repository root
+- Document MUST contain:
+  1) Exact mechanic path to reach >=10000x (referencing GAME_RULES.md sections)
+  2) Exact mechanic path to reach theoretical cap (25000x)
+  3) Probability analysis showing reachability in production config (not debug-only)
+  4) config_hash for which the analysis applies
+
+#### Acceptance for GATE 4
+- EITHER: seed hunt finds >=1 seed with total_win_x >= 10000
+- OR: CAP_REACHABILITY.md exists and contains valid formal proof
+
 ## ANTICIPATION SYSTEM (NON-DECEPTIVE CONTRACT)
 Цель: дать ощущение “почти выиграл” **без обмана**.
 
@@ -73,6 +96,17 @@ Anticipation может включаться только если:
 ### Acceptance Criteria (MUST)
 - При включённом Hype Mode фактическая вероятность входа в бонус возрастает согласно `HYPE_MODE_BONUS_CHANCE_MULTIPLIER` (подтверждается симуляциями).
 - Изменение режима НЕ ломает hard cap `MAX_WIN_TOTAL_X`.
+
+### Feature: VIP Bonus Buy (Enhanced Bonus Variant) (CONTRACT)
+- Mode: BUY_FEATURE
+- Cost: BUY_FEATURE_COST_MULTIPLIER * betAmount (from CONFIG.md)
+- bonus_variant: standard (natural) vs vip_buy (bought)
+- Payout Multiplier (VIP-only): bonus session total win multiplied by BUY_BONUS_PAYOUT_MULTIPLIER
+  *Applied ONLY when bonus_is_bought=true / bonus_variant=vip_buy*
+  *Never applied to base game and never applied to natural scatter bonus*
+- Disclosure: UI label "VIP Bonus Buy" (note: UI implemented later but law must require it)
+- Cap Safety: must still respect MAX_WIN_TOTAL_X
+- Acceptance: audit_sim must report vip_buy separately and telemetry must include bonus flags & multiplier fields
 
 
 ## FEATURE: AFTERPARTY METER -> RAGE MODE (CONTRACT)

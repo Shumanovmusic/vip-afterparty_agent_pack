@@ -21,28 +21,34 @@ SPOTLIGHT_WILDS_MAX_POS = 3
 HYPE_MODE_COST_INCREASE = 0.25
 HYPE_MODE_BONUS_CHANCE_MULTIPLIER = 2.0
 
-# Rage Mode
-ENABLE_RAGE_MODE = True
-RAGE_METER_MAX = 100
-RAGE_SPINS_COUNT = 3
-RAGE_MULTIPLIER = 2
-RAGE_METER_INC_ON_ANY_WIN = 10
-RAGE_METER_INC_ON_WILD_PRESENT = 15
-RAGE_METER_INC_ON_TWO_SCATTERS = 20
-RAGE_TRIGGER_COOLDOWN_SPINS = 10
-RAGE_TRIGGER_DEADSPINS = 8
+# Free Spins Enhancement (Buy Feature only)
+# To achieve ~96% RTP on 100x Buy Feature cost:
+# - 10 spins × base RTP (~0.96x) = ~9.6x total
+# - Need ~96x total for 96% RTP on 100x cost
+# - Empirical calibration: 11x multiplier yields ~95% RTP
+FREE_SPINS_WIN_MULTIPLIER = 11
 
-# Event triggers
+# Afterparty Meter (Canonical Rage System - meter-based, NOT deadspins)
+# RTP Impact: Rage x2 multiplier during 3 spins adds ~2-3% RTP when triggered
+# Calibrated: meter fills slowly to avoid excessive RTP inflation
+ENABLE_AFTERPARTY_METER = True
+AFTERPARTY_METER_MAX = 100
+AFTERPARTY_RAGE_SPINS = 3
+AFTERPARTY_RAGE_MULTIPLIER = 2
+AFTERPARTY_METER_INC_ON_ANY_WIN = 3       # Reduced from 10 (was filling too fast)
+AFTERPARTY_METER_INC_ON_WILD_PRESENT = 5  # Reduced from 15
+AFTERPARTY_METER_INC_ON_TWO_SCATTERS = 8  # Reduced from 20
+AFTERPARTY_RAGE_COOLDOWN_SPINS = 15       # Increased from 10
+
+# Event triggers (BOOST + EXPLOSIVE only; Rage is handled by Afterparty Meter)
 BOOST_TRIGGER_SMALLWINS = 4
 EXPLOSIVE_TRIGGER_WIN_X = 5
 BOOST_SPINS = 3
-RAGE_SPINS = 2
 EXPLOSIVE_SPINS = 1
 
-# Rate limits per 100 spins
+# Rate limits per 100 spins (BOOST + EXPLOSIVE only)
 EVENT_MAX_RATE_PER_100_SPINS = 18
 BOOST_MAX_RATE_PER_100_SPINS = 8
-RAGE_MAX_RATE_PER_100_SPINS = 6
 EXPLOSIVE_MAX_RATE_PER_100_SPINS = 10
 
 # Win tiers
@@ -53,6 +59,24 @@ WIN_TIER_EPIC = 1000.0
 # Grid dimensions
 REELS = 5
 ROWS = 3
+
+# Paylines (10 lines for ~96% RTP)
+# Each payline is a list of row indices for each reel [reel0_row, reel1_row, ...]
+PAYLINES = [
+    [1, 1, 1, 1, 1],  # Line 0: middle horizontal
+    [0, 0, 0, 0, 0],  # Line 1: top horizontal
+    [2, 2, 2, 2, 2],  # Line 2: bottom horizontal
+    [0, 1, 2, 1, 0],  # Line 3: V shape
+    [2, 1, 0, 1, 2],  # Line 4: inverted V
+    [0, 0, 1, 2, 2],  # Line 5: diagonal down
+    [2, 2, 1, 0, 0],  # Line 6: diagonal up
+    [1, 0, 0, 0, 1],  # Line 7: top curve
+    [1, 2, 2, 2, 1],  # Line 8: bottom curve
+    [0, 1, 1, 1, 0],  # Line 9: shallow V
+]
+
+# Scatter pay multipliers (for 3, 4, 5 scatters)
+SCATTER_PAYS = {3: 2, 4: 10, 5: 50}
 
 
 class GameEngine:
@@ -94,6 +118,23 @@ class GameEngine:
         result = SpinResult(next_state=state.model_copy(deep=True))
         events: list[dict[str, Any]] = []
 
+        # Handle BUY_FEATURE: immediately enter Free Spins mode (VIP Enhanced Bonus)
+        if mode == SpinMode.BUY_FEATURE and state.mode == GameMode.BASE:
+            # Buy Feature triggers VIP Free Spins with 10 spins
+            result.next_state.mode = GameMode.FREE_SPINS
+            result.next_state.free_spins_remaining = 10
+            result.next_state.heat_level = 1
+            result.next_state.bonus_is_bought = True  # Mark as VIP buy bonus (11x multiplier)
+            events.append({
+                "type": "enterFreeSpins",
+                "count": 10,
+                "reason": "buy_feature",
+                "bonusVariant": "vip_buy",
+            })
+            events.append({"type": "heatUpdate", "level": 1})
+            # Update state reference for rest of spin
+            state = result.next_state
+
         # Calculate effective bet (hype mode adds surcharge)
         effective_cost = bet_amount
         if hype_mode:
@@ -133,10 +174,17 @@ class GameEngine:
         # 6) Calculate win (simplified payline logic)
         base_win, win_lines = self._calculate_win(grid, base_bet)
 
-        # 7) Apply rage multiplier if active
+        # 7) Apply multipliers
         multiplier = 1
+
+        # Buy Feature bonus: apply 10x multiplier (to achieve ~96% RTP on 100x Buy cost)
+        # Only applies when bonus was triggered via Buy Feature, not natural scatter trigger
+        if state.mode == GameMode.FREE_SPINS and state.bonus_is_bought:
+            multiplier *= FREE_SPINS_WIN_MULTIPLIER
+
+        # Afterparty Rage: additional 2x multiplier
         if state.rage_active and state.rage_spins_left > 0:
-            multiplier = RAGE_MULTIPLIER
+            multiplier *= AFTERPARTY_RAGE_MULTIPLIER
 
         total_win = base_win * multiplier
         total_win_x = total_win / base_bet if base_bet > 0 else 0
@@ -163,24 +211,53 @@ class GameEngine:
         # 10) Update state and generate events
         next_state = result.next_state
 
-        # Update afterparty meter per GAME_RULES.md
-        if state.mode == GameMode.BASE and not state.rage_active:
+        # Update afterparty meter per CONFIG.md (AFTERPARTY_* keys)
+        meter_triggered = False
+        if ENABLE_AFTERPARTY_METER and state.mode == GameMode.BASE and not state.rage_active:
             meter_before = next_state.afterparty_meter
             if total_win > 0:
                 next_state.afterparty_meter = min(
-                    next_state.afterparty_meter + RAGE_METER_INC_ON_ANY_WIN,
-                    RAGE_METER_MAX,
+                    next_state.afterparty_meter + AFTERPARTY_METER_INC_ON_ANY_WIN,
+                    AFTERPARTY_METER_MAX,
                 )
             if wild_count > 0:
                 next_state.afterparty_meter = min(
-                    next_state.afterparty_meter + RAGE_METER_INC_ON_WILD_PRESENT,
-                    RAGE_METER_MAX,
+                    next_state.afterparty_meter + AFTERPARTY_METER_INC_ON_WILD_PRESENT,
+                    AFTERPARTY_METER_MAX,
                 )
             if scatter_count == 2:
                 next_state.afterparty_meter = min(
-                    next_state.afterparty_meter + RAGE_METER_INC_ON_TWO_SCATTERS,
-                    RAGE_METER_MAX,
+                    next_state.afterparty_meter + AFTERPARTY_METER_INC_ON_TWO_SCATTERS,
+                    AFTERPARTY_METER_MAX,
                 )
+
+            # Check if meter reached max → trigger Afterparty Rage
+            if (
+                next_state.afterparty_meter >= AFTERPARTY_METER_MAX
+                and state.rage_cooldown_remaining == 0
+            ):
+                meter_triggered = True
+                next_state.rage_active = True
+                next_state.rage_spins_left = AFTERPARTY_RAGE_SPINS
+                next_state.afterparty_meter = 0  # Reset meter
+
+            # Emit meter update event BEFORE eventStart (per EVENT_ORDER)
+            if next_state.afterparty_meter != meter_before or meter_triggered:
+                events.append({
+                    "type": "afterpartyMeterUpdate",
+                    "level": next_state.afterparty_meter,
+                    "triggered": meter_triggered,
+                })
+
+            # Emit eventStart for rage AFTER meter update
+            if meter_triggered:
+                events.append({
+                    "type": "eventStart",
+                    "eventType": "afterpartyRage",
+                    "reason": "meter_full",
+                    "durationSpins": AFTERPARTY_RAGE_SPINS,
+                    "multiplier": AFTERPARTY_RAGE_MULTIPLIER,
+                })
 
         # Update streaks per EVENT_SYSTEM.md
         if state.mode == GameMode.BASE:
@@ -198,41 +275,21 @@ class GameEngine:
         if state.rage_cooldown_remaining > 0:
             next_state.rage_cooldown_remaining = state.rage_cooldown_remaining - 1
 
-        # 11) Handle rage mode state
+        # 11) Handle Afterparty Rage mode state
         if state.rage_active:
             next_state.rage_spins_left = state.rage_spins_left - 1
             if next_state.rage_spins_left <= 0:
                 next_state.rage_active = False
                 next_state.afterparty_meter = 0
-                next_state.rage_cooldown_remaining = RAGE_TRIGGER_COOLDOWN_SPINS
-                events.append({"type": "eventEnd", "eventType": "rage"})
+                next_state.rage_cooldown_remaining = AFTERPARTY_RAGE_COOLDOWN_SPINS
+                events.append({"type": "eventEnd", "eventType": "afterpartyRage"})
 
-        # 12) Check for event triggers
+        # 12) Check for event triggers (BOOST + EXPLOSIVE only; Rage is meter-based)
         # Rate limit check
         next_state.spins_in_window = (state.spins_in_window + 1) % 100
         can_trigger_event = state.events_in_window < EVENT_MAX_RATE_PER_100_SPINS
 
-        # Rage trigger (deadspins)
-        if (
-            can_trigger_event
-            and ENABLE_RAGE_MODE
-            and not state.rage_active
-            and state.mode == GameMode.BASE
-            and next_state.deadspins_streak >= RAGE_TRIGGER_DEADSPINS
-            and state.rage_in_window < RAGE_MAX_RATE_PER_100_SPINS
-            and state.rage_cooldown_remaining == 0
-        ):
-            next_state.rage_active = True
-            next_state.rage_spins_left = RAGE_SPINS
-            next_state.deadspins_streak = 0
-            next_state.rage_in_window = state.rage_in_window + 1
-            next_state.events_in_window = state.events_in_window + 1
-            events.append({
-                "type": "eventStart",
-                "eventType": "rage",
-                "reason": "deadspins",
-                "durationSpins": RAGE_SPINS,
-            })
+        # NOTE: Rage is triggered by Afterparty Meter (step 10), NOT by deadspins.
 
         # Boost trigger (smallwins)
         if (
@@ -278,7 +335,13 @@ class GameEngine:
             next_state.mode = GameMode.FREE_SPINS
             next_state.free_spins_remaining = free_spins_count
             next_state.heat_level = 1
-            events.append({"type": "enterFreeSpins", "count": free_spins_count})
+            # Natural scatter trigger - standard bonus variant (no VIP multiplier)
+            events.append({
+                "type": "enterFreeSpins",
+                "count": free_spins_count,
+                "reason": "scatter",
+                "bonusVariant": "standard",
+            })
             events.append({"type": "heatUpdate", "level": 1})
 
         # 14) Handle free spins mode
@@ -298,14 +361,26 @@ class GameEngine:
                 elif total_win_x >= 20:
                     finale_path = "multiplier"
 
-                events.append({
+                # Build bonusEnd event with VIP fields if applicable
+                bonus_end_event: dict[str, Any] = {
                     "type": "bonusEnd",
                     "bonusType": "freespins",
                     "finalePath": finale_path,
                     "totalWinX": total_win_x,
-                })
+                }
+
+                # Add VIP Buy fields per TELEMETRY.md / protocol_v1.md
+                if state.bonus_is_bought:
+                    # Calculate pre-multiplier win (before 11x applied)
+                    pre_multiplier_win_x = total_win_x / FREE_SPINS_WIN_MULTIPLIER
+                    bonus_end_event["bonusVariant"] = "vip_buy"
+                    bonus_end_event["bonusMultiplierApplied"] = FREE_SPINS_WIN_MULTIPLIER
+                    bonus_end_event["totalWinXPreMultiplier"] = pre_multiplier_win_x
+
+                events.append(bonus_end_event)
                 next_state.mode = GameMode.BASE
                 next_state.heat_level = 0
+                next_state.bonus_is_bought = False  # Reset buy flag
 
         # 15) Determine win tier
         win_tier = "none"
@@ -402,28 +477,39 @@ class GameEngine:
         self, grid: list[list[int]], base_bet: float
     ) -> tuple[float, list[dict[str, Any]]]:
         """
-        Calculate win using simplified payline logic.
+        Calculate win using paylines per GAME_RULES.md.
 
         Returns (total_win, list of winLine events).
         """
         win_lines: list[dict[str, Any]] = []
         total_win = 0.0
 
-        # Simplified: check for 3+ matching symbols on middle row (line 0)
-        # In production, this would check all paylines
-
-        # Check horizontal lines
-        for row in range(ROWS):
-            symbols_in_line = [grid[reel][row] for reel in range(REELS)]
+        # Check all paylines
+        for line_id, payline in enumerate(PAYLINES):
+            symbols_in_line = [grid[reel][payline[reel]] for reel in range(REELS)]
             win_amount, count = self._check_line(symbols_in_line, base_bet)
             if win_amount > 0:
                 win_lines.append({
                     "type": "winLine",
-                    "lineId": row,
+                    "lineId": line_id,
                     "amount": win_amount,
                     "winX": win_amount / base_bet if base_bet > 0 else 0,
                 })
                 total_win += win_amount
+
+        # Add scatter pays (scatters pay anywhere on grid)
+        scatter_count = sum(
+            1 for reel in grid for symbol in reel if symbol == Symbol.SCATTER.value
+        )
+        if scatter_count >= 3 and scatter_count in SCATTER_PAYS:
+            scatter_win = base_bet * SCATTER_PAYS[scatter_count]
+            win_lines.append({
+                "type": "winLine",
+                "lineId": -1,  # Special scatter line
+                "amount": scatter_win,
+                "winX": scatter_win / base_bet if base_bet > 0 else 0,
+            })
+            total_win += scatter_win
 
         return total_win, win_lines
 
@@ -465,17 +551,19 @@ class GameEngine:
         if count < 3:
             return 0.0, count
 
-        # Multipliers by symbol and count
+        # Multipliers by symbol and count (calibrated for ~96.5% RTP with 10 paylines)
+        # Includes Afterparty Rage x2 on ~3% of spins + Spotlight Wilds 5%
+        # v2: reduced 8% from 104% to target 96.5%
         multipliers = {
-            Symbol.HIGH1.value: {3: 5, 4: 15, 5: 50},
-            Symbol.HIGH2.value: {3: 4, 4: 12, 5: 40},
-            Symbol.HIGH3.value: {3: 3, 4: 10, 5: 30},
-            Symbol.MID1.value: {3: 2, 4: 6, 5: 20},
-            Symbol.MID2.value: {3: 1.5, 4: 5, 5: 15},
-            Symbol.LOW1.value: {3: 1, 4: 3, 5: 10},
-            Symbol.LOW2.value: {3: 0.8, 4: 2.5, 5: 8},
-            Symbol.LOW3.value: {3: 0.5, 4: 2, 5: 5},
-            Symbol.WILD.value: {3: 10, 4: 30, 5: 100},
+            Symbol.HIGH1.value: {3: 1.70, 4: 8.56, 5: 85.6},
+            Symbol.HIGH2.value: {3: 1.31, 4: 6.58, 5: 66.2},
+            Symbol.HIGH3.value: {3: 1.03, 4: 5.15, 5: 51.5},
+            Symbol.MID1.value: {3: 0.64, 4: 3.22, 5: 25.3},
+            Symbol.MID2.value: {3: 0.52, 4: 2.53, 5: 17.0},
+            Symbol.LOW1.value: {3: 0.33, 4: 1.21, 5: 6.6},
+            Symbol.LOW2.value: {3: 0.23, 4: 0.95, 5: 4.7},
+            Symbol.LOW3.value: {3: 0.14, 4: 0.66, 5: 3.27},
+            Symbol.WILD.value: {3: 3.22, 4: 16.7, 5: 167.4},
         }
 
         symbol_mults = multipliers.get(first_symbol, {3: 0.5, 4: 2, 5: 5})

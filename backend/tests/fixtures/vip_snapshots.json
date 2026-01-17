@@ -1,0 +1,45 @@
+{
+  "_comment": "VIP snapshot fixtures per GAME_RULES.md. Seeds discovered via seed_hunt.py.",
+  "config_hash": "6b282b3256cf6b4e",
+  "max_win_total_x": 25000,
+  "buy_bonus_payout_multiplier": 11,
+  "cases": {
+    "VIP_BUY_001": {
+      "_comment": "VIP Buy Feature bonus - expects bonusVariant=vip_buy, 11x multiplier applied",
+      "seed": "HUNT_BUY_022637",
+      "mode": "BUY_FEATURE",
+      "bet_amount": 1.0,
+      "expected": {
+        "bonus_variant": "vip_buy",
+        "vip_multiplier_applied": 11,
+        "has_enter_free_spins_event": true,
+        "enter_free_spins_reason": "buy_feature"
+      }
+    },
+    "NATURAL_001": {
+      "_comment": "Natural scatter bonus - expects bonusVariant=standard, no VIP multiplier",
+      "seed": "NATURAL_000316",
+      "mode": "NORMAL",
+      "bet_amount": 1.0,
+      "expected": {
+        "bonus_variant": "standard",
+        "vip_multiplier_applied": 1,
+        "has_enter_free_spins_event": true,
+        "enter_free_spins_reason": "scatter"
+      }
+    },
+    "CAP_STRESS_001": {
+      "_comment": "Cap verification - NOTE: No natural seed found that triggers cap (max observed ~2900x vs 25000x cap). This test uses synthetic verification.",
+      "seed": null,
+      "mode": null,
+      "bet_amount": null,
+      "expected": {
+        "is_capped": true,
+        "total_win_x_equals_max": true,
+        "cap_reason_present": true
+      },
+      "synthetic": true,
+      "synthetic_reason": "Cap not naturally reachable with current math (max ~2900x vs 25000x cap). Verified via unit test with MockRNG."
+    }
+  }
+}

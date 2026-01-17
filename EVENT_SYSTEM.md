@@ -11,11 +11,13 @@
 
 ## Inputs & Counters (MUST)
 Backend обязан вести счётчики за сессию/окно:
-- `deadspins_streak` — подряд спины с `win_x = 0` в BASE.
-- `smallwins_streak` — подряд спины с `0 < win_x <= 2` в BASE.
-- `events_per_100_spins` (rolling window) — суммарная частота событий.
-- `boost_per_100_spins`, `rage_per_100_spins`, `explosive_per_100_spins` — частоты по типам.
+- `smallwins_streak` — подряд спины с `0 < win_x <= 2` в BASE (for BOOST trigger).
+- `afterparty_meter` — текущее значение метра (0–100) для Afterparty Rage Mode.
+- `events_per_100_spins` (rolling window) — суммарная частота событий BOOST+EXPLOSIVE.
+- `boost_per_100_spins`, `explosive_per_100_spins` — частоты по типам.
 - `reduce_motion` и `turbo` приходят от клиента (или определяются UI), но backend должен учитывать правила совместимости.
+
+> NOTE: `deadspins_streak` is no longer used (rage is meter-based, not deadspins-based).
 
 ## Global Rate Limit (MUST)
 - Суммарная частота событий в BASE <= `EVENT_MAX_RATE_PER_100_SPINS` из `CONFIG.md`.
@@ -24,7 +26,7 @@ Backend обязан вести счётчики за сессию/окно:
 ## Event Types (MUST IMPLEMENT)
 
 ### 1) BOOST MODE
-- Description: краткий “буст/ускорение/эффекты” (в основном UX).
+- Description: краткий "буст/ускорение/эффекты" (в основном UX).
 - Trigger (MUST): после `BOOST_TRIGGER_SMALLWINS` подряд small-win в BASE.
   - small-win: `0 < win_x <= 2`
 - Duration: `BOOST_SPINS`.
@@ -34,20 +36,20 @@ Backend обязан вести счётчики за сессию/окно:
   - ускорение темпа (в normal mode)
   - усиление подсветок/частиц (в пределах UX_ANIMATION_SPEC.md)
 
-### 2) RAGE MODE (x2+)
-- Description: “рейдж” после серии пустых спинов: эмоциональная разрядка + ощущение, что игра “включилась”.
-- Trigger (MUST): после `RAGE_TRIGGER_DEADSPINS` подряд dead spins в BASE.
-  - dead spin: `win_x = 0`
-- Duration: `RAGE_SPINS` из `CONFIG.md`.
-- Rate limit: `RAGE_MAX_RATE_PER_100_SPINS`.
-- Math: применяет множитель `RAGE_MULTIPLIER` (минимум x2) к win каждого rage-спина.
+### 2) AFTERPARTY RAGE MODE (x2+) — Meter-Based (Canonical)
+> **IMPORTANT:** Rage Mode is handled ONLY by Afterparty Meter (see CONFIG.md `AFTERPARTY_*` keys).
+> Event System does NOT trigger Rage. There is no deadspins-based rage trigger.
+
+- Description: "рейдж" when Afterparty Meter fills to max — эмоциональная разрядка + ощущение, что игра "включилась".
+- Trigger: Afterparty Meter reaches `AFTERPARTY_METER_MAX` (100).
+  - Meter increments: +10 on any win, +15 on wild present, +20 on 2 scatters (in BASE mode).
+- Duration: `AFTERPARTY_RAGE_SPINS` (3 spins).
+- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS` (10 spins before meter can refill).
+- Math: applies `AFTERPARTY_RAGE_MULTIPLIER` (x2) to win of each rage spin.
 - Presentation:
   - агрессивнее звук/подсветки
   - haptics только на вход и big win (см. UX)
-
-> Важно: если у вас параллельно существует “Afterparty Meter -> Rage Mode” из GAME_RULES.md, то приоритет такой:
-> 1) если уже активен Rage/Boost/Bonus — новые события не стартуют
-> 2) если Rage готов по meter или по deadspins — стартует один Rage, затем cooldown
+  - UI banner, VFX intensity, screen shake per CONFIG.md
 
 ### 3) EXPLOSIVE MODE
 - Description: “взрывной” спин: BOOM/комикс-удар/фейерверк при выигрыше.
@@ -68,9 +70,9 @@ Backend обязан вести счётчики за сессию/окно:
 
 ## Protocol Events (MUST)
 Backend MUST emit:
-- `eventStart` { type: "boost"|"rage"|"explosive", reason, durationSpins, multiplier? }
+- `eventStart` { type: "boost"|"afterpartyRage"|"explosive", reason, durationSpins, multiplier? }
 - `eventEnd` { type, reason? }
-- `meterUpdate` (afterparty) — если включён meter (см. GAME_RULES.md)
+- `afterpartyMeterUpdate` { level: 0-100, triggered: boolean } — emitted when meter changes
 - `fx` (boom/fireworks) — опционально, но только как честная презентация
 
 ## Telemetry (MUST)

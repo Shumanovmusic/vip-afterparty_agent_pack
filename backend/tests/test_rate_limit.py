@@ -170,13 +170,12 @@ class TestEventSystemRateLimits:
         from app.logic.engine import (
             EVENT_MAX_RATE_PER_100_SPINS,
             BOOST_MAX_RATE_PER_100_SPINS,
-            RAGE_MAX_RATE_PER_100_SPINS,
             EXPLOSIVE_MAX_RATE_PER_100_SPINS,
         )
 
+        # NOTE: Rage is now meter-based (Afterparty Meter), not rate-limited by Event System
         assert EVENT_MAX_RATE_PER_100_SPINS == 18
         assert BOOST_MAX_RATE_PER_100_SPINS == 8
-        assert RAGE_MAX_RATE_PER_100_SPINS == 6
         assert EXPLOSIVE_MAX_RATE_PER_100_SPINS == 10
 
     def test_events_respect_rate_limits(self):

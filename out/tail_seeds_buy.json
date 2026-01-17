@@ -1,0 +1,2770 @@
+{
+  "mode": "buy",
+  "max_seeds": 50000,
+  "min_win_x": 1000.0,
+  "target": "high",
+  "seed_prefix": "HUNT_BUY",
+  "config_hash": "6b282b3256cf6b4e",
+  "max_win_total_x": 25000,
+  "found_count": 394,
+  "found": [
+    {
+      "seed": "HUNT_BUY_022637",
+      "total_win_x": 2905.1,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037637",
+      "total_win_x": 2859.89,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015774",
+      "total_win_x": 2856.4799999999996,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016860",
+      "total_win_x": 2584.01,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010689",
+      "total_win_x": 2573.01,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018273",
+      "total_win_x": 2564.1000000000004,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_026344",
+      "total_win_x": 2290.3100000000004,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041595",
+      "total_win_x": 2274.14,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027173",
+      "total_win_x": 2220.68,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_012633",
+      "total_win_x": 2204.84,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013745",
+      "total_win_x": 2186.0299999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_044307",
+      "total_win_x": 2124.43,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043564",
+      "total_win_x": 2035.2199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041687",
+      "total_win_x": 2014.1,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020905",
+      "total_win_x": 2008.7099999999996,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019041",
+      "total_win_x": 2008.5999999999992,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048529",
+      "total_win_x": 2003.4299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024634",
+      "total_win_x": 2000.7899999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047406",
+      "total_win_x": 2000.02,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030307",
+      "total_win_x": 1998.5899999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037481",
+      "total_win_x": 1983.08,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_009979",
+      "total_win_x": 1966.2499999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001556",
+      "total_win_x": 1963.7199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048355",
+      "total_win_x": 1954.3700000000006,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023371",
+      "total_win_x": 1947.2199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006139",
+      "total_win_x": 1939.5199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008117",
+      "total_win_x": 1937.1,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_045511",
+      "total_win_x": 1934.5699999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018023",
+      "total_win_x": 1930.0599999999995,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030311",
+      "total_win_x": 1923.5699999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_026438",
+      "total_win_x": 1918.0699999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023587",
+      "total_win_x": 1914.2199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022918",
+      "total_win_x": 1904.65,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047226",
+      "total_win_x": 1904.3199999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025135",
+      "total_win_x": 1903.66,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004560",
+      "total_win_x": 1903.1099999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035734",
+      "total_win_x": 1901.3499999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020118",
+      "total_win_x": 1885.7299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015657",
+      "total_win_x": 1883.1999999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034547",
+      "total_win_x": 1873.0800000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034303",
+      "total_win_x": 1870.55,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042636",
+      "total_win_x": 1869.23,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011073",
+      "total_win_x": 1794.9800000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022049",
+      "total_win_x": 1792.23,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_000718",
+      "total_win_x": 1758.24,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_036730",
+      "total_win_x": 1749.6599999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013941",
+      "total_win_x": 1723.5900000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004292",
+      "total_win_x": 1719.7399999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_014612",
+      "total_win_x": 1719.5200000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_014386",
+      "total_win_x": 1706.3199999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019514",
+      "total_win_x": 1703.7900000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_044436",
+      "total_win_x": 1695.65,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_014654",
+      "total_win_x": 1686.41,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043849",
+      "total_win_x": 1673.4299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_017099",
+      "total_win_x": 1668.92,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043424",
+      "total_win_x": 1651.54,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006768",
+      "total_win_x": 1649.1200000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_039114",
+      "total_win_x": 1626.5699999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006954",
+      "total_win_x": 1625.47,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011840",
+      "total_win_x": 1624.9200000000003,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031682",
+      "total_win_x": 1608.0900000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006877",
+      "total_win_x": 1601.82,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021827",
+      "total_win_x": 1591.59,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008005",
+      "total_win_x": 1579.9299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031973",
+      "total_win_x": 1567.5000000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002080",
+      "total_win_x": 1540.6600000000003,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_012703",
+      "total_win_x": 1536.7,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041216",
+      "total_win_x": 1535.05,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027638",
+      "total_win_x": 1526.36,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011121",
+      "total_win_x": 1521.0800000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040762",
+      "total_win_x": 1519.5400000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008316",
+      "total_win_x": 1518.3300000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030305",
+      "total_win_x": 1518.11,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049291",
+      "total_win_x": 1517.6699999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016517",
+      "total_win_x": 1513.6,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010054",
+      "total_win_x": 1513.1599999999996,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030292",
+      "total_win_x": 1511.4,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007647",
+      "total_win_x": 1507.88,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016699",
+      "total_win_x": 1507.44,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034207",
+      "total_win_x": 1504.8,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040686",
+      "total_win_x": 1504.2500000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015406",
+      "total_win_x": 1493.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001780",
+      "total_win_x": 1491.7100000000003,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025068",
+      "total_win_x": 1490.17,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006977",
+      "total_win_x": 1489.2900000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043736",
+      "total_win_x": 1482.69,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010636",
+      "total_win_x": 1482.03,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037748",
+      "total_win_x": 1479.06,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_005167",
+      "total_win_x": 1477.8500000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007829",
+      "total_win_x": 1476.4200000000003,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035653",
+      "total_win_x": 1472.79,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034419",
+      "total_win_x": 1470.6999999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042953",
+      "total_win_x": 1462.67,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033670",
+      "total_win_x": 1460.0300000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034950",
+      "total_win_x": 1440.23,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030234",
+      "total_win_x": 1432.7500000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024035",
+      "total_win_x": 1419.7699999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015804",
+      "total_win_x": 1414.05,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034789",
+      "total_win_x": 1411.3,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019777",
+      "total_win_x": 1407.9999999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035929",
+      "total_win_x": 1389.3,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020809",
+      "total_win_x": 1375.1100000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040972",
+      "total_win_x": 1356.52,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049338",
+      "total_win_x": 1353.0,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018257",
+      "total_win_x": 1352.67,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042704",
+      "total_win_x": 1351.79,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_005318",
+      "total_win_x": 1346.62,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001963",
+      "total_win_x": 1346.18,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_000690",
+      "total_win_x": 1343.4299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040022",
+      "total_win_x": 1341.34,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019284",
+      "total_win_x": 1326.82,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035401",
+      "total_win_x": 1325.28,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042158",
+      "total_win_x": 1324.73,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_003927",
+      "total_win_x": 1323.85,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035060",
+      "total_win_x": 1321.32,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_005280",
+      "total_win_x": 1320.55,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037226",
+      "total_win_x": 1310.6499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004030",
+      "total_win_x": 1300.7500000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016075",
+      "total_win_x": 1297.6699999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_029478",
+      "total_win_x": 1295.8,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037693",
+      "total_win_x": 1293.49,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001633",
+      "total_win_x": 1289.97,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_044738",
+      "total_win_x": 1280.3999999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008727",
+      "total_win_x": 1278.75,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016038",
+      "total_win_x": 1271.71,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048231",
+      "total_win_x": 1271.71,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_009598",
+      "total_win_x": 1271.7099999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033659",
+      "total_win_x": 1266.65,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013124",
+      "total_win_x": 1265.99,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007071",
+      "total_win_x": 1265.2199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033372",
+      "total_win_x": 1262.8,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_038845",
+      "total_win_x": 1258.51,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021100",
+      "total_win_x": 1256.97,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023498",
+      "total_win_x": 1252.68,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030956",
+      "total_win_x": 1250.26,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007099",
+      "total_win_x": 1245.64,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030416",
+      "total_win_x": 1245.2,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020480",
+      "total_win_x": 1243.55,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019264",
+      "total_win_x": 1240.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041130",
+      "total_win_x": 1240.1399999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016614",
+      "total_win_x": 1235.41,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_038228",
+      "total_win_x": 1219.2399999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047962",
+      "total_win_x": 1218.1399999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008051",
+      "total_win_x": 1211.4299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018367",
+      "total_win_x": 1210.11,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018895",
+      "total_win_x": 1199.55,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015669",
+      "total_win_x": 1199.11,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042446",
+      "total_win_x": 1195.81,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010741",
+      "total_win_x": 1194.0500000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_003135",
+      "total_win_x": 1193.94,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030693",
+      "total_win_x": 1188.5500000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030391",
+      "total_win_x": 1185.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023968",
+      "total_win_x": 1185.3600000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020913",
+      "total_win_x": 1185.1399999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001307",
+      "total_win_x": 1180.3,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030602",
+      "total_win_x": 1177.8799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033371",
+      "total_win_x": 1176.4499999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_014332",
+      "total_win_x": 1175.6799999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043196",
+      "total_win_x": 1172.82,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_032025",
+      "total_win_x": 1170.6200000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027562",
+      "total_win_x": 1168.75,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031515",
+      "total_win_x": 1161.49,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049709",
+      "total_win_x": 1160.83,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_032618",
+      "total_win_x": 1159.73,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_017840",
+      "total_win_x": 1156.32,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006326",
+      "total_win_x": 1155.22,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_017141",
+      "total_win_x": 1153.46,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002254",
+      "total_win_x": 1153.02,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023970",
+      "total_win_x": 1151.04,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_005753",
+      "total_win_x": 1148.7299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031369",
+      "total_win_x": 1145.32,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033021",
+      "total_win_x": 1145.32,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031765",
+      "total_win_x": 1142.02,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020317",
+      "total_win_x": 1141.36,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007221",
+      "total_win_x": 1136.08,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011709",
+      "total_win_x": 1135.8600000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030763",
+      "total_win_x": 1132.45,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_029791",
+      "total_win_x": 1129.26,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034408",
+      "total_win_x": 1128.6,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_017052",
+      "total_win_x": 1126.9499999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047002",
+      "total_win_x": 1126.7299999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020503",
+      "total_win_x": 1125.08,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_038266",
+      "total_win_x": 1124.9699999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002195",
+      "total_win_x": 1120.8999999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019956",
+      "total_win_x": 1117.38,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018809",
+      "total_win_x": 1113.3100000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034442",
+      "total_win_x": 1112.21,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027100",
+      "total_win_x": 1111.33,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030656",
+      "total_win_x": 1110.3400000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_032932",
+      "total_win_x": 1108.25,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047610",
+      "total_win_x": 1107.26,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021067",
+      "total_win_x": 1106.3799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_012912",
+      "total_win_x": 1105.83,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016829",
+      "total_win_x": 1105.6100000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_044458",
+      "total_win_x": 1105.6100000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008541",
+      "total_win_x": 1105.06,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025286",
+      "total_win_x": 1104.73,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037920",
+      "total_win_x": 1104.1799999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_012091",
+      "total_win_x": 1103.96,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016942",
+      "total_win_x": 1102.64,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015790",
+      "total_win_x": 1102.5299999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013129",
+      "total_win_x": 1101.54,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042631",
+      "total_win_x": 1101.54,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024872",
+      "total_win_x": 1101.32,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022507",
+      "total_win_x": 1096.59,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049261",
+      "total_win_x": 1095.05,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025792",
+      "total_win_x": 1094.06,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025049",
+      "total_win_x": 1093.2899999999997,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_003528",
+      "total_win_x": 1091.9699999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040231",
+      "total_win_x": 1089.33,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007762",
+      "total_win_x": 1086.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_045381",
+      "total_win_x": 1086.9099999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042862",
+      "total_win_x": 1086.1400000000003,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011658",
+      "total_win_x": 1086.1399999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027223",
+      "total_win_x": 1085.26,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035583",
+      "total_win_x": 1085.15,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015355",
+      "total_win_x": 1084.71,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_026196",
+      "total_win_x": 1082.3999999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_012324",
+      "total_win_x": 1082.18,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016280",
+      "total_win_x": 1081.96,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019589",
+      "total_win_x": 1081.96,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016221",
+      "total_win_x": 1081.74,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_028540",
+      "total_win_x": 1081.41,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022126",
+      "total_win_x": 1080.64,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027394",
+      "total_win_x": 1079.6499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034241",
+      "total_win_x": 1079.1000000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021833",
+      "total_win_x": 1078.1100000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002459",
+      "total_win_x": 1077.8899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010559",
+      "total_win_x": 1076.1299999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024830",
+      "total_win_x": 1074.0400000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_017463",
+      "total_win_x": 1073.93,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010501",
+      "total_win_x": 1072.17,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048073",
+      "total_win_x": 1070.3000000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034698",
+      "total_win_x": 1070.19,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041630",
+      "total_win_x": 1069.31,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034653",
+      "total_win_x": 1067.88,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043879",
+      "total_win_x": 1067.6599999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_026115",
+      "total_win_x": 1066.8899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004495",
+      "total_win_x": 1065.02,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025612",
+      "total_win_x": 1064.5800000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015665",
+      "total_win_x": 1064.36,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035507",
+      "total_win_x": 1063.26,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031641",
+      "total_win_x": 1062.93,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013911",
+      "total_win_x": 1061.3899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_029415",
+      "total_win_x": 1059.96,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_038738",
+      "total_win_x": 1059.52,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019731",
+      "total_win_x": 1057.98,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035452",
+      "total_win_x": 1057.8700000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040751",
+      "total_win_x": 1057.76,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007932",
+      "total_win_x": 1056.99,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034599",
+      "total_win_x": 1055.3400000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018160",
+      "total_win_x": 1054.68,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_016800",
+      "total_win_x": 1054.46,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022906",
+      "total_win_x": 1054.46,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022909",
+      "total_win_x": 1054.46,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015165",
+      "total_win_x": 1054.24,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_038631",
+      "total_win_x": 1054.2399999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023504",
+      "total_win_x": 1054.13,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_032581",
+      "total_win_x": 1054.1299999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_044359",
+      "total_win_x": 1053.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049652",
+      "total_win_x": 1053.6899999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027009",
+      "total_win_x": 1052.7,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006931",
+      "total_win_x": 1051.05,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042607",
+      "total_win_x": 1050.7199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019627",
+      "total_win_x": 1050.28,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035133",
+      "total_win_x": 1049.9499999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_032001",
+      "total_win_x": 1049.5099999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031837",
+      "total_win_x": 1048.9599999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030501",
+      "total_win_x": 1047.53,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024036",
+      "total_win_x": 1046.65,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015059",
+      "total_win_x": 1046.21,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024492",
+      "total_win_x": 1046.21,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004407",
+      "total_win_x": 1045.88,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042015",
+      "total_win_x": 1045.6599999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049509",
+      "total_win_x": 1045.55,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001389",
+      "total_win_x": 1045.0,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011692",
+      "total_win_x": 1044.45,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_045354",
+      "total_win_x": 1044.01,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024650",
+      "total_win_x": 1043.35,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_011366",
+      "total_win_x": 1043.13,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002653",
+      "total_win_x": 1042.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023210",
+      "total_win_x": 1042.91,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_036480",
+      "total_win_x": 1042.8,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_003489",
+      "total_win_x": 1042.69,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015317",
+      "total_win_x": 1042.3600000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002223",
+      "total_win_x": 1041.26,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013926",
+      "total_win_x": 1040.82,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027608",
+      "total_win_x": 1039.83,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_027178",
+      "total_win_x": 1039.39,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019026",
+      "total_win_x": 1039.06,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004314",
+      "total_win_x": 1038.84,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047728",
+      "total_win_x": 1038.73,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_017858",
+      "total_win_x": 1037.85,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004340",
+      "total_win_x": 1036.64,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_028514",
+      "total_win_x": 1036.5300000000002,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021658",
+      "total_win_x": 1036.09,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018839",
+      "total_win_x": 1035.76,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_045016",
+      "total_win_x": 1035.76,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_009820",
+      "total_win_x": 1035.21,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047995",
+      "total_win_x": 1034.77,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_028098",
+      "total_win_x": 1034.6599999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_006388",
+      "total_win_x": 1034.11,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_022735",
+      "total_win_x": 1033.78,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040725",
+      "total_win_x": 1031.3600000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_030859",
+      "total_win_x": 1030.15,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018391",
+      "total_win_x": 1029.6000000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049562",
+      "total_win_x": 1028.7199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048296",
+      "total_win_x": 1028.4999999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047088",
+      "total_win_x": 1028.3899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023264",
+      "total_win_x": 1028.28,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013004",
+      "total_win_x": 1028.17,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002168",
+      "total_win_x": 1027.51,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007983",
+      "total_win_x": 1027.51,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034706",
+      "total_win_x": 1027.51,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_009360",
+      "total_win_x": 1026.85,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010288",
+      "total_win_x": 1024.87,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023974",
+      "total_win_x": 1023.66,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019467",
+      "total_win_x": 1023.3299999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010813",
+      "total_win_x": 1022.7799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024446",
+      "total_win_x": 1022.1200000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_040827",
+      "total_win_x": 1022.01,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031020",
+      "total_win_x": 1021.3499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_009258",
+      "total_win_x": 1020.6899999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034689",
+      "total_win_x": 1020.58,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_003448",
+      "total_win_x": 1020.2499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_044048",
+      "total_win_x": 1019.81,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_026388",
+      "total_win_x": 1019.5899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037872",
+      "total_win_x": 1019.5899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_046396",
+      "total_win_x": 1018.82,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043814",
+      "total_win_x": 1018.49,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049910",
+      "total_win_x": 1017.17,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_045527",
+      "total_win_x": 1016.8399999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_002513",
+      "total_win_x": 1016.4,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001204",
+      "total_win_x": 1015.8499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_014243",
+      "total_win_x": 1015.74,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015833",
+      "total_win_x": 1015.7399999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_039847",
+      "total_win_x": 1015.52,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019170",
+      "total_win_x": 1015.2999999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_000931",
+      "total_win_x": 1014.64,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_018689",
+      "total_win_x": 1014.31,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_010332",
+      "total_win_x": 1013.9799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_026453",
+      "total_win_x": 1013.9799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048598",
+      "total_win_x": 1013.9799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_032826",
+      "total_win_x": 1013.8699999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033396",
+      "total_win_x": 1013.7600000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033479",
+      "total_win_x": 1013.54,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034307",
+      "total_win_x": 1012.7699999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_025795",
+      "total_win_x": 1012.1099999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_005581",
+      "total_win_x": 1011.78,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019257",
+      "total_win_x": 1011.6700000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_048771",
+      "total_win_x": 1011.45,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_043719",
+      "total_win_x": 1011.4499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_038682",
+      "total_win_x": 1010.35,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019011",
+      "total_win_x": 1010.1300000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042033",
+      "total_win_x": 1010.1300000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034810",
+      "total_win_x": 1010.1299999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_023144",
+      "total_win_x": 1009.9099999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_037100",
+      "total_win_x": 1009.58,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033783",
+      "total_win_x": 1009.5799999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_007665",
+      "total_win_x": 1009.36,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_036394",
+      "total_win_x": 1008.81,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021271",
+      "total_win_x": 1008.04,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_035269",
+      "total_win_x": 1007.8199999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041609",
+      "total_win_x": 1007.5999999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004595",
+      "total_win_x": 1006.72,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_029898",
+      "total_win_x": 1006.6099999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041169",
+      "total_win_x": 1006.5,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004702",
+      "total_win_x": 1006.39,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015603",
+      "total_win_x": 1006.2800000000001,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_047269",
+      "total_win_x": 1006.17,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034955",
+      "total_win_x": 1005.9499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_003246",
+      "total_win_x": 1005.62,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_046552",
+      "total_win_x": 1005.6199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_031705",
+      "total_win_x": 1005.5099999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_033353",
+      "total_win_x": 1005.1799999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_013635",
+      "total_win_x": 1004.7399999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_012813",
+      "total_win_x": 1004.63,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_008427",
+      "total_win_x": 1004.52,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_045504",
+      "total_win_x": 1004.1899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_028847",
+      "total_win_x": 1003.7499999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_021653",
+      "total_win_x": 1003.64,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_019581",
+      "total_win_x": 1003.0899999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020367",
+      "total_win_x": 1002.7599999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049577",
+      "total_win_x": 1002.54,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_001422",
+      "total_win_x": 1002.5399999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_041548",
+      "total_win_x": 1002.43,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_042866",
+      "total_win_x": 1002.43,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_049464",
+      "total_win_x": 1002.3199999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_004958",
+      "total_win_x": 1001.66,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_020206",
+      "total_win_x": 1001.33,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_009047",
+      "total_win_x": 1001.2199999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_024164",
+      "total_win_x": 1000.6699999999998,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_015132",
+      "total_win_x": 1000.01,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    },
+    {
+      "seed": "HUNT_BUY_034454",
+      "total_win_x": 1000.0099999999999,
+      "is_capped": false,
+      "cap_reason": null,
+      "bonus_variant": "vip_buy"
+    }
+  ]
+}

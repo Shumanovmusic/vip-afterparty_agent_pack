@@ -200,8 +200,19 @@ This section defines required fields for event objects in `events[]`.
 ### 4.3 enterFreeSpins
 
 ```json
-{ "type": "enterFreeSpins", "count": 10 }
+{ "type": "enterFreeSpins", "count": 10, "reason": "scatter" }
 ```
+
+or for VIP Buy:
+
+```json
+{ "type": "enterFreeSpins", "count": 10, "reason": "buy_feature", "bonusVariant": "vip_buy" }
+```
+
+Fields:
+- `count` (number): number of free spins awarded
+- `reason` (string, optional): `scatter|buy_feature` - indicates trigger source
+- `bonusVariant` (string, optional): `standard|vip_buy` - present only when reason is buy_feature
 
 ### 4.4 heatUpdate
 
@@ -244,7 +255,27 @@ Positions are 0-based flattened indices for a 5x3 grid:
 { "type": "bonusEnd", "bonusType": "freespins", "finalePath": "upgrade", "totalWinX": 38.0 }
 ```
 
-`finalePath` MUST be one of: `upgrade|multiplier|standard`
+or for VIP Buy bonus:
+
+```json
+{
+  "type": "bonusEnd",
+  "bonusType": "freespins",
+  "finalePath": "upgrade",
+  "totalWinX": 418.0,
+  "bonusVariant": "vip_buy",
+  "bonusMultiplierApplied": 11,
+  "totalWinXPreMultiplier": 38.0
+}
+```
+
+Fields:
+- `bonusType` (string): `freespins|pick|wheel|other`
+- `finalePath` (string): MUST be one of `upgrade|multiplier|standard`
+- `totalWinX` (number): final bonus win multiplier (after VIP multiplier if applied)
+- `bonusVariant` (string, optional): `standard|vip_buy` - present for VIP Buy bonuses
+- `bonusMultiplierApplied` (number, optional): multiplier applied (e.g., 11) - present for VIP Buy
+- `totalWinXPreMultiplier` (number, optional): win_x before VIP multiplier - present for VIP Buy
 
 ---
 

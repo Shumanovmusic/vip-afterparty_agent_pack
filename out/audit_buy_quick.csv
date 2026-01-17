@@ -1,0 +1,2 @@
+mode,rounds,seed,debit_multiplier,rtp,hit_freq,bonus_entry_rate,avg_debit,avg_credit,p95_win_x,p99_win_x,max_win_x,rate_1000x_plus,rate_10000x_plus,capped_rate,config_hash
+buy,10000,AUDIT_2025,100,86.7493,96.6300,100.0000,100.0000,86.7493,317.90,883.90,1858.00,0.350000,0.000000,0.000000,6b282b3256cf6b4e

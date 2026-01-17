@@ -42,6 +42,7 @@ class GameState(BaseModel):
     # Free spins state
     free_spins_remaining: int = 0
     heat_level: int = 0
+    bonus_is_bought: bool = False  # True if triggered via Buy Feature (10x multiplier)
 
     # Afterparty meter for Rage Mode (per GAME_RULES.md)
     afterparty_meter: int = 0

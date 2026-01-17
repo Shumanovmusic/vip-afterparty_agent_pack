@@ -172,6 +172,63 @@ class TestSpinResponseSchema:
         assert isinstance(next_state["heatLevel"], int)
 
 
+class TestBuyFeatureEvents:
+    """Tests for BUY_FEATURE mode events per protocol_v1.md and GAME_RULES.md."""
+
+    def test_buy_feature_triggers_free_spins(self, client_with_mock_redis: TestClient):
+        """BUY_FEATURE mode must trigger enterFreeSpins event."""
+        response = client_with_mock_redis.post(
+            "/spin",
+            headers={"X-Player-Id": PLAYER_ID},
+            json=make_spin_request(mode="BUY_FEATURE"),
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        events = data["events"]
+        enter_fs_events = [e for e in events if e.get("type") == "enterFreeSpins"]
+        assert len(enter_fs_events) >= 1, "BUY_FEATURE must trigger enterFreeSpins"
+
+    def test_buy_feature_has_vip_buy_variant(self, client_with_mock_redis: TestClient):
+        """BUY_FEATURE enterFreeSpins must have bonusVariant: vip_buy."""
+        response = client_with_mock_redis.post(
+            "/spin",
+            headers={"X-Player-Id": PLAYER_ID},
+            json=make_spin_request(mode="BUY_FEATURE"),
+        )
+        data = response.json()
+
+        events = data["events"]
+        enter_fs_events = [e for e in events if e.get("type") == "enterFreeSpins"]
+        assert len(enter_fs_events) >= 1
+
+        enter_fs = enter_fs_events[0]
+        assert enter_fs.get("reason") == "buy_feature", (
+            f"BUY_FEATURE enterFreeSpins reason must be 'buy_feature', got {enter_fs.get('reason')}"
+        )
+        assert enter_fs.get("bonusVariant") == "vip_buy", (
+            f"BUY_FEATURE enterFreeSpins bonusVariant must be 'vip_buy', got {enter_fs.get('bonusVariant')}"
+        )
+
+    def test_buy_feature_event_has_count(self, client_with_mock_redis: TestClient):
+        """BUY_FEATURE enterFreeSpins must have count field."""
+        response = client_with_mock_redis.post(
+            "/spin",
+            headers={"X-Player-Id": PLAYER_ID},
+            json=make_spin_request(mode="BUY_FEATURE"),
+        )
+        data = response.json()
+
+        events = data["events"]
+        enter_fs_events = [e for e in events if e.get("type") == "enterFreeSpins"]
+        assert len(enter_fs_events) >= 1
+
+        enter_fs = enter_fs_events[0]
+        assert "count" in enter_fs, "enterFreeSpins must have count field"
+        assert isinstance(enter_fs["count"], int), "enterFreeSpins count must be int"
+        assert enter_fs["count"] > 0, "enterFreeSpins count must be positive"
+
+
 class TestErrorResponseFormat:
     """Tests for error response format per error_codes.md."""
 

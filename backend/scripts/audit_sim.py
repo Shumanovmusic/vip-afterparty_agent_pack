@@ -27,6 +27,10 @@ from app.logic.rng import SeededRNG
 from app.protocol import SpinMode
 
 
+# Buy Feature cost multiplier per GAME_RULES.md
+BUY_FEATURE_COST_MULTIPLIER = 100
+
+
 @dataclass
 class SimulationStats:
     """Statistics accumulated during simulation."""
@@ -38,6 +42,15 @@ class SimulationStats:
     bonus_entries: int = 0
     win_x_values: list[float] = field(default_factory=list)
     max_win_x_observed: float = 0.0
+    # Tail distribution tracking
+    wins_1000x_plus: int = 0
+    wins_10000x_plus: int = 0
+    # Wallet metrics
+    debit_multiplier: float = 1.0  # 1x for base, 100x for buy
+    # VIP Bonus variant tracking per GAME_RULES.md
+    bonus_variant: str = "standard"  # standard or vip_buy
+    vip_buy_bonus_entries: int = 0
+    standard_bonus_entries: int = 0
 
 
 def get_config_hash() -> str:
@@ -79,51 +92,127 @@ def run_simulation(
     rng = SeededRNG(seed=seed_int)
     engine = GameEngine(rng=rng)
 
-    spin_mode = SpinMode.BUY_FEATURE if mode == "buy" else SpinMode.NORMAL
     bet_amount = 1.0  # Standard bet for simulation
+    is_buy_mode = mode == "buy"
+
+    # Debit multiplier for reporting
+    debit_multiplier = BUY_FEATURE_COST_MULTIPLIER if is_buy_mode else 1.0
 
     stats = SimulationStats()
+    stats.debit_multiplier = debit_multiplier
     state: GameState | None = None
 
     progress_interval = max(1, rounds // 100)
+    round_count = 0
 
-    for i in range(rounds):
-        if verbose and i % progress_interval == 0:
-            pct = (i / rounds) * 100
+    while round_count < rounds:
+        if verbose and round_count % progress_interval == 0:
+            pct = (round_count / rounds) * 100
             print(f"\rProgress: {pct:.1f}%", end="", flush=True)
 
-        result = engine.spin(
-            bet_amount=bet_amount,
-            mode=spin_mode,
-            hype_mode=False,
-            state=state,
-        )
+        if is_buy_mode:
+            # Buy Feature: pay 100x, get entire bonus session as ONE round
+            # This is VIP Enhanced Bonus per GAME_RULES.md
+            cost_per_round = bet_amount * BUY_FEATURE_COST_MULTIPLIER
+            round_total_win = 0.0
+            round_max_win_x = 0.0
+            bonus_entered = False
+            bonus_variant = "vip_buy"  # Buy feature always uses VIP variant
 
-        # Update state for next spin (stateful simulation)
-        state = result.next_state
+            # First spin triggers Buy Feature
+            result = engine.spin(
+                bet_amount=bet_amount,
+                mode=SpinMode.BUY_FEATURE,
+                hype_mode=False,
+                state=state,
+            )
+            state = result.next_state
+            round_total_win += result.total_win
+            round_max_win_x = max(round_max_win_x, result.total_win_x)
 
-        # Track statistics
-        stats.total_wagered += bet_amount
-        stats.total_won += result.total_win
-        stats.rounds += 1
+            for event in result.events:
+                if event.get("type") == "enterFreeSpins":
+                    bonus_entered = True
+                    # Verify bonus variant from event
+                    bonus_variant = event.get("bonusVariant", "vip_buy")
 
-        if result.total_win > 0:
-            stats.wins += 1
+            if result.is_capped:
+                stats.capped_count += 1
 
-        if result.is_capped:
-            stats.capped_count += 1
+            # Continue spinning until bonus ends (back to BASE mode)
+            while state and state.mode == GameMode.FREE_SPINS:
+                result = engine.spin(
+                    bet_amount=bet_amount,
+                    mode=SpinMode.NORMAL,  # Free spins use normal mode
+                    hype_mode=False,
+                    state=state,
+                )
+                state = result.next_state
+                round_total_win += result.total_win
+                round_max_win_x = max(round_max_win_x, result.total_win_x)
 
-        # Track bonus entries
-        for event in result.events:
-            if event.get("type") == "enterFreeSpins":
+                if result.is_capped:
+                    stats.capped_count += 1
+
+            # Track round stats
+            stats.total_wagered += cost_per_round
+            stats.total_won += round_total_win
+            stats.rounds += 1
+
+            if round_total_win > 0:
+                stats.wins += 1
+            if bonus_entered:
                 stats.bonus_entries += 1
+                stats.vip_buy_bonus_entries += 1  # Track VIP buy bonuses
 
-        # Track win_x values for percentile calculation
-        stats.win_x_values.append(result.total_win_x)
+            # Track win_x relative to cost (for buy mode, the effective multiplier)
+            round_win_x = round_total_win / bet_amount if bet_amount > 0 else 0
+            stats.win_x_values.append(round_win_x)
 
-        # Track max observed
-        if result.total_win_x > stats.max_win_x_observed:
-            stats.max_win_x_observed = result.total_win_x
+            if round_win_x > stats.max_win_x_observed:
+                stats.max_win_x_observed = round_win_x
+
+            if round_win_x >= 1000:
+                stats.wins_1000x_plus += 1
+            if round_win_x >= 10000:
+                stats.wins_10000x_plus += 1
+
+        else:
+            # Base mode: each spin is one round
+            result = engine.spin(
+                bet_amount=bet_amount,
+                mode=SpinMode.NORMAL,
+                hype_mode=False,
+                state=state,
+            )
+            state = result.next_state
+
+            stats.total_wagered += bet_amount
+            stats.total_won += result.total_win
+            stats.rounds += 1
+
+            if result.total_win > 0:
+                stats.wins += 1
+
+            if result.is_capped:
+                stats.capped_count += 1
+
+            for event in result.events:
+                if event.get("type") == "enterFreeSpins":
+                    stats.bonus_entries += 1
+                    stats.standard_bonus_entries += 1  # Base mode = standard variant
+
+            stats.win_x_values.append(result.total_win_x)
+
+            if result.total_win_x > stats.max_win_x_observed:
+                stats.max_win_x_observed = result.total_win_x
+
+            if result.total_win_x >= 1000:
+                stats.wins_1000x_plus += 1
+            if result.total_win_x >= 10000:
+                stats.wins_10000x_plus += 1
+
+        round_count += 1
 
     if verbose:
         print("\rProgress: 100.0%")
@@ -159,16 +248,35 @@ def generate_csv(
     p95_win_x = calculate_percentile(stats.win_x_values, 95)
     p99_win_x = calculate_percentile(stats.win_x_values, 99)
 
+    # Tail distribution rates
+    rate_1000x = (stats.wins_1000x_plus / stats.rounds * 100) if stats.rounds > 0 else 0
+    rate_10000x = (stats.wins_10000x_plus / stats.rounds * 100) if stats.rounds > 0 else 0
+
+    # Wallet metrics
+    avg_debit = stats.total_wagered / stats.rounds if stats.rounds > 0 else 0
+    avg_credit = stats.total_won / stats.rounds if stats.rounds > 0 else 0
+
+    # Bonus variant rates per GAME_RULES.md
+    vip_buy_bonus_rate = (stats.vip_buy_bonus_entries / stats.rounds * 100) if stats.rounds > 0 else 0
+    standard_bonus_rate = (stats.standard_bonus_entries / stats.rounds * 100) if stats.rounds > 0 else 0
+
     row = {
         "mode": mode,
         "rounds": rounds,
         "seed": seed_str,
+        "debit_multiplier": f"{stats.debit_multiplier:.0f}",
         "rtp": f"{rtp:.4f}",
         "hit_freq": f"{hit_freq:.4f}",
         "bonus_entry_rate": f"{bonus_entry_rate:.4f}",
+        "vip_buy_bonus_rate": f"{vip_buy_bonus_rate:.6f}",
+        "standard_bonus_rate": f"{standard_bonus_rate:.6f}",
+        "avg_debit": f"{avg_debit:.4f}",
+        "avg_credit": f"{avg_credit:.4f}",
         "p95_win_x": f"{p95_win_x:.2f}",
         "p99_win_x": f"{p99_win_x:.2f}",
         "max_win_x": f"{stats.max_win_x_observed:.2f}",
+        "rate_1000x_plus": f"{rate_1000x:.6f}",
+        "rate_10000x_plus": f"{rate_10000x:.6f}",
         "capped_rate": f"{capped_rate:.6f}",
         "config_hash": config_hash,
     }
@@ -246,14 +354,18 @@ def main() -> int:
         print(f"ASSERTION FAILED: max_win_x_observed ({stats.max_win_x_observed}) > MAX_WIN_TOTAL_X ({MAX_WIN_TOTAL_X})")
         return 1
 
+    rtp = (stats.total_won / stats.total_wagered * 100) if stats.total_wagered > 0 else 0
     print(f"\nSummary:")
     print(f"  Rounds: {stats.rounds}")
+    print(f"  Debit multiplier: {stats.debit_multiplier:.0f}x")
     print(f"  Total wagered: {stats.total_wagered:.2f}")
     print(f"  Total won: {stats.total_won:.2f}")
-    print(f"  RTP: {(stats.total_won / stats.total_wagered * 100):.4f}%")
+    print(f"  RTP: {rtp:.4f}%")
     print(f"  Hit frequency: {(stats.wins / stats.rounds * 100):.4f}%")
     print(f"  Bonus entries: {stats.bonus_entries} ({(stats.bonus_entries / stats.rounds * 100):.4f}%)")
     print(f"  Max win_x observed: {stats.max_win_x_observed:.2f}x")
+    print(f"  Wins 1000x+: {stats.wins_1000x_plus} ({(stats.wins_1000x_plus / stats.rounds * 100):.6f}%)")
+    print(f"  Wins 10000x+: {stats.wins_10000x_plus} ({(stats.wins_10000x_plus / stats.rounds * 100):.6f}%)")
     print(f"  Capped count: {stats.capped_count} ({(stats.capped_count / stats.rounds * 100):.6f}%)")
     print(f"\nASSERTION PASSED: max_win_x ({stats.max_win_x_observed}) <= MAX_WIN_TOTAL_X ({MAX_WIN_TOTAL_X})")
 

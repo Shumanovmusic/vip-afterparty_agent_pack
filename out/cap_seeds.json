@@ -1,0 +1,11 @@
+{
+  "mode": "buy",
+  "max_seeds": 100000,
+  "min_win_x": 25000.0,
+  "target": "cap",
+  "seed_prefix": "CAP",
+  "config_hash": "6b282b3256cf6b4e",
+  "max_win_total_x": 25000,
+  "found_count": 0,
+  "found": []
+}
