@@ -31,7 +31,7 @@ class ProductionRNG(RNGBase):
         return secrets.randbelow(b - a + 1) + a
 
 
-class TestRNG(RNGBase):
+class SeededRNG(RNGBase):
     """
     Test/Simulation RNG per RNG_POLICY.md.
 

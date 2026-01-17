@@ -12,8 +12,8 @@ def test_health_returns_200():
     assert response.status_code == 200
 
 
-def test_health_returns_ok_true():
-    """GET /health must return {"ok": true}."""
+def test_health_returns_status_ok():
+    """GET /health must return {"status": "ok"} per CLAUDE.md validation gate."""
     response = client.get("/health")
     data = response.json()
-    assert data["ok"] is True
+    assert data["status"] == "ok"

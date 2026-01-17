@@ -1,0 +1,2 @@
+mode,rounds,seed,rtp,hit_freq,bonus_entry_rate,p95_win_x,p99_win_x,max_win_x,capped_rate,config_hash
+base,100000,AUDIT_2025,42.6750,12.0500,0.2690,2.50,7.00,100.00,0.000000,6b282b3256cf6b4e

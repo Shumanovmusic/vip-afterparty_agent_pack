@@ -46,15 +46,15 @@
 Цель: дать игрокам “фейерверки/взрывы”, сохранив совместимость с `Reduce Motion` и `Turbo Spin`.
 
 ### Tiers (по win_x)
-1) **Big Win (15x - 50x)**:
+1) **Big Win (20x - 200x)**:
    - Visual (Normal): золотые монеты/искры снизу экрана, короткое конфетти.
    - Audio (Normal): короткий “sting” победы.
    - Reduce Motion: только текст `BIG WIN` + лёгкое затемнение фона, **без** частиц.
-2) **Mega Win (50x - 100x)**:
+2) **Mega Win (200x - 1000x)**:
    - Visual (Normal): конфетти + усиленное свечение + краткие вспышки.
    - Audio (Normal): более громкий sting.
    - Reduce Motion: текст `MEGA WIN`, фон затемняется, **без** вспышек/строба.
-3) **Epic Win (100x+)**:
+3) **Epic Win (1000x+)**:
    - Visual (Normal): фейерверки + шампанское + опционально screen shake.
    - Audio (Normal): “anthem” победы.
    - Reduce Motion: текст `EPIC WIN`, статичный золотой фон, **без** фейерверков/тряски.
@@ -126,4 +126,3 @@ Optional (allowed):
 - Integrity: честно — только если реально 2 scatters уже на поле; не имитировать.
 - TURBO: Teaser OFF.
 - Reduce Motion: без резких вспышек; допускается только рамка и текст “One more…”.
-

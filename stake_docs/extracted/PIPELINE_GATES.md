@@ -77,7 +77,7 @@ python backend/scripts/audit_sim.py --seed AUDIT_2025 --rounds 100000
 ```
 
 **Pass criteria:**
-- No payout exceeds `MAX_WIN_X = 25000`
+- No payout exceeds `MAX_WIN_TOTAL_X = 25000`
 - RTP within expected tolerance
 - Frequencies match expected ranges
 - Seed and config_hash logged

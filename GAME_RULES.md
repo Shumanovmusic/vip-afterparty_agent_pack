@@ -3,13 +3,14 @@
 Этот документ фиксирует математику и правила выплат.
 
 ## Основные параметры
-- `MAX_WIN_X` берётся из `CONFIG.md` и является hard cap.
+- `MAX_WIN_TOTAL_X` берётся из `CONFIG.md` и является hard cap для total win за раунд (base + bonus aggregate).
 
 ## MAX WIN DESIGN (CONTRACT)
-- `MAX_WIN_X = 25000`
+- `MAX_WIN_TOTAL_X = 25000` — Max Win per Round: 25,000x Bet (Hard Cap).
 - Max win MUST быть теоретически достижим в продакшн-конфигурации.
 - Max win MUST достигаться только через **описанные** комбинации механик (без скрытых “ускорителей”).
-- Выплата MUST быть ограничена hard cap `MAX_WIN_X`, даже если несколько механик суммируются.
+- Выплата MUST быть ограничена hard cap `MAX_WIN_TOTAL_X` для **TOTAL round win** (base + bonus aggregate), даже если несколько механик суммируются.
+- Display/UI: при срабатывании cap показывать `Max Win Reached`.
 
 ## Частоты (Simulation-Based Acceptance)
 Реализация MUST уметь генерировать симуляционный отчёт, включающий:
@@ -24,7 +25,7 @@
 
 ### Acceptance Criteria (MUST)
 - Max win либо наблюдается в симуляции, либо предоставляется доказательство достижимости через перебор/перечень состояний (с указанием условий и вероятностей), подтверждённое ревью.
-- Никакая выплата не превышает `MAX_WIN_X`.
+- Никакая выплата не превышает `MAX_WIN_TOTAL_X`.
 
 ## ANTICIPATION SYSTEM (NON-DECEPTIVE CONTRACT)
 Цель: дать ощущение “почти выиграл” **без обмана**.
@@ -71,7 +72,7 @@ Anticipation может включаться только если:
 
 ### Acceptance Criteria (MUST)
 - При включённом Hype Mode фактическая вероятность входа в бонус возрастает согласно `HYPE_MODE_BONUS_CHANCE_MULTIPLIER` (подтверждается симуляциями).
-- Изменение режима НЕ ломает hard cap `MAX_WIN_X`.
+- Изменение режима НЕ ломает hard cap `MAX_WIN_TOTAL_X`.
 
 
 ## FEATURE: AFTERPARTY METER -> RAGE MODE (CONTRACT)
@@ -102,7 +103,7 @@ Anticipation может включаться только если:
   - применяются cooldown правила (см. `RAGE_TRIGGER_COOLDOWN_SPINS`)
 
 ### Cap Safety
-- Множитель Rage участвует в расчёте, но итог всё равно ограничен hard cap `MAX_WIN_X`.
+- Множитель Rage участвует в расчёте, но итог всё равно ограничен hard cap `MAX_WIN_TOTAL_X`.
 - Если сработал cap, `isCapped=true` и в событиях/телеметрии фиксируется `capReason`.
 
 ### Events (Protocol)
@@ -140,4 +141,3 @@ Backend MUST emit events:
 
 ### Protocol
 - Backend обязан эмитить `eventStart/eventEnd` и `bonus_end` (finale_path).
-

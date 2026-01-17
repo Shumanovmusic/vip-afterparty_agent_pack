@@ -82,7 +82,7 @@ Client plays events sequentially, respecting Skip/Turbo/ReduceMotion rules.
 - Test: deterministic RNG with logged seed for reproducibility
 
 ### From GAME_RULES.md
-- All wins capped at `MAX_WIN_X = 25000`
+- All wins capped at `MAX_WIN_TOTAL_X = 25000`
 - Anticipation only when mathematically valid
 - Rage Mode multiplier applies before cap
 

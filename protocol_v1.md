@@ -2,7 +2,7 @@
 
 ## Meta
 - **protocolVersion:** "1.0"
-- **Transport:** HTTPS
+- **Transport:** HTTPS (production), HTTP allowed for local dev
 - **Encoding:** JSON (UTF-8)
 - **Time Format:** ISO 8601 UTC (where applicable)
 - **Client Idempotency:** `clientRequestId` (UUIDv4) per spin request
@@ -93,12 +93,18 @@ Fields:
     "currency": "USD"
   },
   "outcome": {
-    "totalWin": 2.50,
-    "totalWinX": 2.50,
+    "totalWin": 25.0,
+    "totalWinX": 25.0,
     "isCapped": false,
     "capReason": null
   },
   "events": [
+    {
+      "type": "eventStart",
+      "eventType": "rage",
+      "reason": "deadspins",
+      "durationSpins": 2
+    },
     {
       "type": "reveal",
       "grid": [[1,2,3],[1,2,3],[1,2,3],[1,2,3],[1,2,3]]
@@ -111,32 +117,12 @@ Fields:
     {
       "type": "winLine",
       "lineId": 5,
-      "amount": 0.50,
-      "winX": 0.50
-    },
-    {
-      "type": "eventStart",
-      "eventType": "rage",
-      "reason": "deadspins",
-      "durationSpins": 2
+      "amount": 25.0,
+      "winX": 25.0
     },
     {
       "type": "heatUpdate",
       "level": 1
-    },
-    {
-      "type": "enterFreeSpins",
-      "count": 10
-    },
-    {
-      "type": "bonusEnd",
-      "bonusType": "freespins",
-      "finalePath": "multiplier",
-      "totalWinX": 25.0
-    },
-    {
-      "type": "eventEnd",
-      "eventType": "rage"
     },
     {
       "type": "winTier",
@@ -153,7 +139,8 @@ Fields:
 ```
 
 ### Notes on fields
-- `totalWinX` is defined as totalWin / baseBet. Base bet is betAmount (not including ante surcharge from hype mode).
+- ‘totalWinX’ MUST be defined as: totalWinX = totalWin / betAmount (base bet). Base bet is betAmount (not including ante surcharge from hype mode).
+- Each ‘winLine.winX’ MUST be defined as: winX = amount / betAmount (base bet).
 - `capReason` values:
   - `"max_win_base"`
   - `"max_win_bonus"`
@@ -162,14 +149,15 @@ Fields:
 ### Event ordering (MUST)
 Client MUST play events in the order returned.
 Typical ordering:
-1. reveal
-2. optional base modifiers (spotlightWilds)
-3. win presentation (winLine / winWays if used)
-4. mode transitions (enterFreeSpins)
-5. progression (heatUpdate)
-6. bonus closure (bonusEnd) if applicable
-7. event boundaries (eventStart/eventEnd) if applicable
-8. celebration (winTier) if applicable
+1. optional eventStart (event boundaries that begin this round)
+2. reveal
+3. optional base modifiers (spotlightWilds)
+4. win presentation (winLine / winWays if used)
+5. mode transitions (enterFreeSpins) if applicable
+6. progression (heatUpdate) if applicable
+7. bonus closure (bonusEnd) if applicable
+8. optional eventEnd (event boundaries that end this round)
+9. celebration (winTier) if applicable
 
 ---
 

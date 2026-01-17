@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     protocol_version: str = "1.0"
 
     # Game config from CONFIG.md
-    max_win_x: int = 25000
+    max_win_total_x: int = 25000
     allowed_bets: list[float] = [0.10, 0.20, 0.50, 1.00, 2.00, 5.00, 10.00]
 
     # Features

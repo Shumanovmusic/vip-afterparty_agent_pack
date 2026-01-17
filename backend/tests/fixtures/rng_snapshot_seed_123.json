@@ -1,0 +1,10 @@
+{
+  "seed": 123,
+  "description": "Second snapshot: seed 123, normal spin, bet 1.00",
+  "input": {
+    "betAmount": 1.0,
+    "mode": "NORMAL",
+    "hypeMode": false
+  },
+  "expected_grid": [[0, 2, 5], [2, 9, 0], [6, 4, 8], [2, 4, 4], [3, 1, 5]]
+}

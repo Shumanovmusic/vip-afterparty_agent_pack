@@ -148,7 +148,7 @@ For stake.us (US social casino), use `social=true` query param.
 Per `LAWS_INDEX.md` and local contracts:
 
 ### MUST
-- [ ] All wins capped at `MAX_WIN_X = 25000` (CONFIG.md)
+- [ ] All wins capped at `MAX_WIN_TOTAL_X = 25000` (CONFIG.md)
 - [ ] Anticipation only when mathematically valid (GAME_RULES.md)
 - [ ] Production RNG: cryptographically secure, no fixed seed (RNG_POLICY.md)
 - [ ] Test RNG: deterministic with logged seed (RNG_POLICY.md)

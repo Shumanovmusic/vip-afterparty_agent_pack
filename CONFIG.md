@@ -4,7 +4,7 @@
 Если параметра нет здесь — агент не имеет права его “угадать”.
 
 ## Math
-MAX_WIN_X=25000
+MAX_WIN_TOTAL_X=25000
 
 ## UX / Animation
 POST_SPIN_BOUNCE_DEFAULT=ON
@@ -64,4 +64,3 @@ EXPLOSIVE_TRIGGER_WIN_X=5
 BOOST_SPINS=3
 RAGE_SPINS=2
 EXPLOSIVE_SPINS=1
-
