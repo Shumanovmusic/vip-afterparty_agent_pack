@@ -1,0 +1,16 @@
+https://stake-engine.com/docs
+https://stake-engine.com/docs/approval-guidelines
+https://stake-engine.com/docs/approval-guidelines/front-end-communication
+https://stake-engine.com/docs/approval-guidelines/rgs-communication
+https://stake-engine.com/docs/approval-guidelines/jurisdiction-requirements
+https://stake-engine.com/docs/approval-guidelines/general-disclaimer
+https://stake-engine.com/docs/rgs
+https://stake-engine.com/docs/rgs/wallet
+https://stake-engine.com/docs/rgs/example
+https://stake-engine.com/docs/math
+https://stake-engine.com/docs/math/setup
+https://stake-engine.com/docs/math/quick-start
+https://stake-engine.com/docs/math/optimization-algorithm
+https://stake-engine.com/docs/math/high-level-structure/game-format
+https://stake-engine.com/docs/math/source-files/outputs
+https://stake-engine.com/docs/front-end
