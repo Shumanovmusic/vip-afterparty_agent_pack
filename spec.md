@@ -123,16 +123,16 @@ Response (200):
 - Bonus Chance Multiplier: `HYPE_MODE_BONUS_CHANCE_MULTIPLIER = 2.0`
 - Payouts calculated from **base bet** (not ante total)
 
-### Rage Mode
-- Gate: `ENABLE_RAGE_MODE = ON`
-- Meter Max: `RAGE_METER_MAX = 100`
-- Spins Count: `RAGE_SPINS_COUNT = 3`
-- Multiplier: `RAGE_MULTIPLIER = 2`
+### Afterparty Meter (Rage Mode)
+- Gate: `ENABLE_AFTERPARTY_METER = ON`
+- Meter Max: `AFTERPARTY_METER_MAX = 100`
+- Spins Count: `AFTERPARTY_RAGE_SPINS = 3`
+- Multiplier: `AFTERPARTY_RAGE_MULTIPLIER = 2`
 - Meter Increments:
-  - Any Win: `+RAGE_METER_INC_ON_ANY_WIN = 10`
-  - Wild Present: `+RAGE_METER_INC_ON_WILD_PRESENT = 15`
-  - Two Scatters: `+RAGE_METER_INC_ON_TWO_SCATTERS = 20`
-- Cooldown: `RAGE_TRIGGER_COOLDOWN_SPINS = 10`
+  - Any Win: `+AFTERPARTY_METER_INC_ON_ANY_WIN = 3`
+  - Wild Present: `+AFTERPARTY_METER_INC_ON_WILD_PRESENT = 5`
+  - Two Scatters: `+AFTERPARTY_METER_INC_ON_TWO_SCATTERS = 8`
+- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS = 15`
 
 ### Spotlight Wilds
 - Gate: `ENABLE_SPOTLIGHT_WILDS = ON`

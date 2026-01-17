@@ -42,9 +42,9 @@ Backend обязан вести счётчики за сессию/окно:
 
 - Description: "рейдж" when Afterparty Meter fills to max — эмоциональная разрядка + ощущение, что игра "включилась".
 - Trigger: Afterparty Meter reaches `AFTERPARTY_METER_MAX` (100).
-  - Meter increments: +10 on any win, +15 on wild present, +20 on 2 scatters (in BASE mode).
+  - Meter increments: +3 on any win, +5 on wild present, +8 on 2 scatters (in BASE mode).
 - Duration: `AFTERPARTY_RAGE_SPINS` (3 spins).
-- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS` (10 spins before meter can refill).
+- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS` (15 spins before meter can refill).
 - Math: applies `AFTERPARTY_RAGE_MULTIPLIER` (x2) to win of each rage spin.
 - Presentation:
   - агрессивнее звук/подсветки
