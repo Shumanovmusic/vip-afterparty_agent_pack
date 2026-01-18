@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -83,6 +83,10 @@ check-laws-freeze:
 	@echo "Running Laws Freeze Gate (Gate A)..."
 	cd backend && .venv/bin/python -m pytest -q tests/test_laws_freeze_gate.py
 
+check-restorestate-freeze:
+	@echo "Running RestoreState Freeze Gate (fail-fast)..."
+	@./scripts/check-restorestate-freeze.sh
+
 gate:
 	@echo "=== GATE PACK v5 ==="
 	@echo "Step 0a: Laws sync check (fail-fast)..."
@@ -101,6 +105,9 @@ gate:
 	@echo ""
 	@echo "Step 0e: Baseline Update Policy check (fail-fast)..."
 	@./scripts/check-baseline-changed.sh --all || exit 1
+	@echo ""
+	@echo "Step 0f: RestoreState Freeze Gate (fail-fast)..."
+	@./scripts/check-restorestate-freeze.sh || exit 1
 	@echo ""
 	@echo "Step 1: Starting Docker services..."
 	$(MAKE) up
