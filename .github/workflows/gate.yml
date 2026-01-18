@@ -51,6 +51,9 @@ jobs:
             fi
           fi
 
+      - name: RestoreState Freeze check (fail-fast)
+        run: ./scripts/check-restorestate-freeze.sh
+
       - name: Run fast unit tests (skip slow/e2e)
         run: |
           cd backend
