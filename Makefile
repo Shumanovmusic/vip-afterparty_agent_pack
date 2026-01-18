@@ -99,6 +99,9 @@ gate:
 	$(MAKE) frontend-lint || exit 1
 	$(MAKE) frontend-test || exit 1
 	@echo ""
+	@echo "Step 0e: Baseline Update Policy check (fail-fast)..."
+	@./scripts/check-baseline-changed.sh --all || exit 1
+	@echo ""
 	@echo "Step 1: Starting Docker services..."
 	$(MAKE) up
 	@echo "Waiting for backend to be ready..."
@@ -346,3 +349,4 @@ check-baseline-changed-all:
 check-baseline-changed-ci:
 	@echo "=== Baseline Update Policy Check (vs $(BASE_BRANCH)) ==="
 	@./scripts/check-baseline-changed.sh --branch $(BASE_BRANCH)
+# test
