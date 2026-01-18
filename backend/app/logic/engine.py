@@ -25,10 +25,9 @@ HYPE_MODE_BONUS_CHANCE_MULTIPLIER = 2.0
 BASE_SCATTER_CHANCE = 0.02
 
 # Free Spins Enhancement (Buy Feature only)
-# To achieve ~96% RTP on 100x Buy Feature cost:
-# - 10 spins × base RTP (~0.96x) = ~9.6x total
-# - Need ~96x total for 96% RTP on 100x cost
-# - Empirical calibration: 11x multiplier yields ~95% RTP
+# Per CONFIG.md BUY_BONUS_PAYOUT_MULTIPLIER=11 (law)
+# To achieve ~98% RTP on 100x Buy Feature cost with 11x multiplier,
+# base game paytable is calibrated accordingly.
 FREE_SPINS_WIN_MULTIPLIER = 11
 
 # Afterparty Meter (Canonical Rage System - meter-based, NOT deadspins)
@@ -564,19 +563,19 @@ class GameEngine:
         if count < 3:
             return 0.0, count
 
-        # Multipliers by symbol and count (calibrated for ~96.5% RTP with 10 paylines)
+        # Multipliers by symbol and count (calibrated for ~98% RTP with 10 paylines)
         # Includes Afterparty Rage x2 on ~3% of spins + Spotlight Wilds 5%
-        # v2: reduced 8% from 104% to target 96.5%
+        # v3: increased ~2.2% from 95.87% to target 98%
         multipliers = {
-            Symbol.HIGH1.value: {3: 1.70, 4: 8.56, 5: 85.6},
-            Symbol.HIGH2.value: {3: 1.31, 4: 6.58, 5: 66.2},
-            Symbol.HIGH3.value: {3: 1.03, 4: 5.15, 5: 51.5},
-            Symbol.MID1.value: {3: 0.64, 4: 3.22, 5: 25.3},
-            Symbol.MID2.value: {3: 0.52, 4: 2.53, 5: 17.0},
-            Symbol.LOW1.value: {3: 0.33, 4: 1.21, 5: 6.6},
-            Symbol.LOW2.value: {3: 0.23, 4: 0.95, 5: 4.7},
-            Symbol.LOW3.value: {3: 0.14, 4: 0.66, 5: 3.27},
-            Symbol.WILD.value: {3: 3.22, 4: 16.7, 5: 167.4},
+            Symbol.HIGH1.value: {3: 1.74, 4: 8.75, 5: 87.5},
+            Symbol.HIGH2.value: {3: 1.34, 4: 6.73, 5: 67.7},
+            Symbol.HIGH3.value: {3: 1.05, 4: 5.27, 5: 52.6},
+            Symbol.MID1.value: {3: 0.65, 4: 3.29, 5: 25.9},
+            Symbol.MID2.value: {3: 0.53, 4: 2.59, 5: 17.4},
+            Symbol.LOW1.value: {3: 0.34, 4: 1.24, 5: 6.7},
+            Symbol.LOW2.value: {3: 0.24, 4: 0.97, 5: 4.8},
+            Symbol.LOW3.value: {3: 0.14, 4: 0.67, 5: 3.34},
+            Symbol.WILD.value: {3: 3.29, 4: 17.1, 5: 171.1},
         }
 
         symbol_mults = multipliers.get(first_symbol, {3: 0.5, 4: 2, 5: 5})

@@ -10,16 +10,27 @@ MAX_WIN_TOTAL_X=25000
 # These are simulation-verified targets with tolerance bands
 
 # Base Game RTP
-TARGET_RTP_BASE=96.5
-TARGET_RTP_TOLERANCE_20K=3.0   # ±3.0% for 20k rounds (gate tests)
+TARGET_RTP_BASE=98.0
+TARGET_RTP_TOLERANCE_20K=2.0   # ±2.0% for 20k rounds (gate tests)
 TARGET_RTP_TOLERANCE_100K=2.5  # ±2.5% for 100k rounds
 TARGET_RTP_TOLERANCE_1M=1.0    # ±1.0% for 1M rounds (precision audit)
-# Meaning: base game RTP should be ~96.5% with tolerance based on sample size
+# Meaning: base game RTP should be ~98.0% with tolerance based on sample size
 
 # Buy Feature Mode
 BUY_FEATURE_COST_MULTIPLIER=100  # Buy costs 100x base bet
-TARGET_RTP_BUY=96.5
+TARGET_RTP_BUY=98.0
 # NOTE: Buy mode RTP is calculated as: total_won / (rounds * bet * 100)
+
+# Hype Mode (Ante Bet) - WAGER-BASED RTP
+# Per GAME_RULES.md: hype mode costs 1.25x base bet but payouts are on base bet only.
+# This is intentional: players trade EV for higher bonus entry frequency.
+# Wager-based RTP = payout / total_wagered = base_rtp / (1 + HYPE_MODE_COST_INCREASE)
+# With base=98.0 and cost_increase=0.25: TARGET_RTP_HYPE = 98.0 / 1.25 = 78.4
+TARGET_RTP_HYPE=78.4
+
+# Fast Audit Parameters (for gate tests)
+TARGET_RTP_ROUNDS_FAST=20000
+TARGET_RTP_SEED=AUDIT_2025
 
 ## Bonus Buy / VIP Enhanced Bonus (CONTRACT)
 BUY_FEATURE_COST_MULTIPLIER=100

@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws smoke-docker test-contract check-afterparty test-e2e
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long
 
 up:
 	docker compose up -d
@@ -59,6 +59,30 @@ test-e2e:
 	@echo "Running E2E smoke tests (requires docker services to be up)..."
 	cd backend && .venv/bin/python -m pytest tests/test_e2e_smoke_docker.py -v
 
+test-e2e-harden:
+	@echo "Running E2E Harden Pack tests (requires docker services)..."
+	cd backend && .venv/bin/python -m pytest tests/test_e2e_harden_docker.py -v
+
+# Frontend targets
+frontend-install:
+	cd frontend && npm install
+
+frontend-test:
+	cd frontend && npm run test
+
+frontend-build:
+	cd frontend && npm run build
+
+frontend-typecheck:
+	cd frontend && npm run typecheck
+
+frontend-lint:
+	cd frontend && npm run lint
+
+check-laws-freeze:
+	@echo "Running Laws Freeze Gate (Gate A)..."
+	cd backend && .venv/bin/python -m pytest -q tests/test_laws_freeze_gate.py
+
 gate:
 	@echo "=== GATE PACK v5 ==="
 	@echo "Step 0a: Laws sync check (fail-fast)..."
@@ -66,6 +90,14 @@ gate:
 	@echo ""
 	@echo "Step 0b: Afterparty consistency check (fail-fast)..."
 	$(MAKE) check-afterparty
+	@echo ""
+	@echo "Step 0c: Laws Freeze Gate (Gate A - fail-fast)..."
+	$(MAKE) check-laws-freeze || exit 1
+	@echo ""
+	@echo "Step 0d: Frontend typecheck + lint + tests (fail-fast)..."
+	$(MAKE) frontend-typecheck || exit 1
+	$(MAKE) frontend-lint || exit 1
+	$(MAKE) frontend-test || exit 1
 	@echo ""
 	@echo "Step 1: Starting Docker services..."
 	$(MAKE) up
@@ -84,11 +116,20 @@ gate:
 	@echo "Step 3: Running E2E smoke tests..."
 	$(MAKE) test-e2e || ($(MAKE) down; exit 1)
 	@echo ""
+	@echo "Step 3b: Running E2E Harden Pack..."
+	$(MAKE) test-e2e-harden || ($(MAKE) down; exit 1)
+	@echo ""
 	@echo "Step 4: Running audit_sim --mode base (with caching)..."
 	cd backend && .venv/bin/python -m scripts.audit_sim --mode base --rounds 100000 --seed AUDIT_2025 --out ../out/audit_base.csv --verbose --skip-if-cached || (cd .. && $(MAKE) down; exit 1)
 	@echo ""
 	@echo "Step 5: Running audit_sim --mode buy (with caching)..."
 	cd backend && .venv/bin/python -m scripts.audit_sim --mode buy --rounds 50000 --seed AUDIT_2025 --out ../out/audit_buy.csv --verbose --skip-if-cached || (cd .. && $(MAKE) down; exit 1)
+	@echo ""
+	@echo "Step 5b: Running audit_sim --mode hype (with caching)..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode hype --rounds 100000 --seed AUDIT_2025 --out ../out/audit_hype.csv --verbose --skip-if-cached || (cd .. && $(MAKE) down; exit 1)
+	@echo ""
+	@echo "Step 5c: Running RTP Targets Gate tests..."
+	cd backend && .venv/bin/python -m pytest -q tests/test_rtp_targets_gate.py || (cd .. && $(MAKE) down; exit 1)
 	@echo ""
 	@echo "Step 6: Running seed_hunt (1000x+ tail, with caching)..."
 	cd backend && .venv/bin/python -m scripts.seed_hunt --mode buy --min_win_x 1000 --target high --max_seeds 200000 --seed_prefix HUNT --out ../out/tail_seeds.json --verbose --skip-if-cached || (cd .. && $(MAKE) down; exit 1)
@@ -112,3 +153,37 @@ gate:
 	$(MAKE) down
 	@echo ""
 	@echo "=== GATE PACK v5 COMPLETE ==="
+
+# =============================================================================
+# LONG-RUN AUDIT (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Use for stability checks and deep statistical analysis.
+# Run manually: make audit-long
+# Outputs: out/audit_base_1m.csv, out/audit_buy_200k.csv, out/audit_hype_200k.csv
+# =============================================================================
+audit-long:
+	@echo "=== LONG-RUN AUDIT (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@mkdir -p out
+	@echo "Step 1/3: Running base mode (1,000,000 rounds)..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode base --rounds 1000000 --seed AUDIT_LONG_2026 --out ../out/audit_base_1m.csv --verbose
+	@echo ""
+	@echo "Step 2/3: Running buy mode (200,000 rounds)..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode buy --rounds 200000 --seed AUDIT_LONG_2026 --out ../out/audit_buy_200k.csv --verbose
+	@echo ""
+	@echo "Step 3/3: Running hype mode (200,000 rounds)..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode hype --rounds 200000 --seed AUDIT_LONG_2026 --out ../out/audit_hype_200k.csv --verbose
+	@echo ""
+	@echo "=== LONG-RUN AUDIT COMPLETE ==="
+	@echo ""
+	@echo "Output files:"
+	@ls -la out/audit_base_1m.csv out/audit_buy_200k.csv out/audit_hype_200k.csv
+	@echo ""
+	@echo "CSV Headers:"
+	@echo "--- audit_base_1m.csv ---"
+	@head -1 out/audit_base_1m.csv
+	@echo "--- audit_buy_200k.csv ---"
+	@head -1 out/audit_buy_200k.csv
+	@echo "--- audit_hype_200k.csv ---"
+	@head -1 out/audit_hype_200k.csv
