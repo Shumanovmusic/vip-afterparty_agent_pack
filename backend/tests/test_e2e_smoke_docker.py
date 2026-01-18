@@ -213,15 +213,27 @@ class TestIdempotency:
 
 
 class TestBuyFeature:
-    """E2E tests for BUY_FEATURE mode per protocol_v1.md."""
+    """E2E tests for BUY_FEATURE mode per protocol_v1.md.
+
+    Each test uses a unique player ID to ensure deterministic BASE state.
+    Per engine.py:124, BUY_FEATURE only triggers enterFreeSpins when state.mode == BASE.
+    """
 
     def test_buy_feature_triggers_enter_free_spins(self):
-        """POST /spin BUY_FEATURE must include enterFreeSpins event."""
+        """POST /spin BUY_FEATURE must include enterFreeSpins event.
+
+        Uses unique player ID to guarantee BASE mode (no leftover FREE_SPINS state).
+        """
+        # Use unique player ID to ensure clean BASE state (no leftover bonus)
+        player_id = f"buy-feature-test-{uuid.uuid4()}"
+        client_request_id = str(uuid.uuid4())
+        request_body = make_spin_request(mode="BUY_FEATURE", client_request_id=client_request_id)
+
         with httpx.Client(base_url=BASE_URL, timeout=10.0) as client:
             response = client.post(
                 "/spin",
-                headers={"X-Player-Id": PLAYER_ID},
-                json=make_spin_request(mode="BUY_FEATURE"),
+                headers={"X-Player-Id": player_id},
+                json=request_body,
             )
 
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -229,17 +241,34 @@ class TestBuyFeature:
 
         events = data.get("events", [])
         enter_fs_events = [e for e in events if e.get("type") == "enterFreeSpins"]
-        assert len(enter_fs_events) >= 1, (
-            "BUY_FEATURE must trigger at least one enterFreeSpins event"
-        )
+
+        # Debug output on failure
+        if len(enter_fs_events) < 1:
+            pytest.fail(
+                f"BUY_FEATURE must trigger enterFreeSpins event.\n"
+                f"player_id: {player_id}\n"
+                f"clientRequestId: {client_request_id}\n"
+                f"nextState: {data.get('nextState')}\n"
+                f"events: {events}\n"
+                f"full response: {json.dumps(data, indent=2)}"
+            )
 
     def test_buy_feature_has_vip_buy_bonus_variant(self):
-        """POST /spin BUY_FEATURE enterFreeSpins must have bonusVariant == 'vip_buy'."""
+        """POST /spin BUY_FEATURE enterFreeSpins must have bonusVariant == 'vip_buy'.
+
+        Per protocol_v1.md lines 206-209:
+        { "type": "enterFreeSpins", "count": 10, "reason": "buy_feature", "bonusVariant": "vip_buy" }
+        """
+        # Use unique player ID to ensure clean BASE state (no leftover bonus)
+        player_id = f"buy-feature-vip-test-{uuid.uuid4()}"
+        client_request_id = str(uuid.uuid4())
+        request_body = make_spin_request(mode="BUY_FEATURE", client_request_id=client_request_id)
+
         with httpx.Client(base_url=BASE_URL, timeout=10.0) as client:
             response = client.post(
                 "/spin",
-                headers={"X-Player-Id": PLAYER_ID},
-                json=make_spin_request(mode="BUY_FEATURE"),
+                headers={"X-Player-Id": player_id},
+                json=request_body,
             )
 
         assert response.status_code == 200
@@ -247,7 +276,17 @@ class TestBuyFeature:
 
         events = data.get("events", [])
         enter_fs_events = [e for e in events if e.get("type") == "enterFreeSpins"]
-        assert len(enter_fs_events) >= 1
+
+        # Debug output on failure
+        if len(enter_fs_events) < 1:
+            pytest.fail(
+                f"BUY_FEATURE must trigger enterFreeSpins event.\n"
+                f"player_id: {player_id}\n"
+                f"clientRequestId: {client_request_id}\n"
+                f"nextState: {data.get('nextState')}\n"
+                f"events: {events}\n"
+                f"full response: {json.dumps(data, indent=2)}"
+            )
 
         enter_fs = enter_fs_events[0]
         assert enter_fs.get("reason") == "buy_feature", (

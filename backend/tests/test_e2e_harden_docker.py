@@ -505,3 +505,89 @@ class TestRestoreStateE2E:
             assert init2.json()["restoreState"] is None, (
                 "restoreState MUST be null after bonus ends"
             )
+
+    def test_idempotency_during_bonus_continuation(self):
+        """
+        E2E: Same clientRequestId during bonus returns identical response.
+
+        Per protocol_v1.md idempotency contract:
+        - Replay same clientRequestId returns cached response
+        - Spin is not double-consumed
+
+        Steps:
+        1. Start BUY_FEATURE bonus (enterFreeSpins with vip_buy)
+        2. First bonus spin with fixed clientRequestId
+        3. Replay same request (same clientRequestId)
+        4. Assert responses are identical (same roundId)
+        5. New spin (new clientRequestId) - verify spins consumed correctly
+        """
+        player_id = f"{PLAYER_ID}-e2e-idem-{uuid.uuid4()}"
+        fixed_client_request_id = f"idem-test-{uuid.uuid4()}"
+
+        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+            # Step 1: Start bonus via BUY_FEATURE
+            buy_response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(mode="BUY_FEATURE"),
+            )
+            assert buy_response.status_code == 200
+            buy_data = buy_response.json()
+            assert buy_data["nextState"]["mode"] == "FREE_SPINS"
+            initial_spins = buy_data["nextState"]["spinsRemaining"]
+            assert initial_spins > 1, "Need multiple spins to test idempotency"
+
+            # Step 2: First bonus spin with fixed clientRequestId
+            spin1_response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(client_request_id=fixed_client_request_id),
+            )
+            assert spin1_response.status_code == 200
+            spin1_data = spin1_response.json()
+            spin1_round_id = spin1_data["roundId"]
+            spin1_spins_remaining = spin1_data["nextState"]["spinsRemaining"]
+
+            # Should have consumed exactly 1 spin
+            assert spin1_spins_remaining == initial_spins - 1, (
+                f"Expected {initial_spins - 1} spins remaining, "
+                f"got {spin1_spins_remaining}"
+            )
+
+            # Step 3: Replay same request (idempotency)
+            replay_response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(client_request_id=fixed_client_request_id),
+            )
+            assert replay_response.status_code == 200
+            replay_data = replay_response.json()
+
+            # Step 4: Responses must be identical
+            assert spin1_round_id == replay_data["roundId"], (
+                f"Idempotent replay must return same roundId: "
+                f"{spin1_round_id} vs {replay_data['roundId']}"
+            )
+            assert spin1_data["nextState"] == replay_data["nextState"], (
+                "Idempotent replay must return same nextState"
+            )
+
+            # Step 5: New spin should consume exactly 1 more spin
+            # (not 2, which would happen if idempotency failed)
+            new_spin_response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(),  # New clientRequestId
+            )
+            assert new_spin_response.status_code == 200
+            new_spin_data = new_spin_response.json()
+
+            # Should have consumed exactly 2 spins total (first + new, not replay)
+            if new_spin_data["nextState"]["mode"] == "FREE_SPINS":
+                expected_remaining = initial_spins - 2
+                actual_remaining = new_spin_data["nextState"]["spinsRemaining"]
+                assert actual_remaining == expected_remaining, (
+                    f"After 2 unique spins, expected {expected_remaining} remaining, "
+                    f"got {actual_remaining}. "
+                    f"Idempotent replay may have double-consumed a spin."
+                )
