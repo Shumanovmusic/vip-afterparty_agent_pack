@@ -37,5 +37,8 @@ class Settings(BaseSettings):
     afterparty_meter_inc_on_two_scatters: int = 8
     afterparty_rage_cooldown_spins: int = 15
 
+    # State persistence (Redis TTLs) - from CONFIG.md
+    player_state_ttl_seconds: int = 86400  # 24 hours for session continuation
+
 
 settings = Settings()
