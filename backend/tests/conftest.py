@@ -59,10 +59,75 @@ class MockRedis:
         self._locks.clear()
 
 
+class RecordingMockRedis(MockRedis):
+    """Mock Redis that records operation order for atomicity gate tests."""
+
+    def __init__(self):
+        super().__init__()
+        self.operations: list[str] = []
+
+    async def get(self, key: str) -> str | None:
+        op_type = self._classify_key(key, "get")
+        self.operations.append(op_type)
+        return await super().get(key)
+
+    async def set(
+        self, key: str, value: str, nx: bool = False, ex: int | None = None
+    ) -> bool | None:
+        op_type = self._classify_key(key, "set_nx" if nx else "set")
+        self.operations.append(op_type)
+        return await super().set(key, value, nx=nx, ex=ex)
+
+    async def setex(self, key: str, ttl: int, value: str) -> bool:
+        op_type = self._classify_key(key, "setex")
+        self.operations.append(op_type)
+        return await super().setex(key, ttl, value)
+
+    async def delete(self, key: str) -> int:
+        op_type = self._classify_key(key, "delete")
+        self.operations.append(op_type)
+        return await super().delete(key)
+
+    def _classify_key(self, key: str, operation: str) -> str:
+        """Classify operation by key type for easier assertion."""
+        if key.startswith("lock:player:"):
+            return f"lock_{operation}"
+        elif key.startswith("idem:"):
+            return f"idempotency_{operation}"
+        elif key.startswith("state:player:"):
+            return f"state_{operation}"
+        return f"unknown_{operation}"
+
+    def clear(self) -> None:
+        super().clear()
+        self.operations.clear()
+
+
 @pytest.fixture
 def mock_redis() -> MockRedis:
     """Create a fresh mock Redis for each test."""
     return MockRedis()
+
+
+@pytest.fixture
+def recording_mock_redis() -> RecordingMockRedis:
+    """Create a RecordingMockRedis that logs operation order."""
+    return RecordingMockRedis()
+
+
+@pytest.fixture
+def client_with_recording_redis(recording_mock_redis: RecordingMockRedis) -> Generator[tuple[TestClient, RecordingMockRedis], None, None]:
+    """Create TestClient with recording Redis for atomicity gate tests."""
+    from app.redis_service import redis_service
+
+    original_client = redis_service._client
+    redis_service._client = recording_mock_redis
+
+    with TestClient(app) as client:
+        yield client, recording_mock_redis
+
+    redis_service._client = original_client
+    recording_mock_redis.clear()
 
 
 @pytest.fixture

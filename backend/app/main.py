@@ -102,14 +102,21 @@ async def spin(request: Request, body: SpinRequest) -> dict:
         "hypeMode": body.hypeMode,
     }
 
-    # 3) Check idempotency cache
+    # 3) Check idempotency cache (fast path - optimization)
     cached = await redis_service.check_idempotency(body.clientRequestId, payload)
     if cached is not None:
         return cached
 
     # 4) Acquire player lock (raises ROUND_IN_PROGRESS if locked)
     async with redis_service.player_lock(player_id):
-        # 5) Load player state from Redis
+        # 5) Re-check idempotency inside lock (slow path - correctness)
+        # This prevents race condition where two requests with same clientRequestId
+        # both pass the fast path check before either stores the result
+        cached = await redis_service.check_idempotency(body.clientRequestId, payload)
+        if cached is not None:
+            return cached
+
+        # 6) Load player state from Redis
         state_data = await redis_service.get_player_state(player_id)
         state = None
         if state_data:
@@ -120,7 +127,7 @@ async def spin(request: Request, body: SpinRequest) -> dict:
                 bonus_is_bought=state_data.get("bonus_is_bought", False),
             )
 
-        # 6) Execute game logic
+        # 7) Execute game logic
         result = engine.spin(
             bet_amount=body.betAmount,
             mode=body.mode,
@@ -128,7 +135,7 @@ async def spin(request: Request, body: SpinRequest) -> dict:
             state=state,
         )
 
-        # 7) Build protocol response
+        # 8) Build protocol response
         response = SpinResponse(
             roundId=str(uuid.uuid4()),
             context=Context(),
@@ -148,12 +155,12 @@ async def spin(request: Request, body: SpinRequest) -> dict:
 
         response_dict = response.model_dump()
 
-        # 8) Store in idempotency cache
+        # 9) Store in idempotency cache
         await redis_service.store_idempotency(
             body.clientRequestId, payload, response_dict
         )
 
-        # 9) Save player state to Redis
+        # 10) Save player state to Redis
         next_state = result.next_state
         if (
             next_state.mode == LogicGameMode.FREE_SPINS
