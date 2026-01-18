@@ -125,6 +125,9 @@
 
 ### round_fields (add)
 - `hype_mode` (bool)
+- `scatter_chance_base` (float) - Base scatter probability (0.02)
+- `scatter_chance_effective` (float) - Actual scatter probability used (0.02 or 0.04)
+- `scatter_chance_multiplier` (float) - Multiplier applied (1.0 or 2.0)
 - `spotlight_triggered` (bool)
 - `spotlight_positions` (array<int> | null)
 - `win_tier` ("none"|"big"|"mega"|"epic")

@@ -74,7 +74,16 @@ ANTICIPATION_MAX_RATE_PER_100_SPINS=12
 ## Engagement Features (NEW)
 ENABLE_HYPE_MODE_ANTE_BET=ON
 HYPE_MODE_COST_INCREASE=0.25
+
+# MUST: This multiplier applies to PER-CELL scatter probability (e.g., 2% → 4%).
+# Due to binomial distribution (3+ scatters in 15 cells), actual bonus entry rate
+# increase is non-linear: ~5-7x for a 2x per-cell multiplier. This is intended.
 HYPE_MODE_BONUS_CHANCE_MULTIPLIER=2.0
+
+# Grid parameters (for reference - used in bonus entry rate calculation)
+GRID_CELLS=15
+BONUS_TRIGGER_SCATTERS=3
+BASE_SCATTER_CHANCE=0.02
 
 ## Base Game Modifiers
 ENABLE_SPOTLIGHT_WILDS=ON

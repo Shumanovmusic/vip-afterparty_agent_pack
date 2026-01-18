@@ -90,11 +90,13 @@ Anticipation может включаться только если:
 - **Gate (CONFIG)**: `ENABLE_HYPE_MODE_ANTE_BET=ON`
 - **UI**: Переключатель в интерфейсе `Hype Mode / Boost Chance` рядом со Spin/Bet.
 - **Cost**: Ставка увеличивается на `HYPE_MODE_COST_INCREASE` (например, +25%).
-- **Effect**: Шанс выпадения 3+ `SCATTER` для запуска бонуса увеличивается в `HYPE_MODE_BONUS_CHANCE_MULTIPLIER` раз.
+- **Effect**: Per-cell scatter probability increases by `HYPE_MODE_BONUS_CHANCE_MULTIPLIER` (e.g., 2% → 4% when multiplier=2.0).
+- **Note**: Due to binomial distribution (bonus triggers on 3+ scatters in 15 cells), the effective bonus entry rate increase is non-linear. A 2x per-cell multiplier results in approximately 5-7x bonus entry rate increase. This is mathematically correct behavior.
 - **Payout**: Таблица выплат применяется к **базовой** ставке (без учёта наценки за Hype).
 
 ### Acceptance Criteria (MUST)
-- При включённом Hype Mode фактическая вероятность входа в бонус возрастает согласно `HYPE_MODE_BONUS_CHANCE_MULTIPLIER` (подтверждается симуляциями).
+- При включённом Hype Mode, per-cell scatter probability = BASE_SCATTER_CHANCE × HYPE_MODE_BONUS_CHANCE_MULTIPLIER.
+- Audit must report: scatter_chance_base, scatter_chance_effective, and bonus_entry_rate for comparison.
 - Изменение режима НЕ ломает hard cap `MAX_WIN_TOTAL_X`.
 
 ### Feature: VIP Bonus Buy (Enhanced Bonus Variant) (CONTRACT)

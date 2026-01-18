@@ -7,6 +7,7 @@ Generates headless simulation CSV for regulatory audit.
 Usage:
     python -m scripts.audit_sim --mode base --rounds 100000 --seed AUDIT_2025 --out out/audit_base.csv
     python -m scripts.audit_sim --mode buy --rounds 50000 --seed AUDIT_2025 --out out/audit_buy.csv
+    python -m scripts.audit_sim --mode hype --rounds 100000 --seed AUDIT_2025 --out out/audit_hype.csv
 """
 import argparse
 import csv
@@ -23,14 +24,14 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings
-from app.logic.engine import GameEngine, MAX_WIN_TOTAL_X
+from app.logic.engine import BASE_SCATTER_CHANCE, GameEngine, MAX_WIN_TOTAL_X
 from app.logic.models import GameMode, GameState
 from app.logic.rng import SeededRNG
 from app.protocol import SpinMode
 
 
-# Buy Feature cost multiplier per GAME_RULES.md
-BUY_FEATURE_COST_MULTIPLIER = 100
+# Buy Feature cost multiplier per GAME_RULES.md / CONFIG.md
+BUY_FEATURE_COST_MULTIPLIER = settings.buy_feature_cost_multiplier
 
 
 @dataclass
@@ -53,6 +54,10 @@ class SimulationStats:
     bonus_variant: str = "standard"  # standard or vip_buy
     vip_buy_bonus_entries: int = 0
     standard_bonus_entries: int = 0
+    # Scatter chance tracking per TELEMETRY.md
+    scatter_chance_base: float = BASE_SCATTER_CHANCE
+    scatter_chance_effective: float = BASE_SCATTER_CHANCE
+    scatter_chance_multiplier: float = 1.0
 
 
 def get_config_hash() -> str:
@@ -136,7 +141,7 @@ def run_simulation(
     Run headless simulation.
 
     Args:
-        mode: 'base' or 'buy'
+        mode: 'base', 'buy', or 'hype'
         rounds: Number of rounds to simulate
         seed_str: Seed string for reproducibility
         verbose: Print progress
@@ -150,12 +155,30 @@ def run_simulation(
 
     bet_amount = 1.0  # Standard bet for simulation
     is_buy_mode = mode == "buy"
+    is_hype_mode = mode == "hype"
 
-    # Debit multiplier for reporting
-    debit_multiplier = BUY_FEATURE_COST_MULTIPLIER if is_buy_mode else 1.0
+    # Debit multiplier for reporting per GAME_RULES.md / CONFIG.md
+    # - base: 1x
+    # - buy: BUY_FEATURE_COST_MULTIPLIER (from settings)
+    # - hype: 1 + hype_mode_cost_increase (from settings)
+    if is_buy_mode:
+        debit_multiplier = BUY_FEATURE_COST_MULTIPLIER
+    elif is_hype_mode:
+        debit_multiplier = 1.0 + settings.hype_mode_cost_increase
+    else:
+        debit_multiplier = 1.0
 
     stats = SimulationStats()
     stats.debit_multiplier = debit_multiplier
+    # Set scatter chance values per TELEMETRY.md
+    if is_hype_mode:
+        stats.scatter_chance_base = BASE_SCATTER_CHANCE
+        stats.scatter_chance_effective = BASE_SCATTER_CHANCE * settings.hype_mode_bonus_chance_multiplier
+        stats.scatter_chance_multiplier = settings.hype_mode_bonus_chance_multiplier
+    else:
+        stats.scatter_chance_base = BASE_SCATTER_CHANCE
+        stats.scatter_chance_effective = BASE_SCATTER_CHANCE
+        stats.scatter_chance_multiplier = 1.0
     state: GameState | None = None
 
     progress_interval = max(1, rounds // 100)
@@ -234,16 +257,22 @@ def run_simulation(
                 stats.wins_10000x_plus += 1
 
         else:
-            # Base mode: each spin is one round
+            # Base mode or Hype mode: each spin is one round
+            # Hype mode: hype_mode=True, debit includes ante cost per GAME_RULES.md
+            # Payout: applied to base bet (not the increased bet) per GAME_RULES.md
             result = engine.spin(
                 bet_amount=bet_amount,
                 mode=SpinMode.NORMAL,
-                hype_mode=False,
+                hype_mode=is_hype_mode,
                 state=state,
             )
             state = result.next_state
 
-            stats.total_wagered += bet_amount
+            # Debit per GAME_RULES.md / CONFIG.md:
+            # - Base: bet_amount (1.0)
+            # - Hype: bet_amount * (1 + settings.hype_mode_cost_increase)
+            spin_debit = bet_amount * debit_multiplier
+            stats.total_wagered += spin_debit
             stats.total_won += result.total_win
             stats.rounds += 1
 
@@ -256,7 +285,7 @@ def run_simulation(
             for event in result.events:
                 if event.get("type") == "enterFreeSpins":
                     stats.bonus_entries += 1
-                    stats.standard_bonus_entries += 1  # Base mode = standard variant
+                    stats.standard_bonus_entries += 1  # Base/Hype mode = standard variant
 
             stats.win_x_values.append(result.total_win_x)
 
@@ -326,7 +355,10 @@ def generate_csv(
         "mode": mode,
         "rounds": rounds,
         "seed": seed_str,
-        "debit_multiplier": f"{stats.debit_multiplier:.0f}",
+        "debit_multiplier": f"{stats.debit_multiplier:.2f}",
+        "scatter_chance_base": f"{stats.scatter_chance_base:.4f}",
+        "scatter_chance_effective": f"{stats.scatter_chance_effective:.4f}",
+        "scatter_chance_multiplier": f"{stats.scatter_chance_multiplier:.2f}",
         "rtp": f"{rtp:.4f}",
         "hit_freq": f"{hit_freq:.4f}",
         "bonus_entry_rate": f"{bonus_entry_rate:.4f}",
@@ -359,9 +391,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Audit simulation per RNG_POLICY.md")
     parser.add_argument(
         "--mode",
-        choices=["base", "buy"],
+        choices=["base", "buy", "hype"],
         required=True,
-        help="Simulation mode: 'base' or 'buy'",
+        help="Simulation mode: 'base', 'buy', or 'hype'",
     )
     parser.add_argument(
         "--rounds",
@@ -431,7 +463,7 @@ def main() -> int:
     rtp = (stats.total_won / stats.total_wagered * 100) if stats.total_wagered > 0 else 0
     print(f"\nSummary:")
     print(f"  Rounds: {stats.rounds}")
-    print(f"  Debit multiplier: {stats.debit_multiplier:.0f}x")
+    print(f"  Debit multiplier: {stats.debit_multiplier:.2f}x")
     print(f"  Total wagered: {stats.total_wagered:.2f}")
     print(f"  Total won: {stats.total_won:.2f}")
     print(f"  RTP: {rtp:.4f}%")
@@ -442,6 +474,41 @@ def main() -> int:
     print(f"  Wins 10000x+: {stats.wins_10000x_plus} ({(stats.wins_10000x_plus / stats.rounds * 100):.6f}%)")
     print(f"  Capped count: {stats.capped_count} ({(stats.capped_count / stats.rounds * 100):.6f}%)")
     print(f"\nASSERTION PASSED: max_win_x ({stats.max_win_x_observed}) <= MAX_WIN_TOTAL_X ({MAX_WIN_TOTAL_X})")
+
+    # Mode diff summary: compare hype vs base if running hype mode
+    if args.mode == "hype":
+        base_out_path = args.out.replace("hype", "base")
+        base_path = Path(base_out_path)
+        if base_path.exists():
+            try:
+                with open(base_path, "r") as f:
+                    reader = csv.DictReader(f)
+                    base_row = next(reader, None)
+                if base_row and base_row.get("mode") == "base":
+                    base_bonus_rate = float(base_row.get("bonus_entry_rate", 0))
+                    base_avg_debit = float(base_row.get("avg_debit", 0))
+                    hype_bonus_rate = (stats.bonus_entries / stats.rounds * 100) if stats.rounds > 0 else 0
+                    hype_avg_debit = stats.total_wagered / stats.rounds if stats.rounds > 0 else 0
+
+                    print(f"\n=== MODE DIFF: base vs hype (same seed) ===")
+                    print(f"  Base bonus_entry_rate: {base_bonus_rate:.4f}%")
+                    print(f"  Hype bonus_entry_rate: {hype_bonus_rate:.4f}%")
+                    bonus_rate_diff = hype_bonus_rate - base_bonus_rate
+                    print(f"  Diff: {bonus_rate_diff:+.4f}% (hype - base)")
+                    if bonus_rate_diff > 0:
+                        print(f"  Status: HYPE INCREASES BONUS RATE")
+                    elif abs(bonus_rate_diff) < 0.001:
+                        print(f"  Status: NO SIGNIFICANT DIFFERENCE (potential engine bug)")
+                    else:
+                        print(f"  Status: HYPE DECREASES BONUS RATE (unexpected)")
+
+                    print(f"\n  Base avg_debit: {base_avg_debit:.4f}")
+                    print(f"  Hype avg_debit: {hype_avg_debit:.4f}")
+                    print(f"  Hype cost multiplier: {settings.hype_mode_cost_increase:.2%}")
+            except (OSError, csv.Error, ValueError) as e:
+                print(f"\n(Could not load base audit for comparison: {e})")
+        else:
+            print(f"\n(Base audit not found at {base_out_path} - run base mode first for comparison)")
 
     return 0
 
