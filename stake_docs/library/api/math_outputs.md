@@ -1,31 +1,65 @@
-Title: Math Source Files Outputs - API Documentation
+<!doctype html>
+<html lang="%lang%" class="scrollbar-none">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="canonical" href="https://stake-engine.com">
+		<link rel="preload" href="/fonts/ProximaNovaRegular.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaSemibold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBlack.otf" as="font" type="font/otf" crossorigin>
+		
+		<link rel="modulepreload" href="/_app/immutable/entry/start.6YIxPPFz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/5XAKBeKm.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Dj5wAEed.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C7B2ciBt.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cr78SLJn.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C-JIKbm3.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BUApaBEI.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/9EtO3thH.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.xfEJMBfV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/PPVm8Dsz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/D3QTMetq.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DqvB2xRV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DsnmJJEf.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CHolR6AU.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cc_uW2fg.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Bl04d0oi.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DaXTs42W.js">
+				<!-- Google Tag Manager -->
+		<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+	new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+	j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+	'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+	})(window,document,'script','dataLayer','GTM-WN48GTB8');</script>
+		<!-- End Google Tag Manager -->
+	</head>
+	<!-- data-sveltekit-preload-data="hover" -->
+	<body class="min-h-dvh">
+				<!-- Google Tag Manager (noscript) -->
+		<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WN48GTB8"
+			height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+		<!-- End Google Tag Manager (noscript) -->
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_9xf2l4 = {
+						base: ""
+					};
 
-URL Source: https://stake-engine.com/docs/math/source-files/outputs
+					const element = document.currentScript.parentElement;
 
-Markdown Content:
-Output files
-------------
-
-All relevant output files are automatically generated within the `game/library/` directories. If the required sub-directories do not exist, the will be automatically generated.
-
-### Books
-
-The primary data file output when simulations are run are the book files. These contain summary simulation information such as the final payout multiplier, basegame and freegame win contributions, the simulation criteria and simulation events. The contents of `book.events` is the information returned by the RGS `play/` API response.
-
-The uncompressed `books/` files are used within the front-end testing framework and should be used to debug events. Only a small number of simulations should be run due to the file size. Compressed book files are what is uploaded to `AWS` and consumed by the RGS when games are being uploaded. Only data from compressed books will be returned from the `play/` API.
-
-### Force files
-
-Each bet mode will output a file of the format `force_mode.json`. Every time the `.record()` function is called, the description keys used as input are appended to the file. If the key already exists, the `book-id` is appended to the array. This file is used to count instances of particular events. The optimization algorithm also makes use of these keys to identify max-win and freegame books. Once all bet mode simulations are finished, a `force.json` file is output which contains all the unique fields and keys.
-
-### Lookup tables
-
-The final payout multiplier for each simulation is summarized in the `lookUpTable_mode.csv`. This is the file accessed by the optimization algorithm, which works by adjusting the weights, initially assigned to `1`. There is also a `IdToCriteria` file which indicates the win criteria required by a specific simulation number, and a `Segmented` file used to identify what gametype contributed to the final payout multiplier. Both these additional files are not typically uploaded to the ACP and are instead used for various analysis functions.
-
-### Config files
-
-There are three config files generated after all simulations and optimizations are run. `config_math.json` is used by the optimization algorithm and contains all relevant bet mode details, RTP splits and optimization parameters. `config_fe.json` is used by the front-end frame work and contains symbol information, padding reels and bet mode details which need to be displayed to players. `config.json` contains bet mode information and file hash information and used used by the RGS to determine and verify changes to files being uploaded to the ACP.
-
-### File path construction
-
-The `OutputFiles` class within `src/config/output_filenames` is used to construct filepaths and output filenames as well as setting up output folders if they do not yet exist.
+					Promise.all([
+						import("/_app/immutable/entry/start.6YIxPPFz.js"),
+						import("/_app/immutable/entry/app.xfEJMBfV.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+		<script>
+</script>
+</body>
+</html>

@@ -1,110 +1,65 @@
-Title: Math Setup - API Documentation
+<!doctype html>
+<html lang="%lang%" class="scrollbar-none">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="canonical" href="https://stake-engine.com">
+		<link rel="preload" href="/fonts/ProximaNovaRegular.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaSemibold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBlack.otf" as="font" type="font/otf" crossorigin>
+		
+		<link rel="modulepreload" href="/_app/immutable/entry/start.6YIxPPFz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/5XAKBeKm.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Dj5wAEed.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C7B2ciBt.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cr78SLJn.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C-JIKbm3.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BUApaBEI.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/9EtO3thH.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.xfEJMBfV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/PPVm8Dsz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/D3QTMetq.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DqvB2xRV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DsnmJJEf.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CHolR6AU.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cc_uW2fg.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Bl04d0oi.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DaXTs42W.js">
+				<!-- Google Tag Manager -->
+		<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+	new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+	j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+	'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+	})(window,document,'script','dataLayer','GTM-WN48GTB8');</script>
+		<!-- End Google Tag Manager -->
+	</head>
+	<!-- data-sveltekit-preload-data="hover" -->
+	<body class="min-h-dvh">
+				<!-- Google Tag Manager (noscript) -->
+		<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WN48GTB8"
+			height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+		<!-- End Google Tag Manager (noscript) -->
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_9xf2l4 = {
+						base: ""
+					};
 
-URL Source: https://stake-engine.com/docs/math/setup
+					const element = document.currentScript.parentElement;
 
-Markdown Content:
-Setup and installation
-----------------------
-
-**_Running the math-sdk requires Python3 and PIP to be installed!_**
-
-**_Rust/Cargo must also be installed for the optimization algorithm to run!_**
-
-Clone the Math SDK repository to get started
-
-```
-git@github.com:StakeEngine/math-sdk.git
-```
-
-Makefile (recommended)
-----------------------
-
-Assuming [Make](https://www.gnu.org/software/make/) and a recent version of [Python3](https://www.python.org/download/releases/3.0/) is installed on your machine, the easiest method of setting up the SDK is using the terminal to invoke:
-
-```
-make setup
-```
-
-This will setup and activate a Python virtual environment, installing all necessary packages as defined within **_requirements.txt_**, and install an editable math-sdk module.
-
-Once the relavent parameters are set for a particular game, execute the run.py file using:
-
-```
-make run GAME=&lt;game_id&gt;
-```
-
-Installing Cargo (Only if using Optimization Algorithm)
--------------------------------------------------------
-
-If the optimization algorithm is being utilized, [**Rust**](https://www.rust-lang.org/) and **Cargo** should be [installed](https://doc.rust-lang.org/cargo/getting-started/installation.html).
-
-```
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-Manual installation
--------------------
-
-*Note: This installation is for Mac operating systems, Windows OS uses the prefix python (instead of python3)
-
-### Create and Activate a Virtual Environment
-
-It’s recommended to use a virtual environment to manage dependencies. Using the Virtual Environment manager (_venv_), install Python version >=3.12 using:
-
-```
-python3 -m venv env
-```
-
-If you are using Mac, activate the env with:
-
-```
-source env/bin/activate
-```
-
-If using a Windows computer use:
-
-```
-env\Scripts\activate.bat
-```
-
-### Install Dependencies
-
-Use `pip` to install dependencies from the `requirements.txt` file:
-
-```
-python3 -m pip install -r requirements.txt
-```
-
-### Install the Package in Editable Mode
-
-Using the `setup.py` file, the package should be installed it in editable mode (for development purposes) with the command:
-
-```
-python3 -m pip install -e .
-```
-
-This allows modifications to the package source code to take effect without reinstallation.
-
-### Verify Installation
-
-You can check that the package is installed by running:
-
-```
-python3 -m pip list
-```
-
-or testing the package import in Python:
-
-```
-python
->>> import your_package_name
-```
-
-Deactivating the Virtual Environment
-------------------------------------
-
-When finished, deactivate the virtual environment with:
-
-```
-deactivate
-```
+					Promise.all([
+						import("/_app/immutable/entry/start.6YIxPPFz.js"),
+						import("/_app/immutable/entry/app.xfEJMBfV.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+		<script>
+</script>
+</body>
+</html>

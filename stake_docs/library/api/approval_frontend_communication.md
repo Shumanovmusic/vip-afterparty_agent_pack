@@ -2,6 +2,8 @@ Title: Approval Guidelines Front End Communication
 
 URL Source: https://stake-engine.com/docs/approval-guidelines/front-end-communication
 
+Published Time: Fri, 16 Jan 2026 02:35:30 GMT
+
 Markdown Content:
 Frontend and Communication
 --------------------------

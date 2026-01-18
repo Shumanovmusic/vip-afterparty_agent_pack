@@ -2,6 +2,8 @@ Title: Approval Guidelines Rgs Communication - API Documentation
 
 URL Source: https://stake-engine.com/docs/approval-guidelines/rgs-communication
 
+Published Time: Fri, 16 Jan 2026 02:35:30 GMT
+
 Markdown Content:
 Remote Game Server (RGS) Communication
 --------------------------------------

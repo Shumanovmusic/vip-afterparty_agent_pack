@@ -1,194 +1,65 @@
-Title: Rgs Wallet - API Documentation
+<!doctype html>
+<html lang="%lang%" class="scrollbar-none">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="canonical" href="https://stake-engine.com">
+		<link rel="preload" href="/fonts/ProximaNovaRegular.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaSemibold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBlack.otf" as="font" type="font/otf" crossorigin>
+		
+		<link rel="modulepreload" href="/_app/immutable/entry/start.6YIxPPFz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/5XAKBeKm.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Dj5wAEed.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C7B2ciBt.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cr78SLJn.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C-JIKbm3.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BUApaBEI.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/9EtO3thH.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.xfEJMBfV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/PPVm8Dsz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/D3QTMetq.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DqvB2xRV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DsnmJJEf.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CHolR6AU.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cc_uW2fg.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Bl04d0oi.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DaXTs42W.js">
+				<!-- Google Tag Manager -->
+		<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+	new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+	j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+	'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+	})(window,document,'script','dataLayer','GTM-WN48GTB8');</script>
+		<!-- End Google Tag Manager -->
+	</head>
+	<!-- data-sveltekit-preload-data="hover" -->
+	<body class="min-h-dvh">
+				<!-- Google Tag Manager (noscript) -->
+		<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WN48GTB8"
+			height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+		<!-- End Google Tag Manager (noscript) -->
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_9xf2l4 = {
+						base: ""
+					};
 
-URL Source: https://stake-engine.com/docs/rgs/wallet
+					const element = document.currentScript.parentElement;
 
-Markdown Content:
-The wallet endpoints enable interactions between the RGS and the Operator’s Wallet API, managing the player’s session and balance operations.
-
-Authenticate Request
---------------------
-
-Validates a `sessionID` with the operator. This must be called before using other wallet endpoints. Otherwise, they will throw `ERR_IS` (invalid session).
-
-### Round
-
-The `round` returned may represent a currently active or the last completed round. Frontends should continue the round if it remains active.
-
-### Request
-
-```
-POST /wallet/authenticate
-```
-
-```
-{
-  "sessionID": "xxxxxxx",
-}
-```
-
-### Response
-
-```
-{
-  "balance": {
-    "amount": 100000,
-    "currency": "USD"
-  },
-  "config": {
-    "minBet": 100000,
-    "maxBet": 1000000000,
-    "stepBet": 100000,
-    "defaultBetLevel": 1000000,
-    "betLevels": [...],
-    "jurisdiction": {
-      "socialCasino": false,
-      "disabledFullscreen": false,
-      "disabledTurbo": false,
-      ...
-    }
-  },
-  "round": { ... }
-}
-```
-
-Balance Request
----------------
-
-Retrieves the player’s current balance. Useful for periodic balance updates.
-
-### Request
-
-```
-POST /wallet/balance
-```
-
-```
-{
-  "sessionID": "xxxxxx"
-}
-```
-
-### Response
-
-```
-{
-  "balance": {
-    "amount": 100000,
-    "currency": "USD"
-  }
-}
-```
-
-Play Request
-------------
-
-Initiates a game round and debits the bet amount from the player’s balance.
-
-### Request
-
-```
-{
-  "amount": 100000,
-  "sessionID": "xxxxxxx",
-  "mode": "BASE"
-}
-```
-
-### Response
-
-```
-{
-  "balance": {
-    "amount": 100000,
-    "currency": "USD"
-  },
-  "round": { ... }
-}
-```
-
-End Round Request
------------------
-
-Completes a round, triggering a payout and ending all activity for that round.
-
-### Request
-
-```
-POST /wallet/end-round
-```
-
-```
-{
-  "sessionID": "xxxxxx"
-}
-```
-
-### Response
-
-```
-{
-  "balance": {
-    "amount": 100000,
-    "currency": "USD"
-  }
-}
-```
-
-Game Play
----------
-
-Event
------
-
-Tracks in-progress player actions during a round. Useful for resuming gameplay if a player disconnects.
-
-### Request
-
-```
-POST /bet/event
-```
-
-```
-{
-  "sessionID": "xxxxxx",
-  "event": "xxxxxx"
-}
-```
-
-### Response
-
-```
-{
-  "event": "xxxxxx"
-}
-```
-
-Response Codes
---------------
-
-Stake Engine uses standard HTTP response codes (200, 400, 500) with specific error codes.
-
-400 – Client Errors
--------------------
-
-| Status Code | Description |
-| --- | --- |
-| ERR_VAL | Invalid Request |
-| ERR_IPB | Insufficient Player Balance |
-| ERR_IS | Invalid Session Token / Session Timeout |
-| ERR_ATE | Failed User Authentication / Token Expired |
-| ERR_GLE | Gambling Limits Exceeded |
-| ERR_LOC | Invalid Player Location |
-
-500 – Server Errors
--------------------
-
-| Status Code | Description |
-| --- | --- |
-| ERR_GEN | General Server Error |
-| ERR_MAINTENANCE | RGS Under Planned Maintenance |
-
-Math Publication File Formats
------------------------------
-
-When publishing math results, ensure that the [file-format](https://stake-engine.com/docs/math/math-file-format) is abided by. These are strict conditions for successful math file publication.
+					Promise.all([
+						import("/_app/immutable/entry/start.6YIxPPFz.js"),
+						import("/_app/immutable/entry/app.xfEJMBfV.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+		<script>
+</script>
+</body>
+</html>

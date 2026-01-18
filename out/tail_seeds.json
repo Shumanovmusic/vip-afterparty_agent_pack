@@ -7,6 +7,10 @@
   "config_hash": "6b282b3256cf6b4e",
   "max_win_total_x": 25000,
   "found_count": 1482,
+  "count_1000x_plus": 1482,
+  "count_10000x_plus": 0,
+  "count_capped": 0,
+  "max_found_win_x": 3207.3800000000006,
   "found": [
     {
       "seed": "HUNT_058314",

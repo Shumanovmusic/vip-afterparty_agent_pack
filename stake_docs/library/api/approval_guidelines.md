@@ -2,6 +2,8 @@ Title: Approval Guidelines - API Documentation
 
 URL Source: https://stake-engine.com/docs/approval-guidelines
 
+Published Time: Fri, 16 Jan 2026 02:35:30 GMT
+
 Markdown Content:
 General Requirements
 --------------------

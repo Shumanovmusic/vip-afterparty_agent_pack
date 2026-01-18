@@ -1,199 +1,65 @@
-Title: Math High Level Structure Game Format
+<!doctype html>
+<html lang="%lang%" class="scrollbar-none">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="canonical" href="https://stake-engine.com">
+		<link rel="preload" href="/fonts/ProximaNovaRegular.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaSemibold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBlack.otf" as="font" type="font/otf" crossorigin>
+		
+		<link rel="modulepreload" href="/_app/immutable/entry/start.6YIxPPFz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/5XAKBeKm.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Dj5wAEed.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C7B2ciBt.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cr78SLJn.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C-JIKbm3.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BUApaBEI.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/9EtO3thH.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.xfEJMBfV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/PPVm8Dsz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/D3QTMetq.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DqvB2xRV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DsnmJJEf.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CHolR6AU.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cc_uW2fg.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Bl04d0oi.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DaXTs42W.js">
+				<!-- Google Tag Manager -->
+		<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+	new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+	j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+	'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+	})(window,document,'script','dataLayer','GTM-WN48GTB8');</script>
+		<!-- End Google Tag Manager -->
+	</head>
+	<!-- data-sveltekit-preload-data="hover" -->
+	<body class="min-h-dvh">
+				<!-- Google Tag Manager (noscript) -->
+		<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WN48GTB8"
+			height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+		<!-- End Google Tag Manager (noscript) -->
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_9xf2l4 = {
+						base: ""
+					};
 
-URL Source: https://stake-engine.com/docs/math/high-level-structure/game-format
+					const element = document.currentScript.parentElement;
 
-Markdown Content:
-Standard Game Setup Requirements
---------------------------------
-
-Without diving into specific functions, this section is intended to walkthrough how a new slot game would generally be setup. In practice it is recommended to start with one of the sample games which closest resemble the game being made, or otherwise starting from the [template](https://stake-engine.com/docs/math/example-games).
-
-Configuration file
-------------------
-
-Game parameters should all be set in the `GameConfig``__init__()` function. This is where to set the name name, RTP, board dimensions, payouts, reels and various special symbol actions. All required fields are listed in the `Config` class and should be filed out explicitly for each new game. Next the `BetMode` classes are defined. Generally there would be at a minimum a (default) `base` game and a `freegame`, which is usually purchased.
-
-```
-class GameConfig(Config):
-    def __init__(self):
-        super().__init__()
-        self.game_id = ""
-        self.provider_number = 0
-        self.working_name = ""
-        self.wincap = 0
-        self.win_type = "lines"
-        self.rtp = 0
-
-        self.num_reels = 0
-        self.num_rows = [0] * self.num_reels  
-        self.paytable = {
-            (kind, symbol): payout, 
-        }
-
-        self.include_padding = True
-        self.special_symbols = {"property": ["sym_name"],...}
-
-        self.freespin_triggers = {
-        }
-        self.reels = {}
-        self.bet_modes = []
-```
-
-Each `BetMode` should likewise be set explicitly, defining the cost, rtp maximum win amounts and various gametype flags. We would like to define different win criteria within each betmode. In the sample games we define distinct criteria for any game-aspects where we would like to control either the hit-rate and/or RTP allocation. In this example we would like to control the basegame hit-rate, max-win hit-rate and freegame hit-rate. Therefore we need to specify unique `Distribution` criteria for each of these special conditions.
-
-```
-BetMode(
-        name="base",
-        cost=1.0,
-        rtp=self.rtp,
-        max_win=self.wincap,
-        auto_close_disabled=False,
-        is_feature=True,
-        is_buybonus=False,
-        distributions=[
-            Distribution(
-                criteria="winCap",
-                quota=0.001,
-                win_criteria=self.wincap,
-                conditions={
-                    "reel_weights": {
-                        self.basegame_type: {"BR0": 1},
-                        self.freegame_type: {"FR0": 1},
-                    },
-                    "force_wincap": True,
-                    "force_freegame": True,
-                },
-            ),
-            Distribution(
-                criteria="freegame",
-                quota=0.1,
-                conditions={
-                    "reel_weights": {
-                        self.basegame_type: {"BR0": 1},
-                        self.freegame_type: {"FR0": 1},
-                    },
-                    "force_wincap": False,
-                    "force_freegame": True,
-                },
-            ),
-            Distribution(
-                criteria="0",
-                quota=0.4,
-                win_criteria=0.0,
-                conditions={
-                    "reel_weights": {self.basegame_type: {"BR0": 1}},
-                },
-            ),
-            Distribution(
-                criteria="basegame",
-                quota=0.5,
-                conditions={
-                    "reel_weights": {self.basegame_type: {"BR0": 1}},
-                },
-            ),
-        ],
-    )
-```
-
-Gamestate file
---------------
-
-When any simulation is run, the entry point will be the `run_spin()` function, which lives in the `GameState` class. `GameExecutables` and `GameCalculations` are child classes of `GameState` and also deal with game specific logic.
-
-The generic structure would follow the format:
-
-```
-def run_spin(self, sim):
-    self.reset_seed(sim) #seed the RNG with the simulation number 
-    self.repeat = True
-    while self.repeat:
-        self.reset_book() #reset local variables
-        self.draw_board() #rraw board from reelstrips
-
-        #evaluate win_data
-        #update win_manager
-        #emit relevant events
-
-        self.win_manager.update_gametype_wins(self.gametype) #update cumulative basegame wins
-        if self.check_fs_condition(): #check scatter conditions
-            self.run_freespin_from_base() #run freegame
-
-        self.evaluate_finalwin()
-        self.check_repeat() #Verify betmode distribution conditions are satisfied
-
-    self.imprint_wins() #save simulation result
-```
-
-For reproducibility the RNG is seeded with the simulation number. Betmode distribution criteria are preassigned to each simulation number, requiring the `self.repeat` condition to be initially set until the spin has completed and it can be checked that any criteria-specific conditions or win amounts are satisfied. Note that `self.repeat = False` is set in the `self.reset_book()` function. This function will reset all relevant `GameState` properties to default values.
-
-Generally the first steps will be to use the reelstrips provided in the configuration file to draw a board from randomly chosen reelstop positions. Wins are evaluated from one of the provided win-types for the active board, and the wallet manager is updated. After this game-logic is completed the relevant events (such as `reveal` and `winInfo`) are emitted. All sample games follow these three steps:
-
-1.   Calculate current state of the board
-2.   Update wallet manager
-3.   Emit events
-
-To keep track of which gametype wins are allocated, the wallet manger is again invoked once all basegame actions are complete. If the game have a freegame mode and the triggering conditions are satisfied the `run_freespin()` function is invoked. This mode will have a similar structure:
-
-```
-def run_freespin(self):
-    self.reset_fs_spin() #reset freegame variables
-    while self.fs < self.tot_fs: #account for multiple freegame spins
-        self.update_freespin() #update spin number and emit event
-        self.draw_board() #draw a new board using freegame reelstrips
-
-        #evaluate win_data
-        #update win_manager
-        #emit relevant events
-
-        if self.check_fs_condition(): #check retrigger conditions
-            self.update_fs_retrigger_amt()
-
-        self.win_manager.update_gametype_wins(self.gametype) #update cumulative freegame win amounts
-
-    self.end_freespin() #emit event to indicate end of freegame
-```
-
-While it is possible to perform all game actions within these functions, for clarity functions from `GameExecutables` and `GameCalculations` are typically invoked and should be created on a game-by-game basis depending on requirements.
-
-Runfile
--------
-
-Finally to produce simulations, the `run.py` file is used to create simulation outputs and config files containing game and simulation details.
-
-```
-if __name__ == "__main__":
-
-    num_threads = 1
-    rust_threaeds = 20
-    batching_size = 50000
-    compression = False
-    profiling = False
-
-    num_sim_args = {
-        "base": int(10),
-        "bonus": int(10),
-    }
-
-    config = GameConfig()
-    gamestate = GameState(config)
-
-    create_books(
-        gamestate,
-        config,
-        num_sim_args,
-        batching_size,
-        num_threads,
-        compression,
-        profiling,
-    )
-    generate_configs(gamestate)
-```
-
-The `create_books` function handles the allocation of win criteria to simulation numbers, output file format and multi-threading parameters.
-
-Outputs
--------
-
-Simulation outputs are placed in the `game/library/` folder. `books/books_compressed` is the primary data-file containing all events and payout multipliers. `lookup_tables` hold the summary simulation-payout values in `.csv` format which is consumed by the optimization algorithm. Additionally for game analysis, lookup table mapping of which simulations belong to which win criteria and which gametype wins arise from are produced. `force/` file outputs contain all information used by the `.record()` function, which is again useful for analyzing the frequency and average win amounts for specific events. The optimization algorithm also uses the recorded `force` data to identify which simulations correspond to specific win criteria. Finally `config/` files contain information required by the frontend such as symbol and betmode information, backend information such as file hash values and a configuration file for the optimization algorithm.
-
-The optimization algorithm consumes the lookup table and outputs a copy of the file, but with modified weights. To assist with setting optimization parameters, there are two other files with the prefix `lookUpTableIdToCriteria` and `lookUpTableSegmented`. These files are used to identify which bet-mode sub-type that specific simulation number belongs to (such as max-wins, 0-wins, freegame entry etc..), and what gametype (usually basegame or freegame) contributes to the final payout multiplier.
+					Promise.all([
+						import("/_app/immutable/entry/start.6YIxPPFz.js"),
+						import("/_app/immutable/entry/app.xfEJMBfV.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+		<script>
+</script>
+</body>
+</html>

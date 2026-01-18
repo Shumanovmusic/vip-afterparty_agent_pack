@@ -1,35 +1,65 @@
-Title: Math - API Documentation
+<!doctype html>
+<html lang="%lang%" class="scrollbar-none">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="canonical" href="https://stake-engine.com">
+		<link rel="preload" href="/fonts/ProximaNovaRegular.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaSemibold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBold.otf" as="font" type="font/otf" crossorigin>
+		<link rel="preload" href="/fonts/ProximaNovaBlack.otf" as="font" type="font/otf" crossorigin>
+		
+		<link rel="modulepreload" href="/_app/immutable/entry/start.6YIxPPFz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/5XAKBeKm.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Dj5wAEed.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C7B2ciBt.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cr78SLJn.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/C-JIKbm3.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/BUApaBEI.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/9EtO3thH.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.xfEJMBfV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/PPVm8Dsz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/D3QTMetq.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DqvB2xRV.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DsnmJJEf.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/CHolR6AU.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Cc_uW2fg.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/Bl04d0oi.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/DaXTs42W.js">
+				<!-- Google Tag Manager -->
+		<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+	new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+	j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+	'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+	})(window,document,'script','dataLayer','GTM-WN48GTB8');</script>
+		<!-- End Google Tag Manager -->
+	</head>
+	<!-- data-sveltekit-preload-data="hover" -->
+	<body class="min-h-dvh">
+				<!-- Google Tag Manager (noscript) -->
+		<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WN48GTB8"
+			height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+		<!-- End Google Tag Manager (noscript) -->
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_9xf2l4 = {
+						base: ""
+					};
 
-URL Source: https://stake-engine.com/docs/math
+					const element = document.currentScript.parentElement;
 
-Markdown Content:
-Why Use the Math SDK?
----------------------
-
-Traditionally, developing slot games involves navigating complex mathematical models to balance payouts, hit rates, and player engagement. This process can be time-consuming and resource-intensive. The Carrot Math SDK eliminates these challenges by providing:
-
-*   **Predefined Frameworks**: Start with customizable templates or sample games to accelerate development.
-*   **Mathematical Precision**: Simulate and optimize win distributions using discrete outcome probabilities, ensuring strict control over game mechanics.
-*   **Seamless Integration**: Outputs are formatted to align with the Carrot RGS, enabling quick deployment to production environments.
-*   **Scalability**: Built-in multithreading and optimization tools allow for efficient handling of large-scale simulations.
-
-### **Who Is This For?**
-
-The Carrot Math SDK is ideal for developers looking to:
-
-*   Create custom slot games with unique mechanics.
-*   Optimize game payouts and hit rates without relying on extensive manual calculations.
-*   Generate detailed simulation outputs for statistical analysis.
-*   Publish games on Stake.com with minimal friction.
-
-### **Static File Outputs**
-
-Physical slot-machines (and many of those used in iGaming) generate results in real time by programming game-logic onto the RGS/backend. When a game is requested, a cryptographically secure random number generator selects a random reel-stop position for every active reel, and the game-logic flows from the starting board position. The drawbacks of this method is that since a single reel-strip could easily have 100+ symbols, with typically 5 reels, there are 100^5 (10 billion) unique board combinations.Explicitly calculating game payouts or Return to Player (RTP) is often infeasible, so extensive simulations are used to estimate outcomes. Stake Engine requires all game-outcomes to be known at the time of publication. Storing instructions for all possible game outcomes is impractical. Instead, a subset of results is used to define the game.
-
-These outputs are broken up into two main parts: 1. game logic files and 2. CSV payout summaries. The game-logic files contain an ordered list of critical game details such as symbol names, board positions, payout amounts, winning symbol positions etc… Accompanying each simulation detailed in the game logic files is a CSV entry listing the simulation number, probability of selection, and payout amount. So upon a game round request, the RGS will consult the CSV/lookup table to select a simulation number, then return a JSON response from the game-logic file for this simulation number to the frontend, telling the web-client what to render, while also updating the players wallet with the payout amount. Breaking up these two files also allows us to exactly calculate the games RTP and essential win-distribution statistics at time of publication.
-
-### **Get Started Today**
-
-Dive into the technical details and explore how the Carrot Math SDK can transform your game development process. With powerful tools, sample games, and detailed documentation, you’ll have everything you need to create engaging and mathematically sound games.
-
-See [Math SDK Technical Details](https://stake-engine.com/docs/math/sdk-directory) for more details.
+					Promise.all([
+						import("/_app/immutable/entry/start.6YIxPPFz.js"),
+						import("/_app/immutable/entry/app.xfEJMBfV.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+		<script>
+</script>
+</body>
+</html>
