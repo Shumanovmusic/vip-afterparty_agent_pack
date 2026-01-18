@@ -1,0 +1,13 @@
+{
+  "protocolVersion": "1.0",
+  "configuration": {
+    "currency": "USD",
+    "allowedBets": [0.10, 0.20, 0.50, 1.00, 2.00, 5.00, 10.00],
+    "enableBuyFeature": true,
+    "buyFeatureCostMultiplier": 100,
+    "enableTurbo": true,
+    "enableHypeModeAnteBet": true,
+    "hypeModeCostIncrease": 0.25
+  },
+  "restoreState": null
+}

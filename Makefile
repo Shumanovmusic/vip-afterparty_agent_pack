@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare
 
 up:
 	docker compose up -d
@@ -202,3 +202,25 @@ diff-audit:
 	@echo ""
 	@mkdir -p out/diff
 	cd backend && .venv/bin/python -m scripts.diff_audit --rounds 20000 --seed AUDIT_2025 --outdir ../out/diff --verbose
+
+# =============================================================================
+# DIFF AUDIT COMPARE (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Compare a fresh simulation run against a reference CSV.
+# Useful for verifying results match expectations after code changes.
+# Run manually: make diff-audit-compare
+# Requires: out/audit_base.csv (create with make audit-long or audit_sim)
+# =============================================================================
+diff-audit-compare:
+	@echo "=== DIFF AUDIT COMPARE (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@if [ ! -f out/audit_base.csv ]; then \
+		echo "ERROR: Reference file not found: out/audit_base.csv"; \
+		echo ""; \
+		echo "Create it first with one of:"; \
+		echo "  make audit-long                                        # Full long-run audit (1M rounds)"; \
+		echo "  cd backend && .venv/bin/python -m scripts.audit_sim --mode base --rounds 100000 --seed AUDIT_2025 --out ../out/audit_base.csv --verbose"; \
+		exit 1; \
+	fi
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_base.csv --mode base --rounds 20000 --seed AUDIT_2025 --verbose

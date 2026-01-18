@@ -1,0 +1,34 @@
+{
+  "protocolVersion": "1.0",
+  "roundId": "550e8400-e29b-41d4-a716-446655440001",
+  "context": {
+    "currency": "USD"
+  },
+  "outcome": {
+    "totalWin": 2.50,
+    "totalWinX": 2.5,
+    "isCapped": false,
+    "capReason": null
+  },
+  "events": [
+    {
+      "type": "reveal",
+      "grid": [[1, 2, 3], [1, 2, 3], [1, 2, 3], [4, 5, 6], [4, 5, 6]]
+    },
+    {
+      "type": "winLine",
+      "lineId": 1,
+      "amount": 2.50,
+      "winX": 2.5
+    },
+    {
+      "type": "heatUpdate",
+      "level": 1
+    }
+  ],
+  "nextState": {
+    "mode": "BASE",
+    "spinsRemaining": 0,
+    "heatLevel": 1
+  }
+}
