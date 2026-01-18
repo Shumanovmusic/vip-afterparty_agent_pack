@@ -21,7 +21,7 @@ class RedisService:
     # TTLs in seconds
     IDEMPOTENCY_TTL = 3600  # 1 hour
     LOCK_TTL = 30  # 30 seconds max lock
-    STATE_TTL = 86400  # 24 hours for session continuation
+    STATE_TTL = settings.player_state_ttl_seconds  # from CONFIG.md
 
     def __init__(self, redis_url: str | None = None):
         self._url = redis_url or settings.redis_url
