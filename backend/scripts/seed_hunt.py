@@ -60,6 +60,47 @@ def get_timestamp_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def check_cached_result(
+    output_path: str,
+    config_hash: str,
+    max_seeds: int,
+    min_win_x: float,
+    mode: str,
+    target: str,
+    seed_prefix: str,
+) -> bool:
+    """
+    Check if valid cached result exists.
+
+    Returns True if cache is valid (same config_hash and hunt params).
+    """
+    path = Path(output_path)
+    if not path.exists():
+        return False
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+
+            # Validate all cache keys match
+            if data.get("config_hash") != config_hash:
+                return False
+            if data.get("max_seeds") != max_seeds:
+                return False
+            if data.get("min_win_x") != min_win_x:
+                return False
+            if data.get("mode") != mode:
+                return False
+            if data.get("target") != target:
+                return False
+            if data.get("seed_prefix") != seed_prefix:
+                return False
+
+            return True
+    except (OSError, json.JSONDecodeError, KeyError):
+        return False
+
+
 def seed_to_int(seed_str: str) -> int:
     """Convert string seed to integer deterministically."""
     return int(hashlib.sha256(seed_str.encode()).hexdigest(), 16) % (2**31)
@@ -244,6 +285,11 @@ def main() -> int:
         action="store_true",
         help="Show progress",
     )
+    parser.add_argument(
+        "--skip-if-cached",
+        action="store_true",
+        help="Skip hunt if valid cached result exists",
+    )
 
     args = parser.parse_args()
 
@@ -251,6 +297,22 @@ def main() -> int:
     print(f"Seed hunt: mode={args.mode}, min_win_x={args.min_win_x}, target={args.target}")
     print(f"MAX_WIN_TOTAL_X (config): {MAX_WIN_TOTAL_X}")
     print(f"Config hash: {config_hash}")
+
+    # Check cache if requested
+    if args.skip_if_cached:
+        if check_cached_result(
+            args.out,
+            config_hash,
+            args.max_seeds,
+            args.min_win_x,
+            args.mode,
+            args.target,
+            args.seed_prefix,
+        ):
+            print(f"Using cached result: {args.out}")
+            print("(Skipping hunt - cache valid for config_hash and all params)")
+            return 0
+
     print(f"Searching up to {args.max_seeds} seeds...")
 
     # Hunt for seeds

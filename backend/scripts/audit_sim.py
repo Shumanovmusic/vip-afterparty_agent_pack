@@ -12,8 +12,10 @@ import argparse
 import csv
 import hashlib
 import json
+import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +65,60 @@ def get_config_hash() -> str:
     }
     canonical = json.dumps(config_snapshot, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
+
+
+def get_git_commit() -> str:
+    """Get current git commit hash (short)."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent.parent,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return "unknown"
+
+
+def get_timestamp_iso() -> str:
+    """Get ISO 8601 UTC timestamp."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def check_cached_result(output_path: str, config_hash: str, rounds: int, seed: str, mode: str) -> bool:
+    """
+    Check if valid cached result exists.
+
+    Returns True if cache is valid (same config_hash, rounds, seed, mode).
+    """
+    path = Path(output_path)
+    if not path.exists():
+        return False
+
+    try:
+        with open(path, "r") as f:
+            reader = csv.DictReader(f)
+            row = next(reader, None)
+            if row is None:
+                return False
+
+            # Validate all cache keys match
+            if row.get("config_hash") != config_hash:
+                return False
+            if int(row.get("rounds", 0)) != rounds:
+                return False
+            if row.get("seed") != seed:
+                return False
+            if row.get("mode") != mode:
+                return False
+
+            return True
+    except (OSError, csv.Error, ValueError):
+        return False
 
 
 def seed_to_int(seed_str: str) -> int:
@@ -238,6 +294,8 @@ def generate_csv(
     output_path: str,
 ) -> None:
     """Generate audit CSV file per GAME_RULES.md requirements."""
+    timestamp = get_timestamp_iso()
+    git_commit = get_git_commit()
     config_hash = get_config_hash()
 
     rtp = (stats.total_won / stats.total_wagered * 100) if stats.total_wagered > 0 else 0
@@ -260,7 +318,11 @@ def generate_csv(
     vip_buy_bonus_rate = (stats.vip_buy_bonus_entries / stats.rounds * 100) if stats.rounds > 0 else 0
     standard_bonus_rate = (stats.standard_bonus_entries / stats.rounds * 100) if stats.rounds > 0 else 0
 
+    # Column order: timestamp, git_commit, config_hash first (per plan)
     row = {
+        "timestamp": timestamp,
+        "git_commit": git_commit,
+        "config_hash": config_hash,
         "mode": mode,
         "rounds": rounds,
         "seed": seed_str,
@@ -278,7 +340,6 @@ def generate_csv(
         "rate_1000x_plus": f"{rate_1000x:.6f}",
         "rate_10000x_plus": f"{rate_10000x:.6f}",
         "capped_rate": f"{capped_rate:.6f}",
-        "config_hash": config_hash,
     }
 
     # Ensure output directory exists
@@ -325,12 +386,25 @@ def main() -> int:
         action="store_true",
         help="Show progress",
     )
+    parser.add_argument(
+        "--skip-if-cached",
+        action="store_true",
+        help="Skip simulation if valid cached result exists",
+    )
 
     args = parser.parse_args()
 
+    config_hash = get_config_hash()
     print(f"Running simulation: mode={args.mode}, rounds={args.rounds}, seed={args.seed}")
     print(f"MAX_WIN_TOTAL_X (config): {MAX_WIN_TOTAL_X}")
-    print(f"Config hash: {get_config_hash()}")
+    print(f"Config hash: {config_hash}")
+
+    # Check cache if requested
+    if args.skip_if_cached:
+        if check_cached_result(args.out, config_hash, args.rounds, args.seed, args.mode):
+            print(f"Using cached result: {args.out}")
+            print("(Skipping simulation - cache valid for config_hash, rounds, seed, mode)")
+            return 0
 
     # Run simulation
     stats = run_simulation(
