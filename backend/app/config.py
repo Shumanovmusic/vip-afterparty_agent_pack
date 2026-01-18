@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     enable_turbo: bool = True
     enable_hype_mode_ante_bet: bool = True
     hype_mode_cost_increase: float = 0.25
+    hype_mode_bonus_chance_multiplier: float = 2.0
 
     # Afterparty Meter (Canonical Rage System) - values from CONFIG.md
     enable_afterparty_meter: bool = True
