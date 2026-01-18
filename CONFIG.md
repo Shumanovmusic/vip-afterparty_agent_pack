@@ -138,3 +138,10 @@ EXPLOSIVE_TRIGGER_WIN_X=5
 # Durations
 BOOST_SPINS=3
 EXPLOSIVE_SPINS=1
+
+## State Persistence (Redis TTLs)
+# Player state TTL for restoreState functionality per protocol_v1.md
+PLAYER_STATE_TTL_SECONDS=86400
+# Meaning: Player state expires after 24 hours of inactivity
+# Risk: Player loses unfinished bonus if they return after 24h
+# Decision: 24h balances UX (reasonable return window) vs storage cost
