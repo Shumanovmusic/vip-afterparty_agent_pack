@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit
 
 up:
 	docker compose up -d
@@ -187,3 +187,18 @@ audit-long:
 	@head -1 out/audit_buy_200k.csv
 	@echo "--- audit_hype_200k.csv ---"
 	@head -1 out/audit_hype_200k.csv
+
+# =============================================================================
+# DIFF AUDIT (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Diagnostic tool to compare RTP results between runs.
+# Verifies simulation determinism by running same parameters twice.
+# Run manually: make diff-audit
+# Outputs: out/diff/diff_*.csv
+# =============================================================================
+diff-audit:
+	@echo "=== DIFF AUDIT (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@mkdir -p out/diff
+	cd backend && .venv/bin/python -m scripts.diff_audit --rounds 20000 --seed DIFF_AUDIT_2026 --outdir ../out/diff --verbose

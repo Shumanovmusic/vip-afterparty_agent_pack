@@ -91,3 +91,77 @@ head -2 out/audit_base_1m.csv out/audit_buy_200k.csv out/audit_hype_200k.csv
 - Expect runtime of 5-15 minutes depending on hardware
 - Results are written to `out/` directory (gitignored)
 - To share results, copy the CSV files or paste the data rows
+
+---
+
+## Diff Audit (`make diff-audit`)
+
+The **diff audit** is a diagnostic tool for verifying simulation determinism. It runs the same simulation twice with identical parameters and compares results to ensure reproducibility.
+
+### Purpose
+
+- Verify simulation reproducibility (same seed → same results)
+- Diagnose RTP differences between gate tests and audit-long
+- Detect non-determinism in the game engine
+- Validate config_hash consistency across runs
+
+### Commands
+
+```bash
+# Run diff audit (default: 20000 rounds)
+make diff-audit
+
+# Run with custom parameters
+cd backend && .venv/bin/python -m scripts.diff_audit --rounds 50000 --seed CUSTOM_SEED --verbose
+```
+
+### Output Files
+
+Files are written to `out/diff/`:
+
+| File | Description |
+|------|-------------|
+| `diff_base_gate.csv` | Base mode "gate-like" run |
+| `diff_base_long.csv` | Base mode "long-like" run |
+| `diff_buy_gate.csv` | Buy mode "gate-like" run |
+| `diff_buy_long.csv` | Buy mode "long-like" run |
+| `diff_hype_gate.csv` | Hype mode "gate-like" run |
+| `diff_hype_long.csv` | Hype mode "long-like" run |
+
+### Interpreting Results
+
+**PASS**: Both runs produce identical results — simulation is deterministic.
+
+**FAIL**: Results differ — indicates:
+- Non-determinism in the game engine
+- RNG seeding issue
+- Config hash mismatch (different game math)
+
+### Comparison Table
+
+The script outputs a comparison table showing:
+
+```
+================================================================================
+DIFF AUDIT COMPARISON TABLE
+================================================================================
+Mode     | Run          |        RTP |    Hit% |   Bonus% |    Max Win
+--------------------------------------------------------------------------------
+base     | gate-like    |    98.0000 |  28.74  |    0.27  |     213.06
+base     | long-like    |    98.0000 |  28.74  |    0.27  |     213.06
+--------------------------------------------------------------------------------
+...
+```
+
+### Exit Codes
+
+- `0`: All modes passed (deterministic)
+- `1`: At least one mode failed or config_hash mismatch
+
+### Default Parameters
+
+```
+Rounds: 20000
+Seed: DIFF_AUDIT_2026
+Output dir: out/diff/
+```
