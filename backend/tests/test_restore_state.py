@@ -79,41 +79,49 @@ class TestRestoreStateWorkflow:
     These tests document the expected flow when a player has unfinished free spins.
     """
 
-    @pytest.mark.skip(reason="Restore state persistence not yet implemented - TODO")
     def test_unfinished_free_spins_returns_restore_state(
         self, client_with_mock_redis: TestClient
     ):
         """
         Workflow test:
-        1. Player enters free spins
+        1. Player enters free spins via BUY_FEATURE
         2. Player disconnects mid-free spins
         3. GET /init returns restoreState with remaining spins
         """
         player_id = f"restore-test-{uuid.uuid4()}"
 
-        # Step 1: Trigger free spins (would need specific seed or mock)
-        # Step 2: Simulate disconnect by not completing free spins
-        # Step 3: Call /init and verify restoreState
+        # Step 1: Trigger free spins via BUY_FEATURE (deterministic)
+        response = client_with_mock_redis.post(
+            "/spin",
+            headers={"X-Player-Id": player_id},
+            json=make_spin_request(mode="BUY_FEATURE"),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["nextState"]["mode"] == "FREE_SPINS"
+        assert data["nextState"]["spinsRemaining"] > 0
 
-        response = client_with_mock_redis.get(
+        # Step 2: Simulate disconnect by not completing free spins
+        # (state should be persisted in Redis)
+
+        # Step 3: Call /init and verify restoreState
+        init_response = client_with_mock_redis.get(
             "/init",
             headers={"X-Player-Id": player_id},
         )
-        data = response.json()
+        init_data = init_response.json()
 
-        # When implemented, this should return restore state
-        assert data["restoreState"] is not None
-        assert data["restoreState"]["mode"] == "FREE_SPINS"
-        assert data["restoreState"]["spinsRemaining"] > 0
+        assert init_data["restoreState"] is not None
+        assert init_data["restoreState"]["mode"] == "FREE_SPINS"
+        assert init_data["restoreState"]["spinsRemaining"] > 0
 
-    @pytest.mark.skip(reason="Restore state persistence not yet implemented - TODO")
     def test_completed_round_no_restore_state(
         self, client_with_mock_redis: TestClient
     ):
-        """After completing all spins, restoreState must be null."""
+        """After completing all spins in BASE mode, restoreState must be null."""
         player_id = f"complete-test-{uuid.uuid4()}"
 
-        # Play full round (base game only, no free spins)
+        # Play a round in NORMAL mode (BASE game)
         response = client_with_mock_redis.post(
             "/spin",
             headers={"X-Player-Id": player_id},

@@ -1,16 +1,15 @@
 """Contract validation tests for /init per protocol_v1.md."""
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
-client = TestClient(app)
-
 PLAYER_ID = "test-player-123"
 
 
-def test_init_requires_player_id():
+def test_init_requires_player_id(client_with_mock_redis: TestClient):
     """GET /init without X-Player-Id must return INVALID_REQUEST (400)."""
-    response = client.get("/init")
+    response = client_with_mock_redis.get("/init")
     assert response.status_code == 400
     data = response.json()
     assert data["protocolVersion"] == "1.0"
@@ -18,22 +17,22 @@ def test_init_requires_player_id():
     assert data["error"]["recoverable"] is False
 
 
-def test_init_returns_200():
+def test_init_returns_200(client_with_mock_redis: TestClient):
     """GET /init with X-Player-Id must return 200."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     assert response.status_code == 200
 
 
-def test_init_returns_protocol_version():
+def test_init_returns_protocol_version(client_with_mock_redis: TestClient):
     """GET /init must include protocolVersion per protocol_v1.md."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     data = response.json()
     assert data["protocolVersion"] == "1.0"
 
 
-def test_init_returns_configuration():
+def test_init_returns_configuration(client_with_mock_redis: TestClient):
     """GET /init must include configuration object per protocol_v1.md."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     data = response.json()
 
     assert "configuration" in data
@@ -64,9 +63,9 @@ def test_init_returns_configuration():
     assert isinstance(config["hypeModeCostIncrease"], (int, float))
 
 
-def test_init_returns_allowed_bets_from_config():
+def test_init_returns_allowed_bets_from_config(client_with_mock_redis: TestClient):
     """GET /init allowedBets must match CONFIG.md values."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     data = response.json()
 
     # Expected values from CONFIG.md via protocol_v1.md
@@ -74,27 +73,27 @@ def test_init_returns_allowed_bets_from_config():
     assert data["configuration"]["allowedBets"] == expected_bets
 
 
-def test_init_returns_hype_mode_cost_increase():
+def test_init_returns_hype_mode_cost_increase(client_with_mock_redis: TestClient):
     """GET /init hypeModeCostIncrease must be 0.25 per CONFIG.md."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     data = response.json()
 
     # Expected value from CONFIG.md: HYPE_MODE_COST_INCREASE=0.25
     assert data["configuration"]["hypeModeCostIncrease"] == 0.25
 
 
-def test_init_returns_restore_state_null_for_new_player():
+def test_init_returns_restore_state_null_for_new_player(client_with_mock_redis: TestClient):
     """GET /init restoreState must be null for player without unfinished round."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     data = response.json()
 
     assert "restoreState" in data
     assert data["restoreState"] is None
 
 
-def test_init_response_schema_exact():
+def test_init_response_schema_exact(client_with_mock_redis: TestClient):
     """GET /init response must match protocol_v1.md schema exactly."""
-    response = client.get("/init", headers={"X-Player-Id": PLAYER_ID})
+    response = client_with_mock_redis.get("/init", headers={"X-Player-Id": PLAYER_ID})
     data = response.json()
 
     # Top-level keys

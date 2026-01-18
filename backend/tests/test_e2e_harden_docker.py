@@ -250,34 +250,122 @@ class TestModeFieldsTraceability:
             f"got {enter_fs.get('bonusVariant')}"
         )
 
-    @pytest.mark.skip(
-        reason="NON-BLOCKING: State persistence is OPTIONAL per protocol_v1.md line 22 "
-        "('optionally restore unfinished round state'). restoreState requirement "
-        "(lines 45-58) is conditional: 'If the player has an unfinished free-spins state'. "
-        "bonusEnd event generation is verified in unit tests: "
-        "test_event_ordering.py::test_bonus_end_only_when_free_spins_complete, "
-        "test_event_ordering.py::test_finale_path_values."
-    )
     def test_vip_buy_bonus_end_has_multiplier_fields(self):
         """VIP Buy bonusEnd MUST have bonusMultiplierApplied and totalWinXPreMultiplier.
 
-        NON-BLOCKING SKIP JUSTIFICATION:
-        - protocol_v1.md line 22: restoreState is OPTIONAL ("optionally restore")
-        - protocol_v1.md lines 45-58: restoreState requirement is conditional
-        - bonusEnd schema verified in unit tests (test_event_ordering.py)
-        - This E2E test requires state persistence which is not protocol-mandated
+        Play through entire bonus round triggered by BUY_FEATURE to verify
+        bonusEnd event has required multiplier fields.
         """
-        pass
+        player_id = f"{PLAYER_ID}-vip-bonus-end-{uuid.uuid4()}"
 
-    @pytest.mark.skip(
-        reason="NON-BLOCKING: State persistence is OPTIONAL per protocol_v1.md line 22. "
-        "bonusEnd behavior verified in unit tests (test_event_ordering.py)."
-    )
+        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+            # Start bonus via BUY_FEATURE
+            response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(mode="BUY_FEATURE"),
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["nextState"]["mode"] == "FREE_SPINS"
+            spins_remaining = data["nextState"]["spinsRemaining"]
+
+            # Play through all free spins until bonus ends
+            bonus_end_event = None
+            max_iterations = 50  # Safety limit
+
+            for _ in range(max_iterations):
+                if spins_remaining <= 0:
+                    # Check if we got bonusEnd in the last response
+                    bonus_end_events = [
+                        e for e in data.get("events", []) if e.get("type") == "bonusEnd"
+                    ]
+                    if bonus_end_events:
+                        bonus_end_event = bonus_end_events[0]
+                    break
+
+                response = client.post(
+                    "/spin",
+                    headers={"X-Player-Id": player_id},
+                    json=make_spin_request(),
+                )
+                assert response.status_code == 200
+                data = response.json()
+                spins_remaining = data["nextState"]["spinsRemaining"]
+
+                # Check for bonusEnd event
+                bonus_end_events = [
+                    e for e in data.get("events", []) if e.get("type") == "bonusEnd"
+                ]
+                if bonus_end_events:
+                    bonus_end_event = bonus_end_events[0]
+                    break
+
+            # Verify bonusEnd was found and has required fields
+            assert bonus_end_event is not None, "bonusEnd event must be emitted"
+            assert "bonusMultiplierApplied" in bonus_end_event, (
+                "bonusEnd must have bonusMultiplierApplied field"
+            )
+            assert "totalWinXPreMultiplier" in bonus_end_event, (
+                "bonusEnd must have totalWinXPreMultiplier field"
+            )
+
     def test_buy_feature_bonus_end_has_correct_bonus_variant(self):
         """BUY_FEATURE bonusEnd.bonusVariant MUST be 'vip_buy'.
 
-        NON-BLOCKING SKIP JUSTIFICATION:
-        - protocol_v1.md line 22: restoreState is OPTIONAL
-        - bonusEnd event generation verified in test_event_ordering.py
+        Play through entire bonus round triggered by BUY_FEATURE to verify
+        bonusEnd event has correct bonusVariant.
         """
-        pass
+        player_id = f"{PLAYER_ID}-vip-variant-{uuid.uuid4()}"
+
+        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+            # Start bonus via BUY_FEATURE
+            response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(mode="BUY_FEATURE"),
+            )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["nextState"]["mode"] == "FREE_SPINS"
+            spins_remaining = data["nextState"]["spinsRemaining"]
+
+            # Play through all free spins until bonus ends
+            bonus_end_event = None
+            max_iterations = 50  # Safety limit
+
+            for _ in range(max_iterations):
+                if spins_remaining <= 0:
+                    # Check if we got bonusEnd in the last response
+                    bonus_end_events = [
+                        e for e in data.get("events", []) if e.get("type") == "bonusEnd"
+                    ]
+                    if bonus_end_events:
+                        bonus_end_event = bonus_end_events[0]
+                    break
+
+                response = client.post(
+                    "/spin",
+                    headers={"X-Player-Id": player_id},
+                    json=make_spin_request(),
+                )
+                assert response.status_code == 200
+                data = response.json()
+                spins_remaining = data["nextState"]["spinsRemaining"]
+
+                # Check for bonusEnd event
+                bonus_end_events = [
+                    e for e in data.get("events", []) if e.get("type") == "bonusEnd"
+                ]
+                if bonus_end_events:
+                    bonus_end_event = bonus_end_events[0]
+                    break
+
+            # Verify bonusEnd was found and has correct bonusVariant
+            assert bonus_end_event is not None, "bonusEnd event must be emitted"
+            assert bonus_end_event.get("bonusVariant") == "vip_buy", (
+                f"bonusEnd.bonusVariant must be 'vip_buy', "
+                f"got {bonus_end_event.get('bonusVariant')}"
+            )

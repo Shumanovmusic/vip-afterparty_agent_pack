@@ -16,10 +16,12 @@ class RedisService:
     # Key prefixes
     IDEMPOTENCY_PREFIX = "idem:"
     LOCK_PREFIX = "lock:player:"
+    STATE_PREFIX = "state:player:"
 
     # TTLs in seconds
     IDEMPOTENCY_TTL = 3600  # 1 hour
     LOCK_TTL = 30  # 30 seconds max lock
+    STATE_TTL = 86400  # 24 hours for session continuation
 
     def __init__(self, redis_url: str | None = None):
         self._url = redis_url or settings.redis_url
@@ -121,6 +123,38 @@ class RedisService:
             yield
         finally:
             await self.release_player_lock(player_id)
+
+    async def get_player_state(self, player_id: str) -> dict[str, Any] | None:
+        """
+        Load player state from Redis.
+
+        Returns None if no state exists (new player or state cleared).
+        """
+        key = f"{self.STATE_PREFIX}{player_id}"
+        cached = await self.client.get(key)
+        if cached is None:
+            return None
+        return json.loads(cached)
+
+    async def save_player_state(self, player_id: str, state: dict[str, Any]) -> None:
+        """
+        Save player state to Redis with TTL.
+
+        State structure:
+        {
+            "mode": "FREE_SPINS",
+            "free_spins_remaining": 7,
+            "heat_level": 4,
+            "bonus_is_bought": true
+        }
+        """
+        key = f"{self.STATE_PREFIX}{player_id}"
+        await self.client.setex(key, self.STATE_TTL, json.dumps(state))
+
+    async def clear_player_state(self, player_id: str) -> None:
+        """Clear player state (called on bonus end or BASE mode)."""
+        key = f"{self.STATE_PREFIX}{player_id}"
+        await self.client.delete(key)
 
 
 # Global instance

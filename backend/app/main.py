@@ -14,10 +14,12 @@ from app.protocol import (
     InitResponse,
     NextState,
     Outcome,
+    RestoreState,
     SpinRequest,
     SpinResponse,
     GameMode,
 )
+from app.logic.models import GameMode as LogicGameMode, GameState
 from app.redis_service import redis_service
 from app.validators import validate_spin_request
 
@@ -58,8 +60,21 @@ async def init(request: Request) -> dict:
 
     Returns configuration and optionally restore state.
     """
-    # TODO: Implement restoreState lookup from Redis for unfinished rounds
-    response = InitResponse()
+    player_id = request.state.player_id
+
+    # Load state from Redis
+    state_data = await redis_service.get_player_state(player_id)
+
+    restore_state = None
+    if state_data and state_data.get("mode") == "FREE_SPINS":
+        if state_data.get("free_spins_remaining", 0) > 0:
+            restore_state = RestoreState(
+                mode=GameMode.FREE_SPINS,
+                spinsRemaining=state_data["free_spins_remaining"],
+                heatLevel=state_data.get("heat_level", 0),
+            )
+
+    response = InitResponse(restoreState=restore_state)
     return response.model_dump()
 
 
@@ -94,16 +109,26 @@ async def spin(request: Request, body: SpinRequest) -> dict:
 
     # 4) Acquire player lock (raises ROUND_IN_PROGRESS if locked)
     async with redis_service.player_lock(player_id):
-        # 5) Execute game logic
-        # TODO: Load player state from Redis
+        # 5) Load player state from Redis
+        state_data = await redis_service.get_player_state(player_id)
+        state = None
+        if state_data:
+            state = GameState(
+                mode=LogicGameMode(state_data.get("mode", "BASE")),
+                free_spins_remaining=state_data.get("free_spins_remaining", 0),
+                heat_level=state_data.get("heat_level", 0),
+                bonus_is_bought=state_data.get("bonus_is_bought", False),
+            )
+
+        # 6) Execute game logic
         result = engine.spin(
             bet_amount=body.betAmount,
             mode=body.mode,
             hype_mode=body.hypeMode,
-            state=None,  # New state for now
+            state=state,
         )
 
-        # 6) Build protocol response
+        # 7) Build protocol response
         response = SpinResponse(
             roundId=str(uuid.uuid4()),
             context=Context(),
@@ -123,11 +148,29 @@ async def spin(request: Request, body: SpinRequest) -> dict:
 
         response_dict = response.model_dump()
 
-        # 7) Store in idempotency cache
+        # 8) Store in idempotency cache
         await redis_service.store_idempotency(
             body.clientRequestId, payload, response_dict
         )
 
-        # TODO: Save player state to Redis
+        # 9) Save player state to Redis
+        next_state = result.next_state
+        if (
+            next_state.mode == LogicGameMode.FREE_SPINS
+            and next_state.free_spins_remaining > 0
+        ):
+            # Unfinished bonus - persist state
+            await redis_service.save_player_state(
+                player_id,
+                {
+                    "mode": next_state.mode.value,
+                    "free_spins_remaining": next_state.free_spins_remaining,
+                    "heat_level": next_state.heat_level,
+                    "bonus_is_bought": next_state.bonus_is_bought,
+                },
+            )
+        else:
+            # Bonus ended or BASE mode - clear state
+            await redis_service.clear_player_state(player_id)
 
         return response_dict
