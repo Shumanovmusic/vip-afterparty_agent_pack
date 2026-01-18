@@ -1,0 +1,2 @@
+timestamp,git_commit,config_hash,mode,rounds,seed,debit_multiplier,scatter_chance_base,scatter_chance_effective,scatter_chance_multiplier,rtp,hit_freq,bonus_entry_rate,vip_buy_bonus_rate,standard_bonus_rate,avg_debit,avg_credit,p95_win_x,p99_win_x,max_win_x,rate_1000x_plus,rate_10000x_plus,capped_rate
+2026-01-18T20:30:32Z,f9061d9,6b282b3256cf6b4e,buy,20000,AUDIT_2025,100.00,0.0200,0.0200,1.00,97.7212,96.7350,100.0000,100.000000,0.000000,100.0000,97.7212,355.30,991.87,2140.71,0.870000,0.000000,0.000000

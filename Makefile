@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression
 
 up:
 	docker compose up -d
@@ -128,7 +128,10 @@ gate:
 	@echo "Step 5b: Running audit_sim --mode hype (with caching)..."
 	cd backend && .venv/bin/python -m scripts.audit_sim --mode hype --rounds 100000 --seed AUDIT_2025 --out ../out/audit_hype.csv --verbose --skip-if-cached || (cd .. && $(MAKE) down; exit 1)
 	@echo ""
-	@echo "Step 5c: Running RTP Targets Gate tests..."
+	@echo "Step 5c: Running Tail Progression Gate (buy mode)..."
+	cd backend && .venv/bin/python -m scripts.tail_progression --compare-to ../out/tail_baseline_buy_gate.csv --verbose || (cd .. && $(MAKE) down; exit 1)
+	@echo ""
+	@echo "Step 5d: Running RTP Targets Gate tests..."
 	cd backend && .venv/bin/python -m pytest -q tests/test_rtp_targets_gate.py || (cd .. && $(MAKE) down; exit 1)
 	@echo ""
 	@echo "Step 6: Running seed_hunt (1000x+ tail, with caching)..."
@@ -255,3 +258,36 @@ diff-audit-compare-hype:
 		exit 1; \
 	fi
 	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_hype.csv --use-reference-params --verbose
+
+# =============================================================================
+# TAIL PROGRESSION GATE (Blocking in gate, regenerate baseline manually)
+# =============================================================================
+# Verifies tail distribution metrics do not regress from committed baseline.
+# Baseline: out/tail_baseline_buy_gate.csv (COMMITTED to repo)
+# Run in gate: make tail-progression
+# Regenerate baseline: make tail-baseline (NOT in gate - intentional action)
+# =============================================================================
+tail-baseline:
+	@echo "=== TAIL BASELINE REGENERATION ==="
+	@echo "This creates/updates the committed baseline file."
+	@echo "Only regenerate when config_hash changes or intentional rebaseline."
+	@echo ""
+	@mkdir -p out
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode buy --rounds 20000 --seed AUDIT_2025 --out ../out/tail_baseline_buy_gate.csv --verbose
+	@echo ""
+	@echo "Baseline written to: out/tail_baseline_buy_gate.csv"
+	@echo "IMPORTANT: Commit this file to the repo after verification."
+
+tail-progression:
+	@echo "=== TAIL PROGRESSION GATE ==="
+	@echo ""
+	@if [ ! -f out/tail_baseline_buy_gate.csv ]; then \
+		echo "ERROR: Baseline file not found: out/tail_baseline_buy_gate.csv"; \
+		echo ""; \
+		echo "Generate baseline first with:"; \
+		echo "  make tail-baseline"; \
+		echo ""; \
+		echo "Then commit the baseline to the repo."; \
+		exit 1; \
+	fi
+	cd backend && .venv/bin/python -m scripts.tail_progression --compare-to ../out/tail_baseline_buy_gate.csv --verbose

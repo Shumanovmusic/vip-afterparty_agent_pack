@@ -292,3 +292,118 @@ RESULT: PASSED - Run matches reference (deterministic)
 
 - `0`: Comparison passed (deterministic)
 - `1`: Comparison failed, param mismatch, or config validation error
+
+---
+
+## Tail Progression Gate (`make tail-progression`)
+
+The **tail progression gate** verifies that tail distribution metrics (1000x+, 10000x+, max_win_x) do not regress from a committed baseline. This is a **BLOCKING** step in `make gate`.
+
+### Purpose
+
+- Prevent regressions in tail distribution (dream wins)
+- Ensure game math changes don't reduce big win frequency
+- Catch accidental changes that hurt player experience
+- Provide reproducible baseline for tail metrics
+
+### Baseline File
+
+**File:** `out/tail_baseline_buy_gate.csv` (COMMITTED to repo)
+
+This baseline is generated with gate parameters:
+- Mode: `buy`
+- Rounds: `20000`
+- Seed: `AUDIT_2025`
+
+### Commands
+
+```bash
+# Run tail progression check (uses baseline params automatically)
+make tail-progression
+
+# Regenerate baseline (NOT in gate - do this intentionally)
+make tail-baseline
+```
+
+### How to Regenerate Baseline
+
+Only regenerate when:
+1. **config_hash changes** - game math was intentionally modified
+2. **Intentional rebaseline** - after verifying new tail metrics are acceptable
+
+```bash
+# Regenerate
+make tail-baseline
+
+# Verify the new values are acceptable
+cat out/tail_baseline_buy_gate.csv
+
+# Commit to repo
+git add out/tail_baseline_buy_gate.csv
+git commit -m "chore: rebaseline tail metrics after <reason>"
+```
+
+### Checked Fields
+
+| Field | Tolerance | Description |
+|-------|-----------|-------------|
+| `rate_1000x_plus` | 0.2 pp | Percentage of rounds with >=1000x win |
+| `rate_10000x_plus` | 0.01 pp | Percentage of rounds with >=10000x win |
+| `max_win_x` | 100.0x | Maximum win multiplier observed |
+
+**pp** = percentage points (absolute tolerance)
+
+### Regression Logic
+
+For each field, the check verifies: `run_value >= baseline_value - tolerance`
+
+This means:
+- **Better values always pass** (more big wins is good)
+- **Same values pass** (deterministic result)
+- **Slightly worse values pass** (within tolerance for variance)
+- **Significantly worse values FAIL** (regression detected)
+
+**Special case:** If baseline is 0 (e.g., `rate_10000x_plus=0`), then 0 is allowed (can't regress from 0).
+
+### Config Hash Rule
+
+If `config_hash` changes between baseline and current run:
+1. The gate **fails immediately** with clear error
+2. You must **regenerate baseline** with `make tail-baseline`
+3. **Commit** the new baseline to the repo
+
+This ensures baselines are always intentionally updated when math changes.
+
+### Example Output (Success)
+
+```
+=== TAIL PROGRESSION GATE ===
+Using baseline params: mode=buy, seed=AUDIT_2025, rounds=20000
+Baseline: ../out/tail_baseline_buy_gate.csv
+Mode: buy
+Rounds: 20000
+Seed: AUDIT_2025
+Config hash: 6b282b3256cf6b4e
+
+Running simulation (20000 rounds)...
+
+================================================================================
+TAIL PROGRESSION RESULTS
+================================================================================
+Field                     |             Run |        Baseline | Status
+--------------------------------------------------------------------------------
+rate_1000x_plus           |        0.500000 |        0.500000 | PASS
+rate_10000x_plus          |        0.000000 |        0.000000 | PASS
+max_win_x                 |         2000.00 |         2000.00 | PASS
+capped_rate               |        0.000000 |        0.000000 | PASS
+--------------------------------------------------------------------------------
+
+================================================================================
+RESULT: PASSED - No tail regression detected
+================================================================================
+```
+
+### Exit Codes
+
+- `0`: PASS - no regression detected
+- `1`: FAIL - regression detected or validation error
