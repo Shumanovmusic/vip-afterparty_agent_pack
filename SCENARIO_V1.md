@@ -41,9 +41,9 @@ T+600–1000ms
 ### B3) Result (No Win)
 Если win_x = 0:
 - Нет долгих пауз. Следующий спин доступен сразу.
-- Увеличить `deadspins_streak` (backend), и если достигнут `RAGE_TRIGGER_DEADSPINS`:
-  - backend добавляет `eventStart(type="rage", reason="deadspins", durationSpins=RAGE_SPINS, multiplier=RAGE_MULTIPLIER)`
-  - в следующем раунде начинается Rage.
+- NOTE: Rage Mode is now triggered by Afterparty Meter (meter-based), NOT deadspins.
+  - See GAME_RULES.md and CONFIG.md (`AFTERPARTY_*` keys) for meter mechanics.
+  - When `afterparty_meter >= AFTERPARTY_METER_MAX`, Rage triggers on next BASE spin.
 
 ### B4) Result (Small/Mid Win)
 Если win_x > 0:
@@ -61,11 +61,13 @@ T+600–1000ms
 
 ---
 
-## Scene C: Rage Mode (x2+)
-Rage запускается только в BASE (не в Free Spins).
-- Баннер: “RAGE x2” (x{multiplier} из события)
-- Длительность: `RAGE_SPINS` (обычно 2) + заканчивается `eventEnd(type="rage")`
-- Математика: win каждого rage-спина умножается на `RAGE_MULTIPLIER` (>=2)
+## Scene C: Rage Mode (x2+) — Afterparty Meter Based
+Rage запускается только в BASE (не в Free Spins) when Afterparty Meter fills.
+- Trigger: `afterparty_meter >= AFTERPARTY_METER_MAX` (from CONFIG.md)
+- Баннер: "RAGE x2" (x{multiplier} из события)
+- Длительность: `AFTERPARTY_RAGE_SPINS` (from CONFIG.md) + заканчивается `eventEnd(type="afterpartyRage")`
+- Математика: win каждого rage-спина умножается на `AFTERPARTY_RAGE_MULTIPLIER` (from CONFIG.md)
+- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS` before meter can refill
 - FX: более жирные подсветки, но без обмана.
 
 ---

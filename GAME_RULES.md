@@ -111,30 +111,33 @@ Anticipation может включаться только если:
 
 ## FEATURE: AFTERPARTY METER -> RAGE MODE (CONTRACT)
 
-Цель: убрать однотипность Base Game и давать частые “развязки” (взрывы/события/буст-режим).
+Цель: убрать однотипность Base Game и давать частые "развязки" (взрывы/события/буст-режим).
+
+> **Source of Truth:** All tuned values for Afterparty Meter are defined in CONFIG.md (`AFTERPARTY_*` keys).
+> Do not duplicate numeric values in this file.
 
 ### Meter (Base Game)
-- В Base Game есть счётчик `afterparty_meter` (0..`RAGE_METER_MAX` из `CONFIG.md`).
-- Инкременты (из `CONFIG.md`):
-  - При любом выигрыше спина: `+RAGE_METER_INC_ON_ANY_WIN`
-  - Если в раскладе есть хотя бы один WILD: `+RAGE_METER_INC_ON_WILD_PRESENT`
-  - Если выпало ровно 2 SCATTER (без входа в бонус): `+RAGE_METER_INC_ON_TWO_SCATTERS`
-- Счётчик ограничен `RAGE_METER_MAX`.
+- В Base Game есть счётчик `afterparty_meter` (0..`AFTERPARTY_METER_MAX` из CONFIG.md).
+- Инкременты (из CONFIG.md):
+  - При любом выигрыше спина: `+AFTERPARTY_METER_INC_ON_ANY_WIN`
+  - Если в раскладе есть хотя бы один WILD: `+AFTERPARTY_METER_INC_ON_WILD_PRESENT`
+  - Если выпало ровно 2 SCATTER (без входа в бонус): `+AFTERPARTY_METER_INC_ON_TWO_SCATTERS`
+- Счётчик ограничен `AFTERPARTY_METER_MAX`.
 
 ### Trigger
-- Если `ENABLE_RAGE_MODE=ON` и `afterparty_meter >= RAGE_METER_MAX`, то **Rage Mode** запускается
+- Если `ENABLE_AFTERPARTY_METER=ON` и `afterparty_meter >= AFTERPARTY_METER_MAX`, то **Rage Mode** запускается
   **в начале следующего базового раунда** (до reveal) при условии, что игра не находится в Free Spins.
 - Если в момент готовности Rage игра уходит в Free Spins, Rage **откладывается** до завершения Free Spins
   (meter не сбрасывается, но не накапливается в бонусе).
 
 ### Rage Mode (Base Game modifier)
-- Длительность: `RAGE_SPINS_COUNT` спинов.
-- Множитель: `RAGE_MULTIPLIER` (минимум x2) применяется к win каждого Rage-спина:
-  - `rage_win = base_win * RAGE_MULTIPLIER`
+- Длительность: `AFTERPARTY_RAGE_SPINS` спинов.
+- Множитель: `AFTERPARTY_RAGE_MULTIPLIER` (минимум x2) применяется к win каждого Rage-спина:
+  - `rage_win = base_win * AFTERPARTY_RAGE_MULTIPLIER`
 - После последнего Rage-спина:
   - Rage завершается
   - `afterparty_meter` сбрасывается в 0
-  - применяются cooldown правила (см. `RAGE_TRIGGER_COOLDOWN_SPINS`)
+  - применяются cooldown правила (см. `AFTERPARTY_RAGE_COOLDOWN_SPINS`)
 
 ### Cap Safety
 - Множитель Rage участвует в расчёте, но итог всё равно ограничен hard cap `MAX_WIN_TOTAL_X`.

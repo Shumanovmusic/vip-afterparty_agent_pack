@@ -41,11 +41,11 @@ Backend обязан вести счётчики за сессию/окно:
 > Event System does NOT trigger Rage. There is no deadspins-based rage trigger.
 
 - Description: "рейдж" when Afterparty Meter fills to max — эмоциональная разрядка + ощущение, что игра "включилась".
-- Trigger: Afterparty Meter reaches `AFTERPARTY_METER_MAX` (100).
-  - Meter increments: +3 on any win, +5 on wild present, +8 on 2 scatters (in BASE mode).
-- Duration: `AFTERPARTY_RAGE_SPINS` (3 spins).
-- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS` (15 spins before meter can refill).
-- Math: applies `AFTERPARTY_RAGE_MULTIPLIER` (x2) to win of each rage spin.
+- Trigger: Afterparty Meter reaches `AFTERPARTY_METER_MAX` (from CONFIG.md).
+  - Meter increments defined in CONFIG.md: `AFTERPARTY_METER_INC_ON_ANY_WIN`, `AFTERPARTY_METER_INC_ON_WILD_PRESENT`, `AFTERPARTY_METER_INC_ON_TWO_SCATTERS` (applied in BASE mode only).
+- Duration: `AFTERPARTY_RAGE_SPINS` (from CONFIG.md).
+- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS` (from CONFIG.md).
+- Math: applies `AFTERPARTY_RAGE_MULTIPLIER` (from CONFIG.md) to win of each rage spin.
 - Presentation:
   - агрессивнее звук/подсветки
   - haptics только на вход и big win (см. UX)

@@ -30,15 +30,15 @@ FREE_SPINS_WIN_MULTIPLIER = 11
 
 # Afterparty Meter (Canonical Rage System - meter-based, NOT deadspins)
 # RTP Impact: Rage x2 multiplier during 3 spins adds ~2-3% RTP when triggered
-# Calibrated: meter fills slowly to avoid excessive RTP inflation
-ENABLE_AFTERPARTY_METER = True
-AFTERPARTY_METER_MAX = 100
-AFTERPARTY_RAGE_SPINS = 3
-AFTERPARTY_RAGE_MULTIPLIER = 2
-AFTERPARTY_METER_INC_ON_ANY_WIN = 3       # Reduced from 10 (was filling too fast)
-AFTERPARTY_METER_INC_ON_WILD_PRESENT = 5  # Reduced from 15
-AFTERPARTY_METER_INC_ON_TWO_SCATTERS = 8  # Reduced from 20
-AFTERPARTY_RAGE_COOLDOWN_SPINS = 15       # Increased from 10
+# All tuned values are read from settings (derived from CONFIG.md)
+ENABLE_AFTERPARTY_METER = settings.enable_afterparty_meter
+AFTERPARTY_METER_MAX = settings.afterparty_meter_max
+AFTERPARTY_RAGE_SPINS = settings.afterparty_rage_spins
+AFTERPARTY_RAGE_MULTIPLIER = settings.afterparty_rage_multiplier
+AFTERPARTY_METER_INC_ON_ANY_WIN = settings.afterparty_meter_inc_on_any_win
+AFTERPARTY_METER_INC_ON_WILD_PRESENT = settings.afterparty_meter_inc_on_wild_present
+AFTERPARTY_METER_INC_ON_TWO_SCATTERS = settings.afterparty_meter_inc_on_two_scatters
+AFTERPARTY_RAGE_COOLDOWN_SPINS = settings.afterparty_rage_cooldown_spins
 
 # Event triggers (BOOST + EXPLOSIVE only; Rage is handled by Afterparty Meter)
 BOOST_TRIGGER_SMALLWINS = 4

@@ -72,10 +72,10 @@
 - Добавить метрики по событиям/развязкам и трек 3–6 недельных когорт (см. `TELEMETRY.md`).
 
 
-## Add-on: Rage Mode (Base Game Variety)
-- Implement Afterparty Meter accumulation rules from `CONFIG.md`.
-- Emit protocol events: `meterUpdate`, `enterRageMode`, `exitRageMode`.
-- Apply multiplier `RAGE_MULTIPLIER` to win during Rage spins (x2+).
+## Add-on: Rage Mode (Base Game Variety) — Afterparty Meter
+- Implement Afterparty Meter accumulation rules from `CONFIG.md` (`AFTERPARTY_*` keys).
+- Emit protocol events: `afterpartyMeterUpdate`, `eventStart(afterpartyRage)`, `eventEnd(afterpartyRage)`.
+- Apply multiplier `AFTERPARTY_RAGE_MULTIPLIER` (from CONFIG.md) to win during Rage spins.
 - Ensure `MAX_WIN_TOTAL_X` cap still applies.
 - Add tests:
   - seed -> Rage enter -> 3 rage spins -> exit

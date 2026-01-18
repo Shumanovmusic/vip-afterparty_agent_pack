@@ -124,15 +124,16 @@ Response (200):
 - Payouts calculated from **base bet** (not ante total)
 
 ### Afterparty Meter (Rage Mode)
-- Gate: `ENABLE_AFTERPARTY_METER = ON`
-- Meter Max: `AFTERPARTY_METER_MAX = 100`
-- Spins Count: `AFTERPARTY_RAGE_SPINS = 3`
-- Multiplier: `AFTERPARTY_RAGE_MULTIPLIER = 2`
+> All values from CONFIG.md (source of truth). Do not duplicate numeric values here.
+- Gate: `ENABLE_AFTERPARTY_METER`
+- Meter Max: `AFTERPARTY_METER_MAX`
+- Spins Count: `AFTERPARTY_RAGE_SPINS`
+- Multiplier: `AFTERPARTY_RAGE_MULTIPLIER`
 - Meter Increments:
-  - Any Win: `+AFTERPARTY_METER_INC_ON_ANY_WIN = 3`
-  - Wild Present: `+AFTERPARTY_METER_INC_ON_WILD_PRESENT = 5`
-  - Two Scatters: `+AFTERPARTY_METER_INC_ON_TWO_SCATTERS = 8`
-- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS = 15`
+  - Any Win: `AFTERPARTY_METER_INC_ON_ANY_WIN`
+  - Wild Present: `AFTERPARTY_METER_INC_ON_WILD_PRESENT`
+  - Two Scatters: `AFTERPARTY_METER_INC_ON_TWO_SCATTERS`
+- Cooldown: `AFTERPARTY_RAGE_COOLDOWN_SPINS`
 
 ### Spotlight Wilds
 - Gate: `ENABLE_SPOTLIGHT_WILDS = ON`

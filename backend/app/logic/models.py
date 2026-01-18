@@ -30,7 +30,7 @@ class GameState(BaseModel):
     Player game state per GAME_RULES.md.
 
     Tracks:
-    - afterparty_meter (0..RAGE_METER_MAX)
+    - afterparty_meter (0..AFTERPARTY_METER_MAX from CONFIG.md)
     - rage_active / rage_spins_left
     - heat_level (in free spins)
     - current mode (BASE/FREE_SPINS)

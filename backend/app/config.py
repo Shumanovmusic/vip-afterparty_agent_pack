@@ -26,5 +26,15 @@ class Settings(BaseSettings):
     enable_hype_mode_ante_bet: bool = True
     hype_mode_cost_increase: float = 0.25
 
+    # Afterparty Meter (Canonical Rage System) - values from CONFIG.md
+    enable_afterparty_meter: bool = True
+    afterparty_meter_max: int = 100
+    afterparty_rage_spins: int = 3
+    afterparty_rage_multiplier: int = 2
+    afterparty_meter_inc_on_any_win: int = 3
+    afterparty_meter_inc_on_wild_present: int = 5
+    afterparty_meter_inc_on_two_scatters: int = 8
+    afterparty_rage_cooldown_spins: int = 15
+
 
 settings = Settings()
