@@ -160,8 +160,10 @@ base     | long-like    |    98.0000 |  28.74  |    0.27  |     213.06
 
 ### Default Parameters
 
+Defaults match **Step 5c (RTP Targets Gate)** exactly:
+
 ```
 Rounds: 20000
-Seed: DIFF_AUDIT_2026
+Seed: AUDIT_2025
 Output dir: out/diff/
 ```

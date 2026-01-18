@@ -201,4 +201,4 @@ diff-audit:
 	@echo "This is NOT part of make gate or CI."
 	@echo ""
 	@mkdir -p out/diff
-	cd backend && .venv/bin/python -m scripts.diff_audit --rounds 20000 --seed DIFF_AUDIT_2026 --outdir ../out/diff --verbose
+	cd backend && .venv/bin/python -m scripts.diff_audit --rounds 20000 --seed AUDIT_2025 --outdir ../out/diff --verbose

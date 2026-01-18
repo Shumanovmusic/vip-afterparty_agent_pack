@@ -7,8 +7,8 @@ to verify reproducibility. If results differ, that indicates a bug or
 non-determinism in the simulation.
 
 Usage:
-    python -m scripts.diff_audit --rounds 20000 --seed DIFF_AUDIT_2026 --verbose
-    python -m scripts.diff_audit --outdir ../out/diff --verbose
+    python -m scripts.diff_audit --verbose  # Uses gate defaults: 20k rounds, AUDIT_2025
+    python -m scripts.diff_audit --rounds 50000 --seed CUSTOM_SEED --verbose
 """
 import argparse
 import csv
@@ -25,9 +25,9 @@ from scripts.audit_sim import (
     run_simulation,
 )
 
-# Default parameters
+# Default parameters - match Step 5c (RTP Targets Gate) exactly
 DEFAULT_ROUNDS = 20000
-DEFAULT_SEED = "DIFF_AUDIT_2026"
+DEFAULT_SEED = "AUDIT_2025"  # Same as test_rtp_targets_gate.py
 DEFAULT_OUTDIR = "../out/diff"
 
 # Modes to compare
