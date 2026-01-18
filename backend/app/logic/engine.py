@@ -21,6 +21,9 @@ SPOTLIGHT_WILDS_MAX_POS = 3
 HYPE_MODE_COST_INCREASE = 0.25
 HYPE_MODE_BONUS_CHANCE_MULTIPLIER = 2.0
 
+# Base scatter probability per cell position (2% baseline)
+BASE_SCATTER_CHANCE = 0.02
+
 # Free Spins Enhancement (Buy Feature only)
 # To achieve ~96% RTP on 100x Buy Feature cost:
 # - 10 spins × base RTP (~0.96x) = ~9.6x total
@@ -143,10 +146,18 @@ class GameEngine:
         # Base bet for payout calculations (always base, not hype surcharge)
         base_bet = bet_amount
 
-        # 1) Generate grid
-        grid = self._generate_grid()
+        # 1) Compute scatter chance (hype mode doubles it per GAME_RULES.md)
+        scatter_chance = BASE_SCATTER_CHANCE
+        if hype_mode:
+            scatter_chance = min(
+                BASE_SCATTER_CHANCE * settings.hype_mode_bonus_chance_multiplier,
+                1.0,  # Clamp to max probability
+            )
 
-        # 2) Apply Spotlight Wilds (before win calculation) per GAME_RULES.md
+        # 2) Generate grid with computed scatter chance
+        grid = self._generate_grid(scatter_chance=scatter_chance)
+
+        # 3) Apply Spotlight Wilds (before win calculation) per GAME_RULES.md
         spotlight_positions: list[int] = []
         if ENABLE_SPOTLIGHT_WILDS and self.rng.random() < SPOTLIGHT_WILDS_FREQUENCY:
             spotlight_positions = self._apply_spotlight_wilds(grid)
@@ -326,10 +337,6 @@ class GameEngine:
             })
 
         # 13) Check for free spins trigger (3+ scatters)
-        base_scatter_chance = 0.02  # Base chance per reel position
-        if hype_mode:
-            base_scatter_chance *= HYPE_MODE_BONUS_CHANCE_MULTIPLIER
-
         if scatter_count >= 3 and state.mode == GameMode.BASE:
             free_spins_count = 10 + (scatter_count - 3) * 2  # 10 + bonus for extra
             next_state.mode = GameMode.FREE_SPINS
@@ -402,17 +409,23 @@ class GameEngine:
         result.events = events
         return result
 
-    def _generate_grid(self) -> list[list[int]]:
-        """Generate 5x3 grid with random symbols."""
+    def _generate_grid(
+        self, scatter_chance: float = BASE_SCATTER_CHANCE
+    ) -> list[list[int]]:
+        """Generate 5x3 grid with random symbols.
+
+        Args:
+            scatter_chance: Probability of scatter per cell (default 2%, hype mode 4%)
+        """
         grid = []
         for _ in range(REELS):
             reel = []
             for _ in range(ROWS):
                 # Weighted symbol selection
                 r = self.rng.random()
-                if r < 0.02:
+                if r < scatter_chance:
                     symbol = Symbol.SCATTER.value
-                elif r < 0.07:
+                elif r < scatter_chance + 0.05:
                     symbol = Symbol.WILD.value
                 elif r < 0.17:
                     symbol = Symbol.HIGH1.value
