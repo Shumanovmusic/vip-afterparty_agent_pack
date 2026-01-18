@@ -369,3 +369,139 @@ class TestModeFieldsTraceability:
                 f"bonusEnd.bonusVariant must be 'vip_buy', "
                 f"got {bonus_end_event.get('bonusVariant')}"
             )
+
+
+class TestRestoreStateE2E:
+    """
+    E2E tests for restoreState re-init flow (Docker required).
+
+    C1: Verify /init returns restoreState when bonus is unfinished
+    C2: Verify bonusEnd clears state and /init returns null
+    """
+
+    def test_restore_state_present_on_init_when_unfinished_bonus(self):
+        """
+        C1: /init returns restoreState when bonus is unfinished.
+
+        1. Call /init (restoreState null expected for new player)
+        2. Start BUY_FEATURE bonus
+        3. Play exactly 1 bonus spin (spins_left still > 0)
+        4. Call /init again - restoreState MUST be present
+        """
+        player_id = f"{PLAYER_ID}-e2e-c1-{uuid.uuid4()}"
+
+        with httpx.Client(base_url=BASE_URL, timeout=30.0) as client:
+            # Step 1: Initial /init - should be null
+            init1 = client.get("/init", headers={"X-Player-Id": player_id})
+            assert init1.status_code == 200
+            assert init1.json()["restoreState"] is None
+
+            # Step 2: Start bonus via BUY_FEATURE
+            buy_response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(mode="BUY_FEATURE"),
+            )
+            assert buy_response.status_code == 200
+            buy_data = buy_response.json()
+            assert buy_data["nextState"]["mode"] == "FREE_SPINS"
+            initial_spins = buy_data["nextState"]["spinsRemaining"]
+            assert initial_spins > 1, "Need multiple spins to test partial play"
+
+            # Step 3: Play 1 bonus spin
+            spin1 = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(mode="NORMAL"),
+            )
+            assert spin1.status_code == 200
+            spin1_data = spin1.json()
+
+            # Should still be in FREE_SPINS with decremented count
+            if spin1_data["nextState"]["mode"] == "FREE_SPINS":
+                assert spin1_data["nextState"]["spinsRemaining"] == initial_spins - 1
+
+                # Step 4: Call /init - restoreState MUST be present
+                init2 = client.get("/init", headers={"X-Player-Id": player_id})
+                assert init2.status_code == 200
+                init2_data = init2.json()
+
+                assert init2_data["restoreState"] is not None, (
+                    "restoreState MUST be present mid-bonus"
+                )
+                # Verify schema per protocol_v1.md
+                restore = init2_data["restoreState"]
+                assert restore["mode"] == "FREE_SPINS"
+                assert restore["spinsRemaining"] == initial_spins - 1
+                assert "heatLevel" in restore
+
+    def test_bonus_end_emitted_after_restore_continuation_and_state_cleared(self):
+        """
+        C2: bonusEnd clears state and /init returns restoreState=null.
+
+        1. Get restoreState (from unfinished bonus)
+        2. Continue /spin until bonusEnd occurs
+        3. Assert bonusEnd event present (per protocol)
+        4. Call /init - restoreState MUST be null
+        """
+        player_id = f"{PLAYER_ID}-e2e-c2-{uuid.uuid4()}"
+
+        with httpx.Client(base_url=BASE_URL, timeout=60.0) as client:
+            # Start bonus
+            buy_response = client.post(
+                "/spin",
+                headers={"X-Player-Id": player_id},
+                json=make_spin_request(mode="BUY_FEATURE"),
+            )
+            assert buy_response.status_code == 200
+            data = buy_response.json()
+            assert data["nextState"]["mode"] == "FREE_SPINS"
+            spins_remaining = data["nextState"]["spinsRemaining"]
+
+            # Verify restoreState exists
+            init1 = client.get("/init", headers={"X-Player-Id": player_id})
+            assert init1.json()["restoreState"] is not None
+
+            # Continue until bonusEnd
+            bonus_ended = False
+            max_iterations = 50
+            bonus_end_event = None
+
+            for _ in range(max_iterations):
+                if spins_remaining <= 0:
+                    event_types = [e["type"] for e in data.get("events", [])]
+                    if "bonusEnd" in event_types:
+                        bonus_ended = True
+                        bonus_end_event = next(
+                            e for e in data["events"] if e["type"] == "bonusEnd"
+                        )
+                    break
+
+                spin_response = client.post(
+                    "/spin",
+                    headers={"X-Player-Id": player_id},
+                    json=make_spin_request(mode="NORMAL"),
+                )
+                assert spin_response.status_code == 200
+                data = spin_response.json()
+                spins_remaining = data["nextState"]["spinsRemaining"]
+
+                event_types = [e["type"] for e in data.get("events", [])]
+                if "bonusEnd" in event_types:
+                    bonus_ended = True
+                    bonus_end_event = next(
+                        e for e in data["events"] if e["type"] == "bonusEnd"
+                    )
+                    break
+
+            # Assert bonusEnd was emitted
+            assert bonus_ended, "bonusEnd event must be emitted"
+            assert bonus_end_event is not None
+            assert data["nextState"]["mode"] == "BASE"
+
+            # Verify restoreState is now null
+            init2 = client.get("/init", headers={"X-Player-Id": player_id})
+            assert init2.status_code == 200
+            assert init2.json()["restoreState"] is None, (
+                "restoreState MUST be null after bonus ends"
+            )
