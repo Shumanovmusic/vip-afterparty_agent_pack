@@ -167,3 +167,128 @@ Rounds: 20000
 Seed: AUDIT_2025
 Output dir: out/diff/
 ```
+
+---
+
+## Diff Audit Compare Mode (`--compare-to`)
+
+The **compare-to mode** runs a fresh simulation and compares results against an existing reference CSV. This verifies **determinism**: with the same params and config, results must be identical.
+
+### Strict by Default
+
+By default, `--compare-to` is **STRICT** — CLI params (mode/rounds/seed) must exactly match the reference CSV params. This prevents accidental statistical comparisons between runs with different sample sizes.
+
+**If params don't match, the tool exits immediately with an error:**
+
+```
+ERROR: Param mismatch: reference rounds=100000 seed=AUDIT_2025 mode=base, got rounds=20000 seed=AUDIT_2025 mode=base.
+Use --use-reference-params or pass matching params.
+```
+
+### Use `--use-reference-params` for 1:1 Comparison
+
+The recommended way to compare is with `--use-reference-params`, which automatically uses params from the reference CSV:
+
+```bash
+# Recommended: auto-use params from reference
+cd backend && .venv/bin/python -m scripts.diff_audit \
+    --compare-to ../out/audit_base.csv \
+    --use-reference-params \
+    --verbose
+```
+
+Or use the Makefile targets:
+
+```bash
+make diff-audit-compare-base   # Compare to out/audit_base.csv
+make diff-audit-compare-buy    # Compare to out/audit_buy.csv
+make diff-audit-compare-hype   # Compare to out/audit_hype.csv
+```
+
+### Strict Mode (Manual Params)
+
+If you need to specify params explicitly, they must match the reference exactly:
+
+```bash
+# Strict mode: params must match reference
+cd backend && .venv/bin/python -m scripts.diff_audit \
+    --compare-to ../out/audit_base.csv \
+    --mode base \
+    --rounds 100000 \
+    --seed AUDIT_2025 \
+    --verbose
+```
+
+### Config Validation
+
+The tool also validates:
+
+1. **config_hash** — Must match. Different config_hash means game math changed.
+2. **debit_multiplier** — Must match. Different multiplier means wrong mode cost.
+
+If either mismatches, the tool exits with an error before running simulation.
+
+### Why Not Allow Different Rounds?
+
+Comparing runs with different sample sizes is **not determinism testing** — it's statistical analysis, which naturally produces different results. This tool focuses on verifying that the same inputs produce the same outputs.
+
+If you need to compare statistical convergence across sample sizes, use the long-run audit (`make audit-long`) instead.
+
+### Required Reference CSV Fields
+
+The reference CSV must contain these fields:
+
+```
+config_hash, mode, rounds, seed, debit_multiplier, rtp, hit_freq,
+bonus_entry_rate, p95_win_x, p99_win_x, max_win_x, rate_1000x_plus,
+rate_10000x_plus, capped_rate, scatter_chance_base, scatter_chance_effective,
+scatter_chance_multiplier
+```
+
+### Default Tolerances
+
+Even with identical params, floating-point precision may cause tiny differences. Tolerances are applied:
+
+| Field Group | Tolerance | Description |
+|-------------|-----------|-------------|
+| `rtp` | 0.02 | Percentage points |
+| `hit_freq` | 0.02 | Percentage points |
+| `bonus_entry_rate` | 0.0002 | Percentage points |
+| `p95_win_x`, `p99_win_x`, `max_win_x` | 0.01 | Absolute multiplier |
+| `rate_1000x_plus`, `rate_10000x_plus`, `capped_rate` | 0.0002 | Percentage points |
+| `scatter_chance_*` | exact | String equality (no tolerance) |
+
+### Example Output (Success with --use-reference-params)
+
+```
+=== DIFF AUDIT: COMPARE-TO MODE (--use-reference-params) ===
+Using reference params: mode=base, seed=AUDIT_2025, rounds=100000
+Reference: ../out/audit_base.csv
+Mode: base
+Rounds: 100000
+Seed: AUDIT_2025
+Config hash: 6b282b3256cf6b4e
+
+Running simulation (100000 rounds)...
+
+================================================================================
+COMPARISON RESULTS
+================================================================================
+Field                     |             Run |       Reference | Status
+--------------------------------------------------------------------------------
+rtp                       |         98.0954 |         98.0954 | PASS
+hit_freq                  |         28.7140 |         28.7140 | PASS
+bonus_entry_rate          |          0.2690 |          0.2690 | PASS
+max_win_x                 |        270.8000 |        270.8000 | PASS
+rate_1000x_plus           |        0.000000 |        0.000000 | PASS
+--------------------------------------------------------------------------------
+
+================================================================================
+RESULT: PASSED - Run matches reference (deterministic)
+================================================================================
+```
+
+### Exit Codes
+
+- `0`: Comparison passed (deterministic)
+- `1`: Comparison failed, param mismatch, or config validation error

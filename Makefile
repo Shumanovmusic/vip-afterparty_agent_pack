@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype
 
 up:
 	docker compose up -d
@@ -206,21 +206,52 @@ diff-audit:
 # =============================================================================
 # DIFF AUDIT COMPARE (Non-blocking, NOT part of gate/CI)
 # =============================================================================
-# Compare a fresh simulation run against a reference CSV.
+# Compare fresh simulation runs against reference CSVs using --use-reference-params.
+# This ensures params (mode/rounds/seed) are taken from the reference CSV.
 # Useful for verifying results match expectations after code changes.
-# Run manually: make diff-audit-compare
-# Requires: out/audit_base.csv (create with make audit-long or audit_sim)
+#
+# Run manually:
+#   make diff-audit-compare-base   # Compare to out/audit_base.csv
+#   make diff-audit-compare-buy    # Compare to out/audit_buy.csv
+#   make diff-audit-compare-hype   # Compare to out/audit_hype.csv
+#
+# Reference files are created by 'make gate' steps 4, 5, 5b.
 # =============================================================================
-diff-audit-compare:
-	@echo "=== DIFF AUDIT COMPARE (non-blocking) ==="
+diff-audit-compare-base:
+	@echo "=== DIFF AUDIT COMPARE: BASE (non-blocking) ==="
 	@echo "This is NOT part of make gate or CI."
 	@echo ""
 	@if [ ! -f out/audit_base.csv ]; then \
 		echo "ERROR: Reference file not found: out/audit_base.csv"; \
 		echo ""; \
-		echo "Create it first with one of:"; \
-		echo "  make audit-long                                        # Full long-run audit (1M rounds)"; \
-		echo "  cd backend && .venv/bin/python -m scripts.audit_sim --mode base --rounds 100000 --seed AUDIT_2025 --out ../out/audit_base.csv --verbose"; \
+		echo "Create it first with:"; \
+		echo "  make gate   # Creates out/audit_base.csv in Step 4"; \
 		exit 1; \
 	fi
-	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_base.csv --mode base --rounds 20000 --seed AUDIT_2025 --verbose
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_base.csv --use-reference-params --verbose
+
+diff-audit-compare-buy:
+	@echo "=== DIFF AUDIT COMPARE: BUY (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@if [ ! -f out/audit_buy.csv ]; then \
+		echo "ERROR: Reference file not found: out/audit_buy.csv"; \
+		echo ""; \
+		echo "Create it first with:"; \
+		echo "  make gate   # Creates out/audit_buy.csv in Step 5"; \
+		exit 1; \
+	fi
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_buy.csv --use-reference-params --verbose
+
+diff-audit-compare-hype:
+	@echo "=== DIFF AUDIT COMPARE: HYPE (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@if [ ! -f out/audit_hype.csv ]; then \
+		echo "ERROR: Reference file not found: out/audit_hype.csv"; \
+		echo ""; \
+		echo "Create it first with:"; \
+		echo "  make gate   # Creates out/audit_hype.csv in Step 5b"; \
+		exit 1; \
+	fi
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_hype.csv --use-reference-params --verbose
