@@ -6,8 +6,12 @@ and validates that key metrics are within acceptance criteria.
 
 Usage:
     pytest tests/test_audit_sanity.py -v
+
+Note: Marked as @slow - requires running simulation. Skipped in quick CI.
 """
 import pytest
+
+pytestmark = pytest.mark.slow  # All tests in this module are slow
 from scripts.audit_sim import run_simulation, calculate_percentile, BUY_FEATURE_COST_MULTIPLIER
 from app.logic.engine import MAX_WIN_TOTAL_X
 

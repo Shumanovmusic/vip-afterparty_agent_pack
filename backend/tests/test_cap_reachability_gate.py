@@ -10,13 +10,16 @@ Strategy:
 Per GAME_RULES.md Extended Tail Reachability:
 - EITHER: seed hunt finds >=1 seed with total_win_x >= 10000
 - OR: CAP_REACHABILITY.md exists with valid formal proof
+
+Note: Marked as @slow - requires seed hunt or file verification. Skipped in quick CI.
 """
 import json
+
+import pytest
+pytestmark = pytest.mark.slow  # All tests in this module are slow
 import os
 import sys
 from pathlib import Path
-
-import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

@@ -9,12 +9,15 @@ Ensures that:
 Per GAME_RULES.md:
 - MAX_WIN_TOTAL_X MUST be theoretically achievable in production config
 - All numbers in CAP_REACHABILITY.md must be reproducible from code
+
+Note: Marked as @slow - requires file verification. Skipped in quick CI.
 """
 import os
-import sys
-from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.slow  # All tests in this module are slow
+import sys
+from pathlib import Path
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))

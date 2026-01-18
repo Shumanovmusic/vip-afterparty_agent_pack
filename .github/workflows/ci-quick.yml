@@ -1,0 +1,35 @@
+name: CI Quick
+
+# Quick CI for daily commits - fast unit tests only
+# For full gate tests, see ci-nightly.yml
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+
+      - name: Run fast unit tests (skip slow/e2e)
+        run: |
+          cd backend
+          .venv/bin/python -m pytest -q -m "not slow and not e2e" --tb=short

@@ -1,4 +1,4 @@
-.PHONY: up down test dev install clean install-hooks gate check-laws smoke-docker test-contract check-afterparty test-e2e
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws smoke-docker test-contract check-afterparty test-e2e
 
 up:
 	docker compose up -d
@@ -8,6 +8,14 @@ down:
 
 test:
 	cd backend && .venv/bin/python -m pytest -q
+
+test-quick:
+	@echo "Running fast unit tests (skipping slow/e2e)..."
+	cd backend && .venv/bin/python -m pytest -q -m "not slow and not e2e" --tb=short
+
+test-full:
+	@echo "Running ALL tests including slow simulations..."
+	cd backend && .venv/bin/python -m pytest -q --tb=short
 
 dev:
 	cd backend && .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

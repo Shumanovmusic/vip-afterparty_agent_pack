@@ -10,6 +10,19 @@ from app.main import app
 from app.redis_service import RedisService
 
 
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (require audit/seed files)"
+    )
+    config.addinivalue_line(
+        "markers", "e2e: marks tests as e2e (require Docker services)"
+    )
+    config.addinivalue_line(
+        "markers", "gate: marks tests as gate tests (run in nightly only)"
+    )
+
+
 class MockRedis:
     """Mock Redis client for testing."""
 

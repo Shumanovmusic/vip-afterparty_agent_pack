@@ -8,13 +8,17 @@ Usage:
     make up
     cd backend && .venv/bin/python -m pytest tests/test_e2e_smoke_docker.py -v
     make down
+
+Note: Marked as @e2e - requires Docker services. Skipped in quick CI.
 """
 import json
+
+import pytest
+pytestmark = pytest.mark.e2e  # All tests in this module need Docker
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import httpx
-import pytest
 
 # Base URL for running services
 BASE_URL = "http://localhost:8000"

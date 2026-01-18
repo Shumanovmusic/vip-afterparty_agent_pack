@@ -7,12 +7,15 @@ Tests:
 A) audit_sim output includes required columns
 B) buy mode "tail is measurable" (rate_1000x_plus > 0)
 C) cap never exceeded (max_win_x <= MAX_WIN_TOTAL_X)
+
+Note: Marked as @slow - requires running simulation. Skipped in quick CI.
 """
 import csv
-from io import StringIO
-from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.slow  # All tests in this module are slow
+from io import StringIO
+from pathlib import Path
 
 from app.logic.engine import MAX_WIN_TOTAL_X
 from scripts.audit_sim import run_simulation, generate_csv, SimulationStats, get_config_hash
