@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -327,3 +327,22 @@ audit-gate-snapshots:
 	@head -1 out/audit_buy_gate.csv
 	@echo "--- audit_hype_gate.csv ---"
 	@head -1 out/audit_hype_gate.csv
+
+# =============================================================================
+# BASELINE UPDATE POLICY CHECK (Can be added to gate/CI)
+# =============================================================================
+# Enforces BASELINE_POLICY.md: baseline changes require accompanying code changes.
+# Run manually: make check-baseline-changed
+# Add to CI: make check-baseline-changed-ci BASE_BRANCH=main
+# =============================================================================
+check-baseline-changed:
+	@echo "=== Baseline Update Policy Check (staged changes) ==="
+	@./scripts/check-baseline-changed.sh
+
+check-baseline-changed-all:
+	@echo "=== Baseline Update Policy Check (all uncommitted) ==="
+	@./scripts/check-baseline-changed.sh --all
+
+check-baseline-changed-ci:
+	@echo "=== Baseline Update Policy Check (vs $(BASE_BRANCH)) ==="
+	@./scripts/check-baseline-changed.sh --branch $(BASE_BRANCH)

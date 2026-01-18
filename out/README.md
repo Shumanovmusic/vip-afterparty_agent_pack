@@ -29,12 +29,17 @@ Regenerate canonical snapshots when:
 1. **config_hash changes** — game math was intentionally modified
 2. **Laws/spec changes** — after verifying new values are acceptable
 
+**See `BASELINE_POLICY.md` for full update policy and PR requirements.**
+
 ```bash
 # Regenerate all canonical snapshots
 make audit-gate-snapshots
 
 # Verify the new values are acceptable
 head -2 out/audit_*_gate.csv
+
+# Run baseline policy check (will pass if engine/config also changed)
+make check-baseline-changed
 
 # Commit to repo
 git add out/audit_*_gate.csv
