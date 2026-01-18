@@ -22,6 +22,10 @@ dev = [
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["app*", "scripts*"]
+exclude = ["out*", "tests*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
