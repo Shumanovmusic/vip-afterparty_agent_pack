@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -91,8 +91,12 @@ check-redis-atomicity:
 	@echo "Running Redis Atomicity Gate..."
 	cd backend && .venv/bin/python -m pytest -q tests/test_redis_atomicity_gate.py
 
+check-crash-safety:
+	@echo "Running Crash-Safety Gate..."
+	cd backend && .venv/bin/python -m pytest -q tests/test_crash_safety_gate.py
+
 gate:
-	@echo "=== GATE PACK v6 ==="
+	@echo "=== GATE PACK v7 ==="
 	@echo "Step 0a: Laws sync check (fail-fast)..."
 	$(MAKE) check-laws
 	@echo ""
@@ -115,6 +119,9 @@ gate:
 	@echo ""
 	@echo "Step 0g: Redis Atomicity Gate (fail-fast)..."
 	$(MAKE) check-redis-atomicity || exit 1
+	@echo ""
+	@echo "Step 0h: Crash-Safety Gate (fail-fast)..."
+	$(MAKE) check-crash-safety || exit 1
 	@echo ""
 	@echo "Step 1: Starting Docker services..."
 	$(MAKE) up
@@ -172,7 +179,7 @@ gate:
 	@echo "Step 12: Stopping Docker services..."
 	$(MAKE) down
 	@echo ""
-	@echo "=== GATE PACK v6 COMPLETE ==="
+	@echo "=== GATE PACK v7 COMPLETE ==="
 
 # =============================================================================
 # LONG-RUN AUDIT (Non-blocking, NOT part of gate/CI)
