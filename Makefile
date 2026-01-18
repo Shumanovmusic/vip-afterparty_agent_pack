@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots
 
 up:
 	docker compose up -d
@@ -209,55 +209,55 @@ diff-audit:
 # =============================================================================
 # DIFF AUDIT COMPARE (Non-blocking, NOT part of gate/CI)
 # =============================================================================
-# Compare fresh simulation runs against reference CSVs using --use-reference-params.
-# This ensures params (mode/rounds/seed) are taken from the reference CSV.
-# Useful for verifying results match expectations after code changes.
+# Compare fresh simulation runs against canonical gate snapshots.
+# Uses --use-reference-params to take params (mode/rounds/seed) from reference CSV.
+# Useful for verifying determinism after code changes.
 #
 # Run manually:
-#   make diff-audit-compare-base   # Compare to out/audit_base.csv
-#   make diff-audit-compare-buy    # Compare to out/audit_buy.csv
-#   make diff-audit-compare-hype   # Compare to out/audit_hype.csv
+#   make diff-audit-compare-base   # Compare to out/audit_base_gate.csv
+#   make diff-audit-compare-buy    # Compare to out/audit_buy_gate.csv
+#   make diff-audit-compare-hype   # Compare to out/audit_hype_gate.csv
 #
-# Reference files are created by 'make gate' steps 4, 5, 5b.
+# Reference files are created by 'make audit-gate-snapshots'.
 # =============================================================================
 diff-audit-compare-base:
 	@echo "=== DIFF AUDIT COMPARE: BASE (non-blocking) ==="
 	@echo "This is NOT part of make gate or CI."
 	@echo ""
-	@if [ ! -f out/audit_base.csv ]; then \
-		echo "ERROR: Reference file not found: out/audit_base.csv"; \
+	@if [ ! -f out/audit_base_gate.csv ]; then \
+		echo "ERROR: Reference file not found: out/audit_base_gate.csv"; \
 		echo ""; \
 		echo "Create it first with:"; \
-		echo "  make gate   # Creates out/audit_base.csv in Step 4"; \
+		echo "  make audit-gate-snapshots"; \
 		exit 1; \
 	fi
-	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_base.csv --use-reference-params --verbose
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_base_gate.csv --use-reference-params --verbose
 
 diff-audit-compare-buy:
 	@echo "=== DIFF AUDIT COMPARE: BUY (non-blocking) ==="
 	@echo "This is NOT part of make gate or CI."
 	@echo ""
-	@if [ ! -f out/audit_buy.csv ]; then \
-		echo "ERROR: Reference file not found: out/audit_buy.csv"; \
+	@if [ ! -f out/audit_buy_gate.csv ]; then \
+		echo "ERROR: Reference file not found: out/audit_buy_gate.csv"; \
 		echo ""; \
 		echo "Create it first with:"; \
-		echo "  make gate   # Creates out/audit_buy.csv in Step 5"; \
+		echo "  make audit-gate-snapshots"; \
 		exit 1; \
 	fi
-	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_buy.csv --use-reference-params --verbose
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_buy_gate.csv --use-reference-params --verbose
 
 diff-audit-compare-hype:
 	@echo "=== DIFF AUDIT COMPARE: HYPE (non-blocking) ==="
 	@echo "This is NOT part of make gate or CI."
 	@echo ""
-	@if [ ! -f out/audit_hype.csv ]; then \
-		echo "ERROR: Reference file not found: out/audit_hype.csv"; \
+	@if [ ! -f out/audit_hype_gate.csv ]; then \
+		echo "ERROR: Reference file not found: out/audit_hype_gate.csv"; \
 		echo ""; \
 		echo "Create it first with:"; \
-		echo "  make gate   # Creates out/audit_hype.csv in Step 5b"; \
+		echo "  make audit-gate-snapshots"; \
 		exit 1; \
 	fi
-	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_hype.csv --use-reference-params --verbose
+	cd backend && .venv/bin/python -m scripts.diff_audit --compare-to ../out/audit_hype_gate.csv --use-reference-params --verbose
 
 # =============================================================================
 # TAIL PROGRESSION GATE (Blocking in gate, regenerate baseline manually)
@@ -291,3 +291,39 @@ tail-progression:
 		exit 1; \
 	fi
 	cd backend && .venv/bin/python -m scripts.tail_progression --compare-to ../out/tail_baseline_buy_gate.csv --verbose
+
+# =============================================================================
+# GATE CANONICAL SNAPSHOTS (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Deterministic baseline for diff-audit comparisons and quick regression checks.
+# Uses gate-like params: seed=AUDIT_2025, rounds=20000.
+# Run manually: make audit-gate-snapshots
+# Outputs: out/audit_base_gate.csv, out/audit_buy_gate.csv, out/audit_hype_gate.csv
+# Regenerate when: laws/math changes intentionally; diff failures indicate drift.
+# =============================================================================
+audit-gate-snapshots:
+	@echo "=== GATE CANONICAL SNAPSHOTS ==="
+	@echo "Generating canonical snapshots (seed=AUDIT_2025, rounds=20000)..."
+	@echo ""
+	@mkdir -p out
+	@echo "Step 1/3: Generating base mode snapshot..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode base --rounds 20000 --seed AUDIT_2025 --out ../out/audit_base_gate.csv --verbose
+	@echo ""
+	@echo "Step 2/3: Generating buy mode snapshot..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode buy --rounds 20000 --seed AUDIT_2025 --out ../out/audit_buy_gate.csv --verbose
+	@echo ""
+	@echo "Step 3/3: Generating hype mode snapshot..."
+	cd backend && .venv/bin/python -m scripts.audit_sim --mode hype --rounds 20000 --seed AUDIT_2025 --out ../out/audit_hype_gate.csv --verbose
+	@echo ""
+	@echo "=== GATE CANONICAL SNAPSHOTS COMPLETE ==="
+	@echo ""
+	@echo "Output files:"
+	@ls -la out/audit_base_gate.csv out/audit_buy_gate.csv out/audit_hype_gate.csv
+	@echo ""
+	@echo "CSV Headers:"
+	@echo "--- audit_base_gate.csv ---"
+	@head -1 out/audit_base_gate.csv
+	@echo "--- audit_buy_gate.csv ---"
+	@head -1 out/audit_buy_gate.csv
+	@echo "--- audit_hype_gate.csv ---"
+	@head -1 out/audit_hype_gate.csv

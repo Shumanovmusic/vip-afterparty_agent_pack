@@ -2,9 +2,66 @@
 
 This directory contains simulation output files produced by `audit_sim.py`.
 
+---
+
+## Gate Canonical Snapshots (`make audit-gate-snapshots`)
+
+**COMMITTED** deterministic baselines for quick regression checks and diff-audit comparisons.
+
+### Files
+
+| File | Mode | Rounds | Seed | Purpose |
+|------|------|--------|------|---------|
+| `audit_base_gate.csv` | base | 20,000 | AUDIT_2025 | Base game canonical snapshot |
+| `audit_buy_gate.csv` | buy | 20,000 | AUDIT_2025 | Buy feature canonical snapshot |
+| `audit_hype_gate.csv` | hype | 20,000 | AUDIT_2025 | Hype mode canonical snapshot |
+
+### Parameters
+
+All gate canonical snapshots use:
+- **Seed:** `AUDIT_2025`
+- **Rounds:** `20000`
+- **Purpose:** Deterministic baseline for diff-audit comparisons
+
+### When to Regenerate
+
+Regenerate canonical snapshots when:
+1. **config_hash changes** — game math was intentionally modified
+2. **Laws/spec changes** — after verifying new values are acceptable
+
+```bash
+# Regenerate all canonical snapshots
+make audit-gate-snapshots
+
+# Verify the new values are acceptable
+head -2 out/audit_*_gate.csv
+
+# Commit to repo
+git add out/audit_*_gate.csv
+git commit -m "chore: rebaseline canonical snapshots after <reason>"
+```
+
+### Usage with Diff-Audit
+
+```bash
+# Compare fresh simulation against canonical snapshot
+make diff-audit-compare-base   # Compare to audit_base_gate.csv
+make diff-audit-compare-buy    # Compare to audit_buy_gate.csv
+make diff-audit-compare-hype   # Compare to audit_hype_gate.csv
+```
+
+**PASS:** Results match — simulation is deterministic.
+**FAIL:** Results differ — unintended drift detected.
+
+---
+
 ## Long-Run Audit (`make audit-long`)
 
 The **long-run audit** is a stability check workflow for deep statistical analysis. It is **NOT** part of `make gate` or CI pipelines — run it manually when you need high-precision RTP measurements.
+
+**NOT COMMITTED to repo** — these are informational outputs, not determinism baselines.
+
+**NOT used by diff-audit-compare-*** — use gate canonical snapshots for comparisons.
 
 ### Purpose
 
@@ -299,6 +356,13 @@ RESULT: PASSED - Run matches reference (deterministic)
 
 The **tail progression gate** verifies that tail distribution metrics (1000x+, 10000x+, max_win_x) do not regress from a committed baseline. This is a **BLOCKING** step in `make gate`.
 
+**COMMITTED** — `tail_baseline_buy_gate.csv` is tracked in git.
+
+**Uses same canonical parameters as gate snapshots:**
+- Mode: `buy`
+- Rounds: `20000`
+- Seed: `AUDIT_2025`
+
 ### Purpose
 
 - Prevent regressions in tail distribution (dream wins)
@@ -310,7 +374,7 @@ The **tail progression gate** verifies that tail distribution metrics (1000x+, 1
 
 **File:** `out/tail_baseline_buy_gate.csv` (COMMITTED to repo)
 
-This baseline is generated with gate parameters:
+This baseline uses the same canonical gate parameters:
 - Mode: `buy`
 - Rounds: `20000`
 - Seed: `AUDIT_2025`
