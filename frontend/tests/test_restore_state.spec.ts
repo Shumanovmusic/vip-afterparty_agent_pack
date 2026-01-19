@@ -263,7 +263,12 @@ describe('GameModeStore', () => {
     })
   })
 
-  describe('Sanity Scenarios', () => {
+  /**
+   * Restore UX Contract v1
+   * These tests define the minimal UX guarantees for restore state handling.
+   * Breaking these = regression in bonus continuation flow.
+   */
+  describe('Restore UX Contract v1', () => {
     describe('Mid-bonus restore (page reload during FREE_SPINS)', () => {
       it('restores FREE_SPINS mode with correct spinsRemaining', () => {
         // Simulate: player bought feature, did 1 spin, then reloaded
