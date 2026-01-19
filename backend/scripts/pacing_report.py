@@ -10,10 +10,12 @@ This is a NON-GATE workflow for diagnostic purposes only.
 Usage:
     python -m scripts.pacing_report --seed PACING_2026
     python -m scripts.pacing_report --seed PACING_2026 --save-csv
+    python -m scripts.pacing_report --save-summary-json ../out/pacing_baseline_gate.json
 """
 import argparse
 import csv
 import hashlib
+import json
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -525,6 +527,110 @@ def save_csv(
         writer.writerow(row)
 
 
+def compute_mode_summary(
+    mode: str,
+    stats: PacingStats,
+    rounds: int,
+) -> dict:
+    """Compute summary metrics for a single mode (as dict for JSON)."""
+    # Basic metrics
+    rtp = (stats.total_won / stats.total_wagered) if stats.total_wagered > 0 else 0
+    win_rate = (stats.wins / stats.rounds) if stats.rounds > 0 else 0
+    dry_spins_rate = 1.0 - win_rate
+    bonus_entry_rate = (stats.bonus_entries / stats.rounds) if stats.rounds > 0 else 0
+
+    # Spins between wins
+    spins_between_wins = compute_spins_between_wins(stats.win_x_values)
+    sbw_p50 = int(calculate_percentile(spins_between_wins, 50)) if spins_between_wins else 0
+    sbw_p90 = int(calculate_percentile(spins_between_wins, 90)) if spins_between_wins else 0
+    sbw_p99 = int(calculate_percentile(spins_between_wins, 99)) if spins_between_wins else 0
+
+    # Spins between bonuses (for base/hype; buy is always 1)
+    if mode == "buy":
+        sbb_p50 = 1
+        sbb_p90 = 1
+        sbb_p99 = 1
+        drought_gt300_rate = 0.0
+        drought_gt500_rate = 0.0
+    else:
+        bonus_intervals = calculate_intervals(stats.bonus_entry_rounds, stats.rounds)
+        sbb_p50 = int(calculate_percentile(bonus_intervals, 50)) if bonus_intervals else 0
+        sbb_p90 = int(calculate_percentile(bonus_intervals, 90)) if bonus_intervals else 0
+        sbb_p99 = int(calculate_percentile(bonus_intervals, 99)) if bonus_intervals else 0
+
+        # Drought rates
+        if bonus_intervals:
+            long_300 = sum(1 for i in bonus_intervals if i > 300)
+            long_500 = sum(1 for i in bonus_intervals if i > 500)
+            drought_gt300_rate = long_300 / len(bonus_intervals)
+            drought_gt500_rate = long_500 / len(bonus_intervals)
+        else:
+            drought_gt300_rate = 0.0
+            drought_gt500_rate = 0.0
+
+    # Volatility rates (as fractions, not percentages)
+    rate_100x = (stats.wins_100x_plus / stats.rounds) if stats.rounds > 0 else 0
+    rate_500x = (stats.wins_500x_plus / stats.rounds) if stats.rounds > 0 else 0
+    rate_1000x = (stats.wins_1000x_plus / stats.rounds) if stats.rounds > 0 else 0
+
+    return {
+        "rtp": rtp,
+        "win_rate": win_rate,
+        "dry_spins_rate": dry_spins_rate,
+        "bonus_entry_rate": bonus_entry_rate,
+        "spins_between_wins_p50": sbw_p50,
+        "spins_between_wins_p90": sbw_p90,
+        "spins_between_wins_p99": sbw_p99,
+        "spins_between_bonus_p50": sbb_p50,
+        "spins_between_bonus_p90": sbb_p90,
+        "spins_between_bonus_p99": sbb_p99,
+        "bonus_drought_gt300_rate": drought_gt300_rate,
+        "bonus_drought_gt500_rate": drought_gt500_rate,
+        "max_win_x": stats.max_win_x_observed,
+        "rate_100x_plus": rate_100x,
+        "rate_500x_plus": rate_500x,
+        "rate_1000x_plus": rate_1000x,
+    }
+
+
+def generate_summary_json(
+    seed: str,
+    rounds: int,
+    stats_base: PacingStats,
+    stats_buy: PacingStats,
+    stats_hype: PacingStats,
+    rounds_base: int,
+    rounds_buy: int,
+    rounds_hype: int,
+) -> dict:
+    """Generate JSON summary for baseline comparison."""
+    git_commit = get_git_commit()
+    config_hash = get_config_hash()
+
+    return {
+        "schema": "pacing_baseline_v1",
+        "seed": seed,
+        "rounds": rounds,  # canonical rounds (typically all same)
+        "config_hash": config_hash,
+        "git_commit": git_commit,
+        "modes": {
+            "base": compute_mode_summary("base", stats_base, rounds_base),
+            "buy": compute_mode_summary("buy", stats_buy, rounds_buy),
+            "hype": compute_mode_summary("hype", stats_hype, rounds_hype),
+        },
+    }
+
+
+def save_summary_json(output_path: Path, summary: dict) -> None:
+    """Save JSON summary to file."""
+    # Validate output path is inside out/
+    validate_output_path(output_path.parent)
+
+    with open(output_path, "w") as f:
+        json.dump(summary, f, indent=2)
+        f.write("\n")  # trailing newline
+
+
 def validate_output_path(out_dir: Path) -> None:
     """Fail-fast if output path is not the canonical out/ directory."""
     repo_root = Path(__file__).parent.parent.parent
@@ -570,6 +676,12 @@ def main() -> int:
         "--save-csv",
         action="store_true",
         help="Save detailed CSV files for each mode",
+    )
+    parser.add_argument(
+        "--save-summary-json",
+        type=str,
+        default=None,
+        help="Save JSON summary to specified path (for pacing-compare baseline)",
     )
     parser.add_argument(
         "--verbose",
@@ -627,6 +739,24 @@ def main() -> int:
             csv_path = out_dir / f"pacing_{mode}_{args.seed}.csv"
             save_csv(csv_path, mode, args.seed, rounds, stats)
             print(f"CSV written to: {csv_path}")
+
+    # Optionally save JSON summary for pacing-compare
+    if args.save_summary_json:
+        json_path = Path(args.save_summary_json)
+        # Use canonical rounds (all modes should use same rounds for baseline)
+        canonical_rounds = args.rounds_base
+        summary = generate_summary_json(
+            seed=args.seed,
+            rounds=canonical_rounds,
+            stats_base=stats_base,
+            stats_buy=stats_buy,
+            stats_hype=stats_hype,
+            rounds_base=args.rounds_base,
+            rounds_buy=args.rounds_buy,
+            rounds_hype=args.rounds_hype,
+        )
+        save_summary_json(json_path, summary)
+        print(f"JSON summary written to: {json_path}")
 
     print("")
     print(report)

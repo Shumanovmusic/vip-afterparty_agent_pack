@@ -634,3 +634,162 @@ git status | grep pacing
 - Report output is NOT committed to git
 - CSV files are only generated with `--save-csv` flag
 - Output is locked to `out/` directory (fail-fast validation)
+
+---
+
+## Pacing Compare v1 (`make pacing-compare`)
+
+The **pacing compare** tool compares current pacing metrics against a committed baseline JSON. It uses tolerances to avoid flapping from 20k variance.
+
+**BASELINE COMMITTED** — `pacing_baseline_gate.json` is tracked in git.
+
+**NOT part of `make gate` or CI** — run manually for QC checks.
+
+### Purpose
+
+- Compare pacing metrics against a stable baseline
+- Detect significant regressions in win/bonus pacing
+- Validate game math changes don't hurt player experience
+- Provide reproducible comparison with tolerance-based PASS/FAIL
+
+### Baseline File
+
+**File:** `out/pacing_baseline_gate.json` (COMMITTED to repo)
+
+This baseline uses canonical gate parameters:
+- Seed: `AUDIT_2025`
+- Rounds: `20000` (per mode)
+
+### Commands
+
+```bash
+# Generate baseline (one-time, or after config_hash changes)
+make pacing-baseline
+
+# Compare current simulation against baseline
+make pacing-compare
+```
+
+### How to Generate Baseline
+
+**One-time setup** or when config_hash changes:
+
+```bash
+# Generate baseline
+make pacing-baseline
+
+# Verify the values look reasonable
+cat out/pacing_baseline_gate.json | head -20
+
+# Commit to repo
+git add out/pacing_baseline_gate.json
+git commit -m "chore: add/update pacing baseline"
+```
+
+### How to Compare
+
+```bash
+# Compare against baseline (uses baseline params automatically)
+make pacing-compare
+
+# Manual comparison with custom params (NOT recommended - use baseline params)
+cd backend && .venv/bin/python -m scripts.pacing_compare \
+    --baseline ../out/pacing_baseline_gate.json \
+    --seed AUDIT_2025 \
+    --rounds 20000 \
+    --verbose
+```
+
+### What PASS/FAIL Means
+
+**PASS:** All metrics within tolerance — no significant pacing regression.
+
+**FAIL:** At least one metric exceeds tolerance — investigate before shipping.
+
+### Tolerances (v1)
+
+Tolerances are hardcoded to survive 20k variance:
+
+| Metric | Tolerance | Description |
+|--------|-----------|-------------|
+| `dry_spins_rate` | ±0.05 | 5 percentage points |
+| `win_rate` | ±0.03 | 3 percentage points |
+| `bonus_entry_rate` | ±0.0015 | 0.15 percentage points |
+| `spins_between_wins_p50` | ±15 | Spins (median) |
+| `spins_between_wins_p90` | ±25 | Spins (90th percentile) |
+| `spins_between_wins_p99` | ±80 | Spins (99th percentile) |
+| `spins_between_bonus_p50` | ±60 | Spins (median) |
+| `spins_between_bonus_p90` | ±120 | Spins (90th percentile) |
+| `spins_between_bonus_p99` | ±250 | Spins (99th percentile) |
+| `bonus_drought_gt300_rate` | ±0.02 | 2 percentage points |
+| `bonus_drought_gt500_rate` | ±0.01 | 1 percentage point |
+| `max_win_x` | ≥85% of baseline | Regression threshold |
+| `rate_100x_plus` | ±0.002 | 0.2 percentage points |
+| `rate_500x_plus` | ±0.0006 | 0.06 percentage points |
+| `rate_1000x_plus` | ±0.002 | 0.2 percentage points |
+| `rtp` | INFO only | Not failed (gated elsewhere) |
+
+### Output Files
+
+| File | Description | Commit? |
+|------|-------------|---------|
+| `pacing_baseline_gate.json` | Baseline JSON | **YES** |
+| `pacing_compare_*.txt` | Comparison report | NO |
+| `pacing_run_*.json` | Run JSON (if --write-run-json) | NO |
+
+### DO NOT COMMIT (explicit list)
+
+These output files are generated locally and **must NOT be committed**:
+
+```
+out/pacing_compare_*.txt     # Comparison reports
+out/pacing_run_*.json        # Run JSON summaries
+```
+
+### Example Output
+
+```
+============================================================
+PACING COMPARE
+============================================================
+Baseline:     ../out/pacing_baseline_gate.json
+Seed:         AUDIT_2025
+Rounds:       20000
+Modes:        base, buy, hype
+Config hash:  6b282b3256cf6b4e
+Baseline hash:6b282b3256cf6b4e
+
+Running simulation (seed=AUDIT_2025, rounds=20000)...
+
+================================================================================
+  BASE MODE
+================================================================================
+Metric                               Run     Baseline         Diff     Status
+--------------------------------------------------------------------------------
+rtp                             0.9810       0.9810            0       INFO
+win_rate                        0.2870       0.2870            0       PASS
+dry_spins_rate                  0.7130       0.7130            0       PASS
+...
+
+================================================================================
+RISK FLAGS
+================================================================================
+  No risk flags detected.
+
+================================================================================
+RESULT: PASS - All metrics within tolerance
+================================================================================
+```
+
+### Config Hash Validation
+
+If `config_hash` changes between baseline and current run:
+1. A **warning** is printed
+2. Comparison continues (metrics may fail)
+3. You should **regenerate baseline** with `make pacing-baseline`
+4. **Commit** the new baseline to the repo
+
+### Exit Codes
+
+- `0`: PASS - all metrics within tolerance
+- `1`: FAIL - at least one metric out of tolerance

@@ -1,0 +1,63 @@
+{
+  "schema": "pacing_baseline_v1",
+  "seed": "AUDIT_2025",
+  "rounds": 20000,
+  "config_hash": "6b282b3256cf6b4e",
+  "git_commit": "fbf34c3",
+  "modes": {
+    "base": {
+      "rtp": 0.9798065000000042,
+      "win_rate": 0.2874,
+      "dry_spins_rate": 0.7126,
+      "bonus_entry_rate": 0.00265,
+      "spins_between_wins_p50": 3,
+      "spins_between_wins_p90": 7,
+      "spins_between_wins_p99": 15,
+      "spins_between_bonus_p50": 319,
+      "spins_between_bonus_p90": 835,
+      "spins_between_bonus_p99": 1308,
+      "bonus_drought_gt300_rate": 0.5,
+      "bonus_drought_gt500_rate": 0.25925925925925924,
+      "max_win_x": 213.06,
+      "rate_100x_plus": 0.00055,
+      "rate_500x_plus": 0.0,
+      "rate_1000x_plus": 0.0
+    },
+    "buy": {
+      "rtp": 0.9772119499999926,
+      "win_rate": 0.96735,
+      "dry_spins_rate": 0.03264999999999996,
+      "bonus_entry_rate": 1.0,
+      "spins_between_wins_p50": 1,
+      "spins_between_wins_p90": 1,
+      "spins_between_wins_p99": 2,
+      "spins_between_bonus_p50": 1,
+      "spins_between_bonus_p90": 1,
+      "spins_between_bonus_p99": 1,
+      "bonus_drought_gt300_rate": 0.0,
+      "bonus_drought_gt500_rate": 0.0,
+      "max_win_x": 2140.7099999999996,
+      "rate_100x_plus": 0.2252,
+      "rate_500x_plus": 0.0363,
+      "rate_1000x_plus": 0.0087
+    },
+    "hype": {
+      "rtp": 0.799226000000003,
+      "win_rate": 0.29435,
+      "dry_spins_rate": 0.70565,
+      "bonus_entry_rate": 0.01605,
+      "spins_between_wins_p50": 2,
+      "spins_between_wins_p90": 7,
+      "spins_between_wins_p99": 14,
+      "spins_between_bonus_p50": 44,
+      "spins_between_bonus_p90": 136,
+      "spins_between_bonus_p99": 248,
+      "bonus_drought_gt300_rate": 0.006211180124223602,
+      "bonus_drought_gt500_rate": 0.0,
+      "max_win_x": 176.3,
+      "rate_100x_plus": 0.00075,
+      "rate_500x_plus": 0.0,
+      "rate_1000x_plus": 0.0
+    }
+  }
+}

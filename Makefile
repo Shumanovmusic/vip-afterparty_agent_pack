@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate check-telemetry-delivery-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long pacing-report diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate check-telemetry-delivery-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long pacing-report pacing-baseline pacing-compare diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -250,6 +250,53 @@ pacing-report:
 	@echo ""
 	@mkdir -p out
 	cd backend && .venv/bin/python -m scripts.pacing_report --verbose
+
+# =============================================================================
+# PACING BASELINE (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Generates committed baseline JSON for pacing-compare.
+# Uses gate-like params: seed=AUDIT_2025, rounds=20000.
+# Run manually: make pacing-baseline
+# Output: out/pacing_baseline_gate.json (COMMIT THIS FILE)
+# Regenerate when: config_hash changes or intentional rebaseline.
+# =============================================================================
+pacing-baseline:
+	@echo "=== PACING BASELINE GENERATION ==="
+	@echo "This creates/updates the committed baseline file."
+	@echo "Only regenerate when config_hash changes or intentional rebaseline."
+	@echo ""
+	@mkdir -p out
+	cd backend && .venv/bin/python -m scripts.pacing_report --seed AUDIT_2025 --rounds-base 20000 --rounds-buy 20000 --rounds-hype 20000 --save-summary-json ../out/pacing_baseline_gate.json --verbose
+	@echo ""
+	@echo "Baseline written to: out/pacing_baseline_gate.json"
+	@echo "IMPORTANT: Commit this file to the repo after verification."
+	@echo ""
+	@echo "First 3 lines of baseline:"
+	@head -3 out/pacing_baseline_gate.json
+
+# =============================================================================
+# PACING COMPARE (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Compares current pacing metrics against committed baseline.
+# Uses baseline params (seed/rounds) automatically.
+# Run manually: make pacing-compare
+# Output: out/pacing_compare_<seed>.txt (DO NOT COMMIT)
+# Requires: out/pacing_baseline_gate.json (created by make pacing-baseline)
+# =============================================================================
+pacing-compare:
+	@echo "=== PACING COMPARE (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@if [ ! -f out/pacing_baseline_gate.json ]; then \
+		echo "ERROR: Baseline file not found: out/pacing_baseline_gate.json"; \
+		echo ""; \
+		echo "Generate baseline first with:"; \
+		echo "  make pacing-baseline"; \
+		echo ""; \
+		echo "Then commit the baseline to the repo."; \
+		exit 1; \
+	fi
+	cd backend && .venv/bin/python -m scripts.pacing_compare --baseline ../out/pacing_baseline_gate.json --use-baseline-params --verbose
 
 # =============================================================================
 # DIFF AUDIT (Non-blocking, NOT part of gate/CI)
