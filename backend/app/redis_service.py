@@ -1,14 +1,24 @@
 """Redis service for idempotency and locking per error_codes.md."""
 import hashlib
 import json
+import time
 import uuid
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 import redis.asyncio as redis
 
 from app.config import settings
 from app.errors import ErrorCode, GameError
+
+
+@dataclass
+class LockMetrics:
+    """Metrics from lock acquisition for telemetry."""
+
+    acquire_ms: float
+    wait_retries: int
 
 
 class RedisService:
@@ -132,15 +142,20 @@ class RedisService:
 
         Raises ROUND_IN_PROGRESS if lock cannot be acquired.
         Automatically releases lock on exit (token-safe).
+        Yields LockMetrics for telemetry.
         """
+        t0 = time.monotonic()
+        retries = 0
         token = await self.acquire_player_lock(player_id)
         if token is None:
             raise GameError(
                 ErrorCode.ROUND_IN_PROGRESS,
                 "Another spin is in progress for this player.",
             )
+        acquire_ms = (time.monotonic() - t0) * 1000
+        metrics = LockMetrics(acquire_ms=acquire_ms, wait_retries=retries)
         try:
-            yield
+            yield metrics
         finally:
             await self.release_player_lock(player_id, token)
 

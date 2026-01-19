@@ -195,3 +195,54 @@ def client_with_mock_redis(mock_redis: MockRedis) -> Generator[TestClient, None,
 def test_client() -> TestClient:
     """Create basic TestClient (for tests that don't need Redis)."""
     return TestClient(app)
+
+
+class RecordingTelemetrySink:
+    """Recording sink for testing telemetry events per TELEMETRY.md."""
+
+    def __init__(self):
+        self.events: list[tuple[str, dict[str, Any]]] = []
+
+    def emit(self, event_name: str, data: dict[str, Any]) -> None:
+        """Record event for test assertions."""
+        self.events.append((event_name, data))
+
+    def clear(self) -> None:
+        """Clear recorded events."""
+        self.events.clear()
+
+    def get_events(self, event_name: str) -> list[dict[str, Any]]:
+        """Get all events with the given name."""
+        return [data for name, data in self.events if name == event_name]
+
+
+@pytest.fixture
+def recording_telemetry() -> Generator[RecordingTelemetrySink, None, None]:
+    """Create recording telemetry sink for observability gate tests."""
+    from app.telemetry import telemetry_service
+
+    sink = RecordingTelemetrySink()
+    original_sink = telemetry_service._sink
+    telemetry_service.set_sink(sink)
+
+    yield sink
+
+    telemetry_service.set_sink(original_sink)
+    sink.clear()
+
+
+@pytest.fixture
+def client_with_recording_telemetry(
+    mock_redis: MockRedis, recording_telemetry: RecordingTelemetrySink
+) -> Generator[tuple[TestClient, RecordingTelemetrySink, MockRedis], None, None]:
+    """Create TestClient with recording telemetry and mock Redis."""
+    from app.redis_service import redis_service
+
+    original_client = redis_service._client
+    redis_service._client = mock_redis
+
+    with TestClient(app) as client:
+        yield client, recording_telemetry, mock_redis
+
+    redis_service._client = original_client
+    mock_redis.clear()

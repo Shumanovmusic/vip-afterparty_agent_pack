@@ -137,3 +137,47 @@
 - `HYPE_MODE_TOGGLED` (sessionId, enabled)
 - `WIN_TIER` (roundId, tier, win_x)
 
+
+## Server-Side Observability (MUST)
+
+Server events emitted internally for observability/audit (NOT in HTTP responses).
+
+### init_served
+Emitted at end of GET /init processing.
+
+Поля:
+- `player_id`: string
+- `restore_state_present`: boolean — true if restoreState != null
+- `restore_mode`: "FREE_SPINS" | "NONE" — "NONE" if restoreState null
+- `spins_remaining`: number | null — spins remaining if restore present, else null
+
+### spin_processed
+Emitted at end of POST /spin processing, ONLY when request reaches critical section under lock.
+NOT emitted on idempotent replay (fast-path cache hit returns early without telemetry).
+
+Поля:
+- `player_id`: string
+- `client_request_id`: string
+- `lock_acquire_ms`: number — time from start of lock acquisition to lock acquired (ms)
+- `lock_wait_retries`: number — count of failed lock attempts before success (0 if immediate)
+- `is_bonus_continuation`: boolean — true if spin processed as continuation of FREE_SPINS loaded from Redis state
+- `bonus_continuation_count`: number — cumulative count of bonus continuation spins in current restoreable session
+
+### Semantics
+
+**bonus_continuation_count:**
+- Stored in Redis player state as `bonusContinuationCount` (durable).
+- Incremented by 1 each time POST /spin is processed as continuation (FREE_SPINS with spinsRemaining > 0 at spin start).
+- Does NOT increment on idempotent replay (response from cache, no state mutation).
+- Resets to 0 when bonus ends (state cleared).
+
+**lock metrics:**
+- `lock_acquire_ms` measured around lock acquisition call.
+- `lock_wait_retries` = number of failed attempts before success.
+- Current implementation is non-blocking (immediate 409 on fail), so typical values: lock_acquire_ms ~0-1ms, lock_wait_retries = 0.
+
+**Idempotent replay policy:**
+- Fast-path cache hit (before lock): no telemetry emitted.
+- Slow-path cache hit (inside lock): no telemetry emitted.
+- Only fresh spin processing emits spin_processed.
+

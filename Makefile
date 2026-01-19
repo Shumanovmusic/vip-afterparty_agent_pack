@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -99,8 +99,12 @@ check-lock-ttl:
 	@echo "Running Lock TTL Gate..."
 	cd backend && .venv/bin/python -m pytest -q tests/test_lock_ttl_gate.py
 
+check-observability-gate:
+	@echo "Running Observability Gate..."
+	cd backend && .venv/bin/python -m pytest -q tests/test_observability_gate.py
+
 gate:
-	@echo "=== GATE PACK v8 ==="
+	@echo "=== GATE PACK v9 ==="
 	@echo "Step 0a: Laws sync check (fail-fast)..."
 	$(MAKE) check-laws
 	@echo ""
@@ -129,6 +133,9 @@ gate:
 	@echo ""
 	@echo "Step 0i: Lock TTL Gate (fail-fast)..."
 	$(MAKE) check-lock-ttl || exit 1
+	@echo ""
+	@echo "Step 0j: Observability Gate (fail-fast)..."
+	$(MAKE) check-observability-gate || exit 1
 	@echo ""
 	@echo "Step 1: Starting Docker services..."
 	$(MAKE) up
@@ -186,7 +193,7 @@ gate:
 	@echo "Step 12: Stopping Docker services..."
 	$(MAKE) down
 	@echo ""
-	@echo "=== GATE PACK v8 COMPLETE ==="
+	@echo "=== GATE PACK v9 COMPLETE ==="
 
 # =============================================================================
 # LONG-RUN AUDIT (Non-blocking, NOT part of gate/CI)

@@ -21,6 +21,11 @@ from app.protocol import (
 )
 from app.logic.models import GameMode as LogicGameMode, GameState
 from app.redis_service import redis_service
+from app.telemetry import (
+    telemetry_service,
+    InitServedEvent,
+    SpinProcessedEvent,
+)
 from app.validators import validate_spin_request
 
 
@@ -75,6 +80,17 @@ async def init(request: Request) -> dict:
             )
 
     response = InitResponse(restoreState=restore_state)
+
+    # Emit telemetry per TELEMETRY.md
+    telemetry_service.emit_init_served(
+        InitServedEvent(
+            player_id=player_id,
+            restore_state_present=restore_state is not None,
+            restore_mode="FREE_SPINS" if restore_state else "NONE",
+            spins_remaining=restore_state.spinsRemaining if restore_state else None,
+        )
+    )
+
     return response.model_dump()
 
 
@@ -103,15 +119,15 @@ async def spin(request: Request, body: SpinRequest) -> dict:
     }
 
     # 3) Check idempotency cache (fast path - optimization)
+    # No telemetry on replay per TELEMETRY.md
     cached = await redis_service.check_idempotency(body.clientRequestId, payload)
     if cached is not None:
         return cached
 
     # 4) Acquire player lock (raises ROUND_IN_PROGRESS if locked)
-    async with redis_service.player_lock(player_id):
+    async with redis_service.player_lock(player_id) as lock_metrics:
         # 5) Re-check idempotency inside lock (slow path - correctness)
-        # This prevents race condition where two requests with same clientRequestId
-        # both pass the fast path check before either stores the result
+        # No telemetry on replay per TELEMETRY.md
         cached = await redis_service.check_idempotency(body.clientRequestId, payload)
         if cached is not None:
             return cached
@@ -119,6 +135,11 @@ async def spin(request: Request, body: SpinRequest) -> dict:
         # 6) Load player state from Redis
         state_data = await redis_service.get_player_state(player_id)
         state = None
+
+        # Track bonus continuation for telemetry per TELEMETRY.md
+        is_bonus_continuation = False
+        bonus_continuation_count = 0
+
         if state_data:
             state = GameState(
                 mode=LogicGameMode(state_data.get("mode", "BASE")),
@@ -126,6 +147,14 @@ async def spin(request: Request, body: SpinRequest) -> dict:
                 heat_level=state_data.get("heat_level", 0),
                 bonus_is_bought=state_data.get("bonus_is_bought", False),
             )
+            # Check if this is a bonus continuation (FREE_SPINS with spins > 0)
+            if (
+                state_data.get("mode") == "FREE_SPINS"
+                and state_data.get("free_spins_remaining", 0) > 0
+            ):
+                is_bonus_continuation = True
+                # Increment continuation count
+                bonus_continuation_count = state_data.get("bonus_continuation_count", 0) + 1
 
         # 7) Execute game logic
         result = engine.spin(
@@ -166,7 +195,7 @@ async def spin(request: Request, body: SpinRequest) -> dict:
             next_state.mode == LogicGameMode.FREE_SPINS
             and next_state.free_spins_remaining > 0
         ):
-            # Unfinished bonus - persist state
+            # Unfinished bonus - persist state with bonusContinuationCount
             await redis_service.save_player_state(
                 player_id,
                 {
@@ -174,10 +203,23 @@ async def spin(request: Request, body: SpinRequest) -> dict:
                     "free_spins_remaining": next_state.free_spins_remaining,
                     "heat_level": next_state.heat_level,
                     "bonus_is_bought": next_state.bonus_is_bought,
+                    "bonus_continuation_count": bonus_continuation_count,
                 },
             )
         else:
-            # Bonus ended or BASE mode - clear state
+            # Bonus ended or BASE mode - clear state (resets bonusContinuationCount)
             await redis_service.clear_player_state(player_id)
+
+        # 11) Emit telemetry per TELEMETRY.md (only for fresh spin processing)
+        telemetry_service.emit_spin_processed(
+            SpinProcessedEvent(
+                player_id=player_id,
+                client_request_id=body.clientRequestId,
+                lock_acquire_ms=lock_metrics.acquire_ms,
+                lock_wait_retries=lock_metrics.wait_retries,
+                is_bonus_continuation=is_bonus_continuation,
+                bonus_continuation_count=bonus_continuation_count,
+            )
+        )
 
         return response_dict
