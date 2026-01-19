@@ -21,6 +21,7 @@ import { Animations } from '../ux/animations/AnimationLibrary'
 import type { TelemetryClient } from '../telemetry/TelemetryClient'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { winTierEffect, clearAllVFX, isVFXReady } from '../render/vfx'
+import { audioService } from '../audio/AudioService'
 
 /** Context for event processing */
 export interface EventContext {
@@ -123,6 +124,12 @@ export class EventRouter {
         this.logSpotlight(event.positions)
       }
       else if (isWinLineEvent(event)) {
+        // Audio: play win_small for wins below big tier threshold
+        // (Big/Mega/Epic wins are handled by winTier event)
+        if (event.winX > 0 && event.winX < 20) {
+          audioService.onWinSmall()
+        }
+
         // Animation handles win line display
         // VFX highlight is called via Animations which coordinates with payline data
         await Animations.highlightWinLine(event.lineId, event.amount, event.winX)
@@ -133,6 +140,8 @@ export class EventRouter {
         this.logEventStart(event.eventType, event.reason)
       }
       else if (isEnterFreeSpinsEvent(event)) {
+        // Audio: stop loops and play bonus enter sound
+        audioService.onEnterFreeSpins()
         await Animations.enterFreeSpins(event.count)
         this.logBonusTriggered(event)
       }
@@ -140,6 +149,8 @@ export class EventRouter {
         await Animations.heatMeterUpdate(event.level)
       }
       else if (isBonusEndEvent(event)) {
+        // Audio: play bonus end sound
+        audioService.onBonusEnd()
         await this.handleBonusEnd(event)
       }
       else if (isEventEndEvent(event)) {
@@ -149,6 +160,9 @@ export class EventRouter {
       }
       else if (isWinTierEvent(event)) {
         if (event.tier !== 'none') {
+          // Audio: play win tier stinger (handles ducking internally)
+          audioService.onWinTier(event.tier)
+
           // Parallel: animation + VFX camera effects
           const animPromise = Animations.celebration(event.tier)
           const vfxPromise = isVFXReady() ? winTierEffect(event.tier) : Promise.resolve()

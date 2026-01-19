@@ -11,6 +11,7 @@ import { Animations } from './animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from './MotionPrefs'
 import { Timeline } from './timeline/Timeline'
 import type { TelemetryClient } from '../telemetry/TelemetryClient'
+import { audioService } from '../audio/AudioService'
 
 /** Scenario runner callbacks for UI updates */
 export interface ScenarioCallbacks {
@@ -64,6 +65,9 @@ export class ScenarioRunner {
         this.timeline.setTimeScale(4)
       }
 
+      // Audio: first skip just accelerates, loop can continue
+      audioService.onSkipAccelerate()
+
       // Log accelerate
       this.telemetry.logAnimationSkipped({
         type: 'celebration',
@@ -77,6 +81,9 @@ export class ScenarioRunner {
         this.timeline.skip()
       }
       this.eventRouter.requestSkip()
+
+      // Audio: second skip stops all loops immediately
+      audioService.onSkipComplete()
 
       // Log complete skip
       this.telemetry.logAnimationSkipped({
@@ -127,6 +134,9 @@ export class ScenarioRunner {
 
       // === Process Events (reveal, wins, etc.) ===
       await this.processEvents(response.events)
+
+      // Stop spin loop after reels revealed
+      audioService.onReelsComplete()
       this.callbacks.onReelsStopped?.()
 
       // === Check for celebrations ===
@@ -142,6 +152,10 @@ export class ScenarioRunner {
     } finally {
       this.isRunning = false
       this.timeline = null
+
+      // Ensure audio is cleaned up on any exit (error or complete)
+      audioService.onReelsComplete()
+
       this.callbacks.onCycleComplete?.()
     }
   }
@@ -150,7 +164,7 @@ export class ScenarioRunner {
    * Scene B1: Spin Start
    * - Spin pressed feedback instant (<=50ms)
    * - Reels: strong blur/motion
-   * - Audio: short click/impulse
+   * - Audio: start reel spin loop
    */
   private async runSpinStartScene(): Promise<void> {
     this.timeline = new Timeline()
@@ -158,6 +172,9 @@ export class ScenarioRunner {
     if (MotionPrefs.turboEnabled) {
       this.timeline.setTimeScale(2)
     }
+
+    // Start audio loop for spin
+    audioService.onSpinStart()
 
     this.timeline.add(async () => {
       await Animations.allReelsSpinStart()

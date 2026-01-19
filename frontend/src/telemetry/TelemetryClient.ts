@@ -96,6 +96,19 @@ export interface SessionSummaryData {
   avg_spin_loop_ms: number
 }
 
+/** audio_setting_changed fields */
+export interface AudioSettingChangedData {
+  setting: 'sound_enabled' | 'master_volume'
+  value: boolean | number
+}
+
+/** asset_load_error fields */
+export interface AssetLoadErrorData {
+  asset_type: 'audio' | 'image' | 'other'
+  asset_name: string
+  error_message: string
+}
+
 /**
  * Console-based telemetry client
  * In production, this would send to analytics backend
@@ -251,5 +264,15 @@ export class TelemetryClient {
   logSessionSummary(): void {
     const summary = this.getSessionSummary()
     console.debug('[TELEMETRY] session_summary', summary)
+  }
+
+  /** Log audio setting changed */
+  logAudioSettingChanged(data: AudioSettingChangedData): void {
+    console.debug('[TELEMETRY] audio_setting_changed', data)
+  }
+
+  /** Log asset load error (non-fatal) */
+  logAssetLoadError(data: AssetLoadErrorData): void {
+    console.debug('[TELEMETRY] asset_load_error', data)
   }
 }

@@ -10,6 +10,7 @@ import { GameStateMachine, GameState } from './state/GameStateMachine'
 import { ScenarioRunner } from './ux/ScenarioRunner'
 import { TelemetryClient } from './telemetry/TelemetryClient'
 import { MotionPrefs } from './ux/MotionPrefs'
+import { audioService } from './audio/AudioService'
 
 type SpinStartListener = () => void
 type ErrorListener = (error: NetworkErrorEvent) => void
@@ -72,6 +73,11 @@ export class GameController {
    */
   async boot(): Promise<void> {
     try {
+      // Initialize audio service (non-blocking, safe to fail)
+      audioService.init(this.telemetry).catch(err => {
+        console.warn('[GameController] Audio init failed (non-fatal):', err)
+      })
+
       const response = await this.network.init()
 
       // Store configuration

@@ -7,6 +7,7 @@
 import type { Container, Application } from 'pixi.js'
 import type { WinTier, EventType } from '../../types/events'
 import { MotionPrefs, TIMING } from '../MotionPrefs'
+import { audioService } from '../../audio/AudioService'
 
 /** Animation options */
 export interface AnimationOptions {
@@ -91,6 +92,9 @@ export class AnimationLibrary {
    */
   async reelStop(reelIndex: number, symbols: number[]): Promise<void> {
     this.events.onReelStop?.(reelIndex, symbols)
+
+    // Audio: play stop tick
+    audioService.onReelStop()
 
     // Bounce only if enabled
     const bounceDuration = MotionPrefs.shouldShowBounce() ? 150 : 0
