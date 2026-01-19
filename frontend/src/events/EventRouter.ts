@@ -18,6 +18,7 @@ import {
   isAfterpartyMeterUpdateEvent
 } from '../types/events'
 import { Animations } from '../ux/animations/AnimationLibrary'
+import { GameModeStore } from '../state/GameModeStore'
 import type { TelemetryClient } from '../telemetry/TelemetryClient'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { winTierEffect, clearAllVFX, isVFXReady } from '../render/vfx'
@@ -147,6 +148,8 @@ export class EventRouter {
       }
       else if (isHeatUpdateEvent(event)) {
         await Animations.heatMeterUpdate(event.level)
+        // Sync to store for UI consistency
+        GameModeStore.updateHeatLevel(event.level)
       }
       else if (isBonusEndEvent(event)) {
         // Audio: play bonus end sound

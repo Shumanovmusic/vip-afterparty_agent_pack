@@ -7,6 +7,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { GameController } from '../GameController'
 import type { WinTier, EventType } from '../types/events'
+import { GameModeStore } from '../state/GameModeStore'
 import { Animations } from '../ux/animations/AnimationLibrary'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { formatWinAmount, formatHeatLevel } from '../i18n/format'
@@ -35,7 +36,8 @@ const showFreeSpinsEntry = ref(false)
 const freeSpinsCount = ref(0)
 
 const showHeatMeter = ref(true)
-const heatLevel = ref(0)
+// Initialize from store (may have restored state from unfinished bonus)
+const heatLevel = ref(GameModeStore.heatLevel)
 
 // Event banner text
 const eventBannerText = computed(() => {

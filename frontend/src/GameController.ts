@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { Configuration } from './types/protocol'
 import { NetworkClient, NetworkErrorEvent } from './net/NetworkClient'
 import { GameStateMachine, GameState } from './state/GameStateMachine'
+import { GameModeStore } from './state/GameModeStore'
 import { ScenarioRunner } from './ux/ScenarioRunner'
 import { TelemetryClient } from './telemetry/TelemetryClient'
 import { MotionPrefs } from './ux/MotionPrefs'
@@ -87,10 +88,10 @@ export class GameController {
       const configHash = TelemetryClient.generateConfigHash(response.configuration as unknown as Record<string, unknown>)
       this.telemetry.setConfigHash(configHash)
 
-      // Handle restore state if present
+      // Handle restore state if present (unfinished bonus)
       if (response.restoreState) {
-        console.log('[GameController] Restore state:', response.restoreState)
-        // TODO: Apply restore state (mode, spinsRemaining, heatLevel)
+        console.log('[GameController] Applying restore state:', response.restoreState)
+        GameModeStore.applyRestoreState(response.restoreState)
       }
 
       // Transition to IDLE
@@ -161,6 +162,9 @@ export class GameController {
       // Run scenario (animations)
       await this.scenarioRunner.runSpinScenario(response, betAmount)
 
+      // Update game mode state from server response
+      GameModeStore.applyNextState(response.nextState)
+
       // Transition: RESULT -> IDLE
       this._stateMachine.resultComplete()
 
@@ -222,6 +226,9 @@ export class GameController {
 
       // Run scenario (animations)
       await this.scenarioRunner.runSpinScenario(response, betAmount)
+
+      // Update game mode state from server response
+      GameModeStore.applyNextState(response.nextState)
 
       // Transition: RESULT -> IDLE
       this._stateMachine.resultComplete()

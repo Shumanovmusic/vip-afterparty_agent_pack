@@ -6,6 +6,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { GameController } from '../GameController'
+import { GameModeStore } from '../state/GameModeStore'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { getSafeAreaInsets } from '../ux/SafeArea'
 import { audioService } from '../audio/AudioService'
@@ -24,6 +25,11 @@ const hypeModeEnabled = ref(false)
 const reduceMotion = ref(MotionPrefs.reduceMotion)
 const showSettings = ref(false)
 
+// Game mode state (from GameModeStore)
+const gameMode = ref(GameModeStore.mode)
+const spinsRemaining = ref(GameModeStore.spinsRemaining)
+const isInFreeSpins = computed(() => gameMode.value === 'FREE_SPINS')
+
 // Configuration from controller
 const config = computed(() => props.controller.configuration)
 const allowedBets = computed(() => config.value?.allowedBets || [1.00])
@@ -34,6 +40,16 @@ const canSpin = computed(() => props.controller.canSpin() && !isSpinning.value)
 const enableTurbo = computed(() => config.value?.enableTurbo ?? true)
 const enableBuyFeature = computed(() => config.value?.enableBuyFeature ?? false)
 const enableHypeMode = computed(() => config.value?.enableHypeModeAnteBet ?? false)
+
+// Buy feature disabled during FREE_SPINS mode
+const canBuyFeature = computed(() =>
+  enableBuyFeature.value && !isSpinning.value && !isInFreeSpins.value
+)
+
+// Hype mode disabled during FREE_SPINS mode
+const canToggleHypeMode = computed(() =>
+  enableHypeMode.value && !isInFreeSpins.value
+)
 
 // Safe area for bottom padding
 const safeArea = ref(getSafeAreaInsets())
@@ -61,7 +77,7 @@ async function handleSpin() {
 
 // Handle buy feature
 async function handleBuyFeature() {
-  if (!enableBuyFeature.value || isSpinning.value) return
+  if (!canBuyFeature.value) return
 
   // UI click sound
   audioService.playUIClick()
@@ -111,17 +127,25 @@ function toggleSettings() {
 }
 
 // Watch for external preference changes
-let unsubscribe: (() => void) | null = null
+let unsubscribePrefs: (() => void) | null = null
+let unsubscribeGameMode: (() => void) | null = null
 
 onMounted(() => {
-  unsubscribe = MotionPrefs.onChange((prefs) => {
+  unsubscribePrefs = MotionPrefs.onChange((prefs) => {
     turboEnabled.value = prefs.turboEnabled
     reduceMotion.value = prefs.reduceMotion
+  })
+
+  // Subscribe to game mode changes
+  unsubscribeGameMode = GameModeStore.onChange((state) => {
+    gameMode.value = state.mode
+    spinsRemaining.value = state.spinsRemaining
   })
 })
 
 onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
+  if (unsubscribePrefs) unsubscribePrefs()
+  if (unsubscribeGameMode) unsubscribeGameMode()
 })
 
 // Watch for spin state changes
@@ -182,6 +206,7 @@ watch(() => props.controller.stateMachine.state, (state) => {
           <button
             class="toggle-btn hype"
             :class="{ active: hypeModeEnabled }"
+            :disabled="!canToggleHypeMode"
             @click="toggleHypeMode"
           >
             {{ hypeModeEnabled ? t('common.on') : t('common.off') }}
@@ -235,11 +260,11 @@ watch(() => props.controller.stateMachine.state, (state) => {
         >{{ t('hud.spinning') }}</span>
       </button>
 
-      <!-- Buy Feature button -->
+      <!-- Buy Feature button (disabled during FREE_SPINS) -->
       <button
         v-if="enableBuyFeature"
         class="buy-btn"
-        :disabled="isSpinning"
+        :disabled="!canBuyFeature"
         @click="handleBuyFeature"
       >
         <span class="buy-label">{{ t('hud.buy') }}</span>
@@ -247,9 +272,18 @@ watch(() => props.controller.stateMachine.state, (state) => {
       </button>
     </div>
 
+    <!-- FREE_SPINS mode indicator -->
+    <div
+      v-if="isInFreeSpins"
+      class="free-spins-indicator"
+    >
+      <span class="fs-label">{{ t('bonus.freeSpins') }}</span>
+      <span class="fs-remaining">{{ t('bonus.spinsRemaining', { count: spinsRemaining }) }}</span>
+    </div>
+
     <!-- Hype mode indicator -->
     <div
-      v-if="hypeModeEnabled"
+      v-if="hypeModeEnabled && !isInFreeSpins"
       class="hype-indicator"
     >
       {{ t('hud.hypeModeActive') }}
@@ -518,5 +552,39 @@ watch(() => props.controller.stateMachine.state, (state) => {
   font-size: 0.75rem;
   font-weight: bold;
   animation: pulse-hype 1s ease-in-out infinite;
+}
+
+/* FREE_SPINS mode indicator */
+.free-spins-indicator {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  border-radius: 24px;
+  color: white;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(155, 89, 182, 0.4);
+  animation: pulse-bonus 1.5s ease-in-out infinite;
+}
+
+.free-spins-indicator .fs-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.free-spins-indicator .fs-remaining {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+@keyframes pulse-bonus {
+  0%, 100% { box-shadow: 0 4px 20px rgba(155, 89, 182, 0.4); }
+  50% { box-shadow: 0 4px 40px rgba(155, 89, 182, 0.7); }
 }
 </style>
