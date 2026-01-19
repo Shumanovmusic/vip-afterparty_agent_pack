@@ -31,6 +31,8 @@ export class ScenarioRunner {
   private callbacks: ScenarioCallbacks = {}
   private isRunning = false
   private timeline: Timeline | null = null
+  /** 2-stage skip: 0=none, 1=accelerate, 2=complete */
+  private skipCount: 0 | 1 | 2 = 0
 
   constructor(telemetry: TelemetryClient, playerId: string) {
     this.eventRouter = new EventRouter()
@@ -48,19 +50,47 @@ export class ScenarioRunner {
     return this.isRunning
   }
 
-  /** Request skip (user interaction during animations) */
+  /**
+   * Request skip (user interaction during animations)
+   * 2-stage skip behavior:
+   * - First click: Accelerate timeline (4x speed)
+   * - Second click: Complete immediately
+   */
   skip(): void {
-    if (this.timeline) {
-      this.timeline.skip()
-    }
-    this.eventRouter.requestSkip()
+    if (this.skipCount === 0) {
+      // First skip: accelerate
+      this.skipCount = 1
+      if (this.timeline) {
+        this.timeline.setTimeScale(4)
+      }
 
-    // Log skip
-    this.telemetry.logAnimationSkipped({
-      type: 'celebration',
-      mode: MotionPrefs.turboEnabled ? 'turbo' : 'normal',
-      reduce_motion: MotionPrefs.reduceMotion
-    })
+      // Log accelerate
+      this.telemetry.logAnimationSkipped({
+        type: 'celebration',
+        mode: MotionPrefs.turboEnabled ? 'turbo' : 'normal',
+        reduce_motion: MotionPrefs.reduceMotion
+      })
+    } else if (this.skipCount === 1) {
+      // Second skip: complete immediately
+      this.skipCount = 2
+      if (this.timeline) {
+        this.timeline.skip()
+      }
+      this.eventRouter.requestSkip()
+
+      // Log complete skip
+      this.telemetry.logAnimationSkipped({
+        type: 'celebration',
+        mode: MotionPrefs.turboEnabled ? 'turbo' : 'normal',
+        reduce_motion: MotionPrefs.reduceMotion
+      })
+    }
+    // skipCount === 2: already completed, ignore further skips
+  }
+
+  /** Get current skip stage (for testing) */
+  get skipStage(): 0 | 1 | 2 {
+    return this.skipCount
   }
 
   /**
@@ -74,6 +104,7 @@ export class ScenarioRunner {
     }
 
     this.isRunning = true
+    this.skipCount = 0  // Reset 2-stage skip
     const startTime = performance.now()
 
     try {

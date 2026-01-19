@@ -1,0 +1,124 @@
+{
+  "frames": {
+    "sym_0": {
+      "frame": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_1": {
+      "frame": { "x": 128, "y": 0, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_2": {
+      "frame": { "x": 256, "y": 0, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_3": {
+      "frame": { "x": 384, "y": 0, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_4": {
+      "frame": { "x": 0, "y": 128, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_5": {
+      "frame": { "x": 128, "y": 128, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_6": {
+      "frame": { "x": 256, "y": 128, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_7": {
+      "frame": { "x": 384, "y": 128, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_8": {
+      "frame": { "x": 0, "y": 256, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "sym_9": {
+      "frame": { "x": 128, "y": 256, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "ui_spin": {
+      "frame": { "x": 256, "y": 256, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "ui_spin_pressed": {
+      "frame": { "x": 384, "y": 256, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "ui_turbo": {
+      "frame": { "x": 0, "y": 384, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "ui_turbo_active": {
+      "frame": { "x": 128, "y": 384, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "ui_bet_minus": {
+      "frame": { "x": 256, "y": 384, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    },
+    "ui_bet_plus": {
+      "frame": { "x": 384, "y": 384, "w": 128, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 128 },
+      "sourceSize": { "w": 128, "h": 128 }
+    }
+  },
+  "meta": {
+    "app": "vip-afterparty",
+    "version": "1.0.0",
+    "image": "game.atlas.png",
+    "format": "RGBA8888",
+    "size": { "w": 512, "h": 512 },
+    "scale": "1"
+  }
+}

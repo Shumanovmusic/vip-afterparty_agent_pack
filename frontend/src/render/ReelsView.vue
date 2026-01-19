@@ -7,6 +7,7 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import type { GameController } from '../GameController'
 import { Animations } from '../ux/animations/AnimationLibrary'
 import { flatToGrid } from '../ux/animations/AnimationLibrary'
+import { getSymbolKey, SYMBOL_FALLBACK_COLORS } from './assets/AssetManifest'
 
 const props = defineProps<{
   controller: GameController
@@ -29,19 +30,15 @@ const highlightedPositions = ref<Set<number>>(new Set())
 const wildPositions = ref<Set<number>>(new Set())
 const dimmedSymbols = ref(false)
 
-// Symbol colors (placeholder - will be replaced with textures)
-const SYMBOL_COLORS = [
-  '#666666', // 0: empty/low
-  '#e74c3c', // 1: red (high)
-  '#3498db', // 2: blue
-  '#2ecc71', // 3: green
-  '#f39c12', // 4: orange
-  '#9b59b6', // 5: purple
-  '#1abc9c', // 6: teal
-  '#e91e63', // 7: pink (scatter)
-  '#ffd700', // 8: gold (wild)
-  '#00bcd4', // 9: cyan
-]
+/**
+ * Get symbol color from centralized manifest
+ * Converts numeric color to CSS hex string
+ */
+function getSymbolColor(symbolId: number): string {
+  const key = getSymbolKey(symbolId)
+  const color = SYMBOL_FALLBACK_COLORS[key] ?? 0x666666
+  return '#' + color.toString(16).padStart(6, '0')
+}
 
 // Layout calculations
 const layout = computed(() => {
@@ -74,13 +71,14 @@ const layout = computed(() => {
 function getSymbolStyle(reelIndex: number, rowIndex: number) {
   const l = layout.value
   const flatIndex = reelIndex * 3 + rowIndex
+  const symbolId = grid.value[reelIndex][rowIndex]
 
   return {
     left: `${l.offsetX + reelIndex * l.symbolWidth}px`,
     top: `${l.offsetY + rowIndex * l.symbolHeight}px`,
     width: `${l.symbolWidth - l.gap}px`,
     height: `${l.symbolHeight - l.gap}px`,
-    backgroundColor: SYMBOL_COLORS[grid.value[reelIndex][rowIndex]] || SYMBOL_COLORS[0],
+    backgroundColor: getSymbolColor(symbolId),
     opacity: dimmedSymbols.value && !highlightedPositions.value.has(flatIndex) ? 0.3 : 1,
     transform: reelSpinning.value[reelIndex] ? 'scaleY(0.8)' : 'scaleY(1)',
     boxShadow: wildPositions.value.has(flatIndex) ? '0 0 20px #ffd700' : 'none',

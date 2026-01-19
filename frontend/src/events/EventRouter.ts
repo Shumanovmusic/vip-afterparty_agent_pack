@@ -20,6 +20,7 @@ import {
 import { Animations } from '../ux/animations/AnimationLibrary'
 import type { TelemetryClient } from '../telemetry/TelemetryClient'
 import { MotionPrefs } from '../ux/MotionPrefs'
+import { winTierEffect, clearAllVFX, isVFXReady } from '../render/vfx'
 
 /** Context for event processing */
 export interface EventContext {
@@ -122,6 +123,8 @@ export class EventRouter {
         this.logSpotlight(event.positions)
       }
       else if (isWinLineEvent(event)) {
+        // Animation handles win line display
+        // VFX highlight is called via Animations which coordinates with payline data
         await Animations.highlightWinLine(event.lineId, event.amount, event.winX)
       }
       else if (isEventStartEvent(event)) {
@@ -146,7 +149,10 @@ export class EventRouter {
       }
       else if (isWinTierEvent(event)) {
         if (event.tier !== 'none') {
-          await Animations.celebration(event.tier)
+          // Parallel: animation + VFX camera effects
+          const animPromise = Animations.celebration(event.tier)
+          const vfxPromise = isVFXReady() ? winTierEffect(event.tier) : Promise.resolve()
+          await Promise.all([animPromise, vfxPromise])
           this.logWinTier(event.tier, event.winX)
         }
       }
@@ -171,6 +177,11 @@ export class EventRouter {
    */
   private async processEventSkipped(event: GameEvent): Promise<EventResult> {
     const type = event.type
+
+    // Clear VFX when skipping
+    if (isVFXReady()) {
+      clearAllVFX()
+    }
 
     // Still update state for critical events
     if (isRevealEvent(event)) {

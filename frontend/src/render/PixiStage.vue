@@ -8,6 +8,9 @@ import { Application, Container } from 'pixi.js'
 import type { GameController } from '../GameController'
 import { getSafeAreaOffset, watchSafeArea } from '../ux/SafeArea'
 import { Animations } from '../ux/animations/AnimationLibrary'
+import { AssetLoader } from './assets/AssetLoader'
+import { setPixiApp as setFallbackPixiApp } from './assets/FallbackSprite'
+import { initVFX, destroyVFX } from './vfx'
 import ReelsView from './ReelsView.vue'
 import Overlays from './Overlays.vue'
 import HUD from './HUD.vue'
@@ -18,6 +21,7 @@ const props = defineProps<{
 
 const canvasContainer = ref<HTMLDivElement | null>(null)
 const pixiApp = ref<Application | null>(null)
+const mainContainer = ref<Container | null>(null)
 const isReady = ref(false)
 
 // Provide controller to child components
@@ -44,17 +48,25 @@ async function initPixi() {
   canvasContainer.value.appendChild(app.canvas as HTMLCanvasElement)
 
   // Create main container with safe area offset
-  const mainContainer = new Container()
+  const container = new Container()
   const safeArea = getSafeAreaOffset()
-  mainContainer.x = safeArea.x
-  mainContainer.y = safeArea.y
-  app.stage.addChild(mainContainer)
+  container.x = safeArea.x
+  container.y = safeArea.y
+  app.stage.addChild(container)
 
   // Set up animation library
   Animations.setApp(app)
-  Animations.setContainer(mainContainer)
+  Animations.setContainer(container)
+
+  // Set up asset loading
+  setFallbackPixiApp(app)
+  await AssetLoader.init()
+
+  // Initialize VFX system
+  initVFX(container)
 
   pixiApp.value = app
+  mainContainer.value = container
   isReady.value = true
 
   // Handle resize
@@ -62,8 +74,10 @@ async function initPixi() {
 
   // Watch safe area changes
   unwatchSafeArea = watchSafeArea((insets) => {
-    mainContainer.x = insets.left
-    mainContainer.y = insets.top
+    if (mainContainer.value) {
+      mainContainer.value.x = insets.left
+      mainContainer.value.y = insets.top
+    }
     handleResize()
   })
 }
@@ -77,10 +91,9 @@ function handleResize() {
 
   // Update main container bounds
   const safeArea = getSafeAreaOffset()
-  const mainContainer = app.stage.children[0] as Container
-  if (mainContainer) {
-    mainContainer.x = safeArea.x
-    mainContainer.y = safeArea.y
+  if (mainContainer.value) {
+    mainContainer.value.x = safeArea.x
+    mainContainer.value.y = safeArea.y
   }
 }
 
@@ -95,6 +108,7 @@ function getGameDimensions(): { width: number; height: number } {
 
 // Expose for child components
 provide('pixiApp', pixiApp)
+provide('mainContainer', mainContainer)
 provide('getGameDimensions', getGameDimensions)
 
 onMounted(async () => {
@@ -106,6 +120,7 @@ onUnmounted(() => {
   if (unwatchSafeArea) {
     unwatchSafeArea()
   }
+  destroyVFX()
   if (pixiApp.value) {
     pixiApp.value.destroy(true, { children: true })
   }

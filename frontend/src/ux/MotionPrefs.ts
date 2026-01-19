@@ -253,6 +253,18 @@ class MotionPrefsManager {
   }
 
   /**
+   * Get win line highlight duration based on mode
+   * - Turbo: 250ms (fast feedback)
+   * - ReduceMotion: 500ms (no pulse animation)
+   * - Normal: 550ms (with pulse animation)
+   */
+  getWinLineHighlightDuration(): number {
+    if (this._turboEnabled) return 250
+    if (this._reduceMotion) return 500
+    return 550
+  }
+
+  /**
    * Determine win tier from winX multiplier
    */
   getWinTier(winX: number): WinTier {
