@@ -73,45 +73,47 @@ class TestLockingUnit:
 
     @pytest.mark.asyncio
     async def test_acquire_lock_succeeds_when_free(self):
-        """Lock acquisition succeeds when no lock exists."""
+        """Lock acquisition succeeds when no lock exists (returns token)."""
         mock_redis = MockRedis()
         service = RedisService()
         service._client = mock_redis
 
-        acquired = await service.acquire_player_lock("player-1")
-        assert acquired is True
+        token = await service.acquire_player_lock("player-1")
+        assert token is not None  # Token returned on success
 
     @pytest.mark.asyncio
     async def test_acquire_lock_fails_when_held(self):
-        """Lock acquisition fails when lock is already held."""
+        """Lock acquisition fails when lock is already held (returns None)."""
         mock_redis = MockRedis()
         service = RedisService()
         service._client = mock_redis
 
         # First acquisition succeeds
-        acquired1 = await service.acquire_player_lock("player-1")
-        assert acquired1 is True
+        token1 = await service.acquire_player_lock("player-1")
+        assert token1 is not None
 
         # Second acquisition fails
-        acquired2 = await service.acquire_player_lock("player-1")
-        assert acquired2 is False
+        token2 = await service.acquire_player_lock("player-1")
+        assert token2 is None
 
     @pytest.mark.asyncio
     async def test_release_lock_allows_reacquisition(self):
-        """After releasing lock, another can acquire it."""
+        """After releasing lock with correct token, another can acquire it."""
         mock_redis = MockRedis()
         service = RedisService()
         service._client = mock_redis
 
         # Acquire
-        await service.acquire_player_lock("player-1")
+        token = await service.acquire_player_lock("player-1")
+        assert token is not None
 
-        # Release
-        await service.release_player_lock("player-1")
+        # Release with correct token
+        released = await service.release_player_lock("player-1", token)
+        assert released is True
 
         # Should be able to acquire again
-        acquired = await service.acquire_player_lock("player-1")
-        assert acquired is True
+        token2 = await service.acquire_player_lock("player-1")
+        assert token2 is not None
 
     @pytest.mark.asyncio
     async def test_player_lock_context_manager_releases(self):
@@ -127,8 +129,8 @@ class TestLockingUnit:
             pass
 
         # Lock should be released
-        acquired = await service.acquire_player_lock("player-1")
-        assert acquired is True
+        token = await service.acquire_player_lock("player-1")
+        assert token is not None
 
     @pytest.mark.asyncio
     async def test_player_lock_context_manager_releases_on_exception(self):
@@ -145,8 +147,8 @@ class TestLockingUnit:
                 raise TestException("test")
 
         # Lock should still be released
-        acquired = await service.acquire_player_lock("player-1")
-        assert acquired is True
+        token = await service.acquire_player_lock("player-1")
+        assert token is not None
 
     @pytest.mark.asyncio
     async def test_player_lock_raises_round_in_progress(self):

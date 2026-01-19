@@ -145,3 +145,9 @@ PLAYER_STATE_TTL_SECONDS=86400
 # Meaning: Player state expires after 24 hours of inactivity
 # Risk: Player loses unfinished bonus if they return after 24h
 # Decision: 24h balances UX (reasonable return window) vs storage cost
+
+# Lock TTL for per-player spin lock (ROUND_IN_PROGRESS recovery)
+LOCK_TTL_SECONDS=30
+# Meaning: Lock auto-expires after 30 seconds if process crashes mid-spin
+# Risk: Too short = false lock release during slow spin; too long = player stuck
+# Decision: 30s is conservative (spin should complete in <5s; allows retries)

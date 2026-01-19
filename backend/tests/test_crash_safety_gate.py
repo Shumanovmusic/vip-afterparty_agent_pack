@@ -218,7 +218,7 @@ class TestCrashSafetyGate:
         # Find lock boundaries
         try:
             lock_acquire_idx = ops.index("lock_set_nx")
-            lock_release_idx = ops.index("lock_delete")
+            lock_release_idx = ops.index("lock_eval")  # Token-safe release
         except ValueError as e:
             pytest.fail(f"Missing lock operation: {e}. Operations: {ops}")
 

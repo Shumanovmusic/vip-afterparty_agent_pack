@@ -40,5 +40,8 @@ class Settings(BaseSettings):
     # State persistence (Redis TTLs) - from CONFIG.md
     player_state_ttl_seconds: int = 86400  # 24 hours for session continuation
 
+    # Lock TTL for per-player spin lock (ROUND_IN_PROGRESS recovery) - from CONFIG.md
+    lock_ttl_seconds: int = 30  # Auto-expire lock after 30s if process crashes
+
 
 settings = Settings()

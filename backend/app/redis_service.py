@@ -1,6 +1,7 @@
 """Redis service for idempotency and locking per error_codes.md."""
 import hashlib
 import json
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -20,8 +21,18 @@ class RedisService:
 
     # TTLs in seconds
     IDEMPOTENCY_TTL = 3600  # 1 hour
-    LOCK_TTL = 30  # 30 seconds max lock
+    LOCK_TTL = settings.lock_ttl_seconds  # from CONFIG.md (30s default)
     STATE_TTL = settings.player_state_ttl_seconds  # from CONFIG.md
+
+    # Lua script for token-safe lock release (compare-and-delete)
+    # Only deletes if current value matches token; prevents releasing another's lock
+    RELEASE_LOCK_SCRIPT = """
+    if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+    else
+        return 0
+    end
+    """
 
     def __init__(self, redis_url: str | None = None):
         self._url = redis_url or settings.redis_url
@@ -90,21 +101,29 @@ class RedisService:
         }
         await self.client.setex(key, self.IDEMPOTENCY_TTL, json.dumps(data))
 
-    async def acquire_player_lock(self, player_id: str) -> bool:
+    async def acquire_player_lock(self, player_id: str) -> str | None:
         """
-        Attempt to acquire per-player lock.
+        Attempt to acquire per-player lock with unique token.
 
-        Returns True if lock acquired, False if already locked.
+        Returns token string if lock acquired, None if already locked.
+        Token is required for release (token-safe).
         """
         key = f"{self.LOCK_PREFIX}{player_id}"
-        # SET NX returns True if key was set (lock acquired)
-        acquired = await self.client.set(key, "1", nx=True, ex=self.LOCK_TTL)
-        return acquired is True
+        token = str(uuid.uuid4())
+        # SET NX EX returns True if key was set (lock acquired)
+        acquired = await self.client.set(key, token, nx=True, ex=self.LOCK_TTL)
+        return token if acquired is True else None
 
-    async def release_player_lock(self, player_id: str) -> None:
-        """Release per-player lock."""
+    async def release_player_lock(self, player_id: str, token: str) -> bool:
+        """
+        Release per-player lock only if token matches (token-safe).
+
+        Uses Lua script for atomic compare-and-delete.
+        Returns True if lock was released, False if token didn't match.
+        """
         key = f"{self.LOCK_PREFIX}{player_id}"
-        await self.client.delete(key)
+        result = await self.client.eval(self.RELEASE_LOCK_SCRIPT, 1, key, token)
+        return result == 1
 
     @asynccontextmanager
     async def player_lock(self, player_id: str):
@@ -112,9 +131,10 @@ class RedisService:
         Context manager for player lock.
 
         Raises ROUND_IN_PROGRESS if lock cannot be acquired.
-        Automatically releases lock on exit.
+        Automatically releases lock on exit (token-safe).
         """
-        if not await self.acquire_player_lock(player_id):
+        token = await self.acquire_player_lock(player_id)
+        if token is None:
             raise GameError(
                 ErrorCode.ROUND_IN_PROGRESS,
                 "Another spin is in progress for this player.",
@@ -122,7 +142,7 @@ class RedisService:
         try:
             yield
         finally:
-            await self.release_player_lock(player_id)
+            await self.release_player_lock(player_id, token)
 
     async def get_player_state(self, player_id: str) -> dict[str, Any] | None:
         """

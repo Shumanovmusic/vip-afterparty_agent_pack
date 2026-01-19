@@ -28,7 +28,7 @@ class TestRedisAtomicityGate:
         4. state_get (get player state)
         5. idempotency_setex (store response)
         6. state_delete OR state_setex (clear or save state)
-        7. lock_delete (release lock)
+        7. lock_eval (token-safe release via Lua script)
         """
         client, recording_redis = client_with_recording_redis
 
@@ -50,7 +50,7 @@ class TestRedisAtomicityGate:
         # Find indices of key operations
         try:
             lock_acquire_idx = ops.index("lock_set_nx")
-            lock_release_idx = ops.index("lock_delete")
+            lock_release_idx = ops.index("lock_eval")  # Token-safe release
         except ValueError as e:
             pytest.fail(f"Missing lock operation: {e}. Operations: {ops}")
 
