@@ -262,6 +262,32 @@ git checkout out/audit_base_gate.csv CONFIG.md
 
 ---
 
+## Pacing Baseline (`out/pacing_baseline_gate.json`)
+
+This file is the **CANONICAL** pacing baseline and is **committed to git**.
+
+### When It May Change
+
+1. **config_hash changes** — game math was intentionally modified
+2. **Intentional rebaseline** — with written justification in commit message
+
+### PR Requirements When Pacing Baseline Changes
+
+- [ ] Include `make pacing-compare` output (or pasted summary) showing run vs baseline
+- [ ] State seed/rounds used (canonical: `AUDIT_2025` / `20000`)
+- [ ] Confirm: "pacing outputs other than baseline are NOT committed"
+
+### Forbidden Commits
+
+These pacing artifacts must **NEVER** be committed:
+- `out/pacing_report_*.txt`
+- `out/pacing_*.csv`
+- `out/pacing_current_*.json` (or any non-baseline pacing JSON)
+
+The `scripts/check-baseline-changed.sh` script will **FAIL** if these are staged.
+
+---
+
 ## Related Documentation
 
 - `out/README.md` — Canonical snapshot parameters and usage

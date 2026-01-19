@@ -266,6 +266,27 @@ if [ -z "$CHANGED_FILES" ]; then
     exit 0
 fi
 
+# PACING ARTIFACT GUARD: only pacing_baseline_gate.json is allowed
+FORBIDDEN_PACING=()
+while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    case "$file" in
+        out/pacing_report_*.txt|out/pacing_*.csv|out/pacing_current_*.json|out/pacing_compare_*.txt|out/pacing_run_*.json)
+            FORBIDDEN_PACING+=("$file") ;;
+    esac
+done <<< "$CHANGED_FILES"
+
+if [ ${#FORBIDDEN_PACING[@]} -gt 0 ]; then
+    echo "ERROR: Forbidden pacing artifacts in staged changes:"
+    for f in "${FORBIDDEN_PACING[@]}"; do echo "  - $f"; done
+    echo ""
+    echo "Only 'out/pacing_baseline_gate.json' may be committed."
+    echo "To fix: git reset HEAD -- <files above>"
+    echo ""
+    echo "=== Baseline Update Policy Check FAILED ==="
+    exit 1
+fi
+
 # Check if any baseline files changed
 BASELINE_CHANGED=0
 CHANGED_BASELINES=()

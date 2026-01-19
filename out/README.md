@@ -793,3 +793,15 @@ If `config_hash` changes between baseline and current run:
 
 - `0`: PASS - all metrics within tolerance
 - `1`: FAIL - at least one metric out of tolerance
+
+### Commit Policy Summary
+
+| File | Commit? | Purpose |
+|------|---------|---------|
+| `pacing_baseline_gate.json` | **YES** | Canonical baseline (regenerate with `make pacing-baseline`) |
+| `pacing_report_*.txt` | **NO** | Diagnostic reports |
+| `pacing_*.csv` | **NO** | CSV exports |
+| `pacing_current_*.json` / `pacing_run_*.json` | **NO** | Run snapshots |
+| `pacing_compare_*.txt` | **NO** | Comparison reports |
+
+The `check-baseline-changed.sh` script will **FAIL** if forbidden pacing files are staged.
