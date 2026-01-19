@@ -4,10 +4,14 @@
  * Source of truth: UX_ANIMATION_SPEC.md
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { GameController } from '../GameController'
 import type { WinTier, EventType } from '../types/events'
 import { Animations } from '../ux/animations/AnimationLibrary'
 import { MotionPrefs } from '../ux/MotionPrefs'
+import { formatWinAmount, formatHeatLevel } from '../i18n/format'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   controller: GameController
@@ -37,17 +41,17 @@ const heatLevel = ref(0)
 const eventBannerText = computed(() => {
   switch (eventBannerType.value) {
     case 'boost':
-      return 'BOOST!'
+      return t('events.boost')
     case 'rage':
       return eventBannerMultiplier.value
-        ? `RAGE x${eventBannerMultiplier.value}!`
-        : 'RAGE!'
+        ? t('events.rageMultiplier', { multiplier: eventBannerMultiplier.value })
+        : t('events.rage')
     case 'explosive':
-      return 'EXPLOSIVE!'
+      return t('events.explosive')
     case 'bonus':
-      return 'BONUS!'
+      return t('events.bonus')
     case 'finale':
-      return 'FINALE!'
+      return t('events.finale')
     default:
       return ''
   }
@@ -57,11 +61,11 @@ const eventBannerText = computed(() => {
 const celebrationText = computed(() => {
   switch (celebrationTier.value) {
     case 'big':
-      return 'BIG WIN!'
+      return t('win.big')
     case 'mega':
-      return 'MEGA WIN!'
+      return t('win.mega')
     case 'epic':
-      return 'EPIC WIN!'
+      return t('win.epic')
     default:
       return ''
   }
@@ -176,7 +180,7 @@ defineExpose({
           top: `${winPosition.y}px`
         }"
       >
-        +{{ winAmount.toFixed(2) }}
+        {{ formatWinAmount(winAmount) }}
       </div>
     </Transition>
 
@@ -198,10 +202,10 @@ defineExpose({
         class="free-spins-entry"
       >
         <div class="fs-title">
-          FREE SPINS!
+          {{ t('bonus.freeSpins') }}
         </div>
         <div class="fs-count">
-          {{ freeSpinsCount }} SPINS
+          {{ t('bonus.spinsCount', { count: freeSpinsCount }) }}
         </div>
       </div>
     </Transition>
@@ -212,7 +216,7 @@ defineExpose({
       class="heat-meter"
     >
       <div class="heat-label">
-        HEAT
+        {{ t('events.heat') }}
       </div>
       <div class="heat-bar">
         <div
@@ -221,7 +225,7 @@ defineExpose({
         />
       </div>
       <div class="heat-level">
-        {{ heatLevel }}/10
+        {{ formatHeatLevel(heatLevel) }}
       </div>
     </div>
 
@@ -231,7 +235,7 @@ defineExpose({
         v-if="showBoom"
         class="boom-overlay"
       >
-        BOOM!
+        {{ t('events.boom') }}
       </div>
     </Transition>
 

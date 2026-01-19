@@ -4,9 +4,13 @@
  * Controls for the slot game interface
  */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { GameController } from '../GameController'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { getSafeAreaInsets } from '../ux/SafeArea'
+import { audioService } from '../audio/AudioService'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   controller: GameController
@@ -43,6 +47,9 @@ const betDisplay = computed(() => {
 async function handleSpin() {
   if (!canSpin.value) return
 
+  // UI click sound
+  audioService.playUIClick()
+
   isSpinning.value = true
 
   try {
@@ -55,6 +62,9 @@ async function handleSpin() {
 // Handle buy feature
 async function handleBuyFeature() {
   if (!enableBuyFeature.value || isSpinning.value) return
+
+  // UI click sound
+  audioService.playUIClick()
 
   isSpinning.value = true
 
@@ -69,29 +79,34 @@ async function handleBuyFeature() {
 function adjustBet(delta: number) {
   const newIndex = selectedBetIndex.value + delta
   if (newIndex >= 0 && newIndex < allowedBets.value.length) {
+    audioService.playUIClick()
     selectedBetIndex.value = newIndex
   }
 }
 
 // Toggle turbo
 function toggleTurbo() {
+  audioService.playUIClick()
   turboEnabled.value = !turboEnabled.value
   MotionPrefs.turboEnabled = turboEnabled.value
 }
 
 // Toggle hype mode
 function toggleHypeMode() {
+  audioService.playUIClick()
   hypeModeEnabled.value = !hypeModeEnabled.value
 }
 
 // Toggle reduce motion
 function toggleReduceMotion() {
+  audioService.playUIClick()
   reduceMotion.value = !reduceMotion.value
   MotionPrefs.reduceMotion = reduceMotion.value
 }
 
 // Toggle settings panel
 function toggleSettings() {
+  audioService.playUIClick()
   showSettings.value = !showSettings.value
 }
 
@@ -137,25 +152,25 @@ watch(() => props.controller.stateMachine.state, (state) => {
         class="settings-panel"
       >
         <div class="setting-row">
-          <span class="setting-label">Turbo Spin</span>
+          <span class="setting-label">{{ t('hud.turbo') }}</span>
           <button
             class="toggle-btn"
             :class="{ active: turboEnabled }"
             :disabled="!enableTurbo"
             @click="toggleTurbo"
           >
-            {{ turboEnabled ? 'ON' : 'OFF' }}
+            {{ turboEnabled ? t('common.on') : t('common.off') }}
           </button>
         </div>
 
         <div class="setting-row">
-          <span class="setting-label">Reduce Motion</span>
+          <span class="setting-label">{{ t('hud.reduceMotion') }}</span>
           <button
             class="toggle-btn"
             :class="{ active: reduceMotion }"
             @click="toggleReduceMotion"
           >
-            {{ reduceMotion ? 'ON' : 'OFF' }}
+            {{ reduceMotion ? t('common.on') : t('common.off') }}
           </button>
         </div>
 
@@ -163,13 +178,13 @@ watch(() => props.controller.stateMachine.state, (state) => {
           v-if="enableHypeMode"
           class="setting-row"
         >
-          <span class="setting-label">Hype Mode (+25%)</span>
+          <span class="setting-label">{{ t('hud.hype') }}</span>
           <button
             class="toggle-btn hype"
             :class="{ active: hypeModeEnabled }"
             @click="toggleHypeMode"
           >
-            {{ hypeModeEnabled ? 'ON' : 'OFF' }}
+            {{ hypeModeEnabled ? t('common.on') : t('common.off') }}
           </button>
         </div>
       </div>
@@ -187,7 +202,7 @@ watch(() => props.controller.stateMachine.state, (state) => {
           -
         </button>
         <div class="bet-display">
-          <span class="bet-label">BET</span>
+          <span class="bet-label">{{ t('hud.bet') }}</span>
           <span class="bet-value">{{ betDisplay }}</span>
         </div>
         <button
@@ -213,11 +228,11 @@ watch(() => props.controller.stateMachine.state, (state) => {
         <span
           v-if="!isSpinning"
           class="spin-text"
-        >SPIN</span>
+        >{{ t('hud.spin') }}</span>
         <span
           v-else
           class="spin-text spinning"
-        >...</span>
+        >{{ t('hud.spinning') }}</span>
       </button>
 
       <!-- Buy Feature button -->
@@ -227,8 +242,8 @@ watch(() => props.controller.stateMachine.state, (state) => {
         :disabled="isSpinning"
         @click="handleBuyFeature"
       >
-        <span class="buy-label">BUY</span>
-        <span class="buy-cost">100x</span>
+        <span class="buy-label">{{ t('hud.buy') }}</span>
+        <span class="buy-cost">{{ t('hud.buyCost', { cost: 100 }) }}</span>
       </button>
     </div>
 
@@ -237,7 +252,7 @@ watch(() => props.controller.stateMachine.state, (state) => {
       v-if="hypeModeEnabled"
       class="hype-indicator"
     >
-      HYPE MODE ACTIVE
+      {{ t('hud.hypeModeActive') }}
     </div>
   </div>
 </template>

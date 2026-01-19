@@ -1,0 +1,59 @@
+{
+  "common": {
+    "on": "ВКЛ",
+    "off": "ВЫКЛ",
+    "close": "Закрыть",
+    "loading": "Загрузка..."
+  },
+  "hud": {
+    "spin": "КРУТИТЬ",
+    "spinning": "...",
+    "turbo": "Турбо режим",
+    "reduceMotion": "Упрощённая анимация",
+    "hype": "Hype режим (+25%)",
+    "hypeModeActive": "HYPE РЕЖИМ АКТИВЕН",
+    "buy": "КУПИТЬ",
+    "buyCost": "{cost}x",
+    "bet": "СТАВКА",
+    "settings": "Настройки"
+  },
+  "win": {
+    "big": "БОЛЬШОЙ ВЫИГРЫШ!",
+    "mega": "МЕГА ВЫИГРЫШ!",
+    "epic": "ЭПИЧЕСКИЙ ВЫИГРЫШ!",
+    "total": "Общий выигрыш"
+  },
+  "bonus": {
+    "freeSpins": "БЕСПЛАТНЫЕ ВРАЩЕНИЯ!",
+    "spinsCount": "{count} ВРАЩЕНИЙ",
+    "spinsRemaining": "{count} вращение | {count} вращения | {count} вращений",
+    "buyVipLabel": "Купить VIP функцию"
+  },
+  "modes": {
+    "base": "Основная игра",
+    "hype": "Hype режим",
+    "vipBuy": "VIP покупка"
+  },
+  "events": {
+    "boost": "БУСТ!",
+    "rage": "ЯРОСТЬ!",
+    "rageMultiplier": "ЯРОСТЬ x{multiplier}!",
+    "explosive": "ВЗРЫВ!",
+    "bonus": "БОНУС!",
+    "finale": "ФИНАЛ!",
+    "boom": "БУМ!",
+    "heat": "ЖАР"
+  },
+  "errors": {
+    "INVALID_REQUEST": "Техническая ошибка. Обновите страницу.",
+    "INVALID_BET": "Данная ставка недоступна.",
+    "FEATURE_DISABLED": "Эта функция сейчас недоступна.",
+    "INSUFFICIENT_FUNDS": "Недостаточно средств. Пополните баланс.",
+    "ROUND_IN_PROGRESS": "Пожалуйста, подождите, идёт вращение.",
+    "IDEMPOTENCY_CONFLICT": "Конфликт запроса. Обновите страницу.",
+    "RATE_LIMIT_EXCEEDED": "Слишком много запросов. Подождите немного.",
+    "MAINTENANCE": "Ведутся технические работы. Попробуйте позже.",
+    "INTERNAL_ERROR": "Техническая ошибка. Повторяем попытку...",
+    "NOT_IMPLEMENTED": "Функция скоро появится."
+  }
+}

@@ -1,11 +1,24 @@
 <script setup lang="ts">
-import { onMounted, shallowRef, ref } from 'vue'
+import { onMounted, shallowRef, ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { GameController } from './GameController'
 import PixiStage from './render/PixiStage.vue'
+import type { ErrorCode } from './i18n/schema'
+
+const { t } = useI18n()
 
 const gameController = shallowRef<GameController | null>(null)
-const error = ref<string | null>(null)
+const errorCode = ref<ErrorCode | null>(null)
+const errorMessage = ref<string | null>(null)
 const loading = ref(true)
+
+// Display localized error message
+const displayError = computed(() => {
+  if (errorCode.value) {
+    return t(`errors.${errorCode.value}`)
+  }
+  return errorMessage.value
+})
 
 onMounted(async () => {
   try {
@@ -14,7 +27,12 @@ onMounted(async () => {
     gameController.value = controller
     loading.value = false
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to initialize game'
+    // Check if error has a known code
+    if (e && typeof e === 'object' && 'code' in e) {
+      errorCode.value = (e as { code: ErrorCode }).code
+    } else {
+      errorMessage.value = e instanceof Error ? e.message : t('errors.INTERNAL_ERROR')
+    }
     loading.value = false
   }
 })
@@ -26,13 +44,13 @@ onMounted(async () => {
       v-if="loading"
       class="loading"
     >
-      Loading...
+      {{ t('common.loading') }}
     </div>
     <div
-      v-else-if="error"
+      v-else-if="displayError"
       class="error"
     >
-      {{ error }}
+      {{ displayError }}
     </div>
     <PixiStage
       v-else-if="gameController"

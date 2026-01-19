@@ -1,0 +1,59 @@
+{
+  "common": {
+    "on": "ON",
+    "off": "OFF",
+    "close": "Close",
+    "loading": "Loading..."
+  },
+  "hud": {
+    "spin": "SPIN",
+    "spinning": "...",
+    "turbo": "Turbo Spin",
+    "reduceMotion": "Reduce Motion",
+    "hype": "Hype Mode (+25%)",
+    "hypeModeActive": "HYPE MODE ACTIVE",
+    "buy": "BUY",
+    "buyCost": "{cost}x",
+    "bet": "BET",
+    "settings": "Settings"
+  },
+  "win": {
+    "big": "BIG WIN!",
+    "mega": "MEGA WIN!",
+    "epic": "EPIC WIN!",
+    "total": "Total Win"
+  },
+  "bonus": {
+    "freeSpins": "FREE SPINS!",
+    "spinsCount": "{count} SPINS",
+    "spinsRemaining": "{count} spin remaining | {count} spins remaining",
+    "buyVipLabel": "Buy VIP Feature"
+  },
+  "modes": {
+    "base": "Base Game",
+    "hype": "Hype Mode",
+    "vipBuy": "VIP Buy"
+  },
+  "events": {
+    "boost": "BOOST!",
+    "rage": "RAGE!",
+    "rageMultiplier": "RAGE x{multiplier}!",
+    "explosive": "EXPLOSIVE!",
+    "bonus": "BONUS!",
+    "finale": "FINALE!",
+    "boom": "BOOM!",
+    "heat": "HEAT"
+  },
+  "errors": {
+    "INVALID_REQUEST": "Technical error. Please refresh the page.",
+    "INVALID_BET": "This bet amount is not allowed.",
+    "FEATURE_DISABLED": "This feature is currently unavailable.",
+    "INSUFFICIENT_FUNDS": "Insufficient funds. Please top up your balance.",
+    "ROUND_IN_PROGRESS": "Please wait, spin in progress.",
+    "IDEMPOTENCY_CONFLICT": "Request conflict. Please refresh the page.",
+    "RATE_LIMIT_EXCEEDED": "Too many requests. Please wait a moment.",
+    "MAINTENANCE": "Server maintenance in progress. Please try again later.",
+    "INTERNAL_ERROR": "Technical error. Retrying...",
+    "NOT_IMPLEMENTED": "Feature coming soon."
+  }
+}
