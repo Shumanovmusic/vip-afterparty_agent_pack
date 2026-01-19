@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate check-telemetry-delivery-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -103,6 +103,10 @@ check-observability-gate:
 	@echo "Running Observability Gate..."
 	cd backend && .venv/bin/python -m pytest -q tests/test_observability_gate.py
 
+check-telemetry-delivery-gate:
+	@echo "Running Telemetry Delivery Gate..."
+	cd backend && .venv/bin/python -m pytest -q tests/test_telemetry_delivery_gate.py
+
 gate:
 	@echo "=== GATE PACK v9 ==="
 	@echo "Step 0a: Laws sync check (fail-fast)..."
@@ -136,6 +140,9 @@ gate:
 	@echo ""
 	@echo "Step 0j: Observability Gate (fail-fast)..."
 	$(MAKE) check-observability-gate || exit 1
+	@echo ""
+	@echo "Step 0k: Telemetry Delivery Gate (fail-fast)..."
+	$(MAKE) check-telemetry-delivery-gate || exit 1
 	@echo ""
 	@echo "Step 1: Starting Docker services..."
 	$(MAKE) up

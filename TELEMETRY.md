@@ -162,6 +162,10 @@ NOT emitted on idempotent replay (fast-path cache hit returns early without tele
 - `lock_wait_retries`: number — count of failed lock attempts before success (0 if immediate)
 - `is_bonus_continuation`: boolean — true if spin processed as continuation of FREE_SPINS loaded from Redis state
 - `bonus_continuation_count`: number — cumulative count of bonus continuation spins in current restoreable session
+- `config_hash`: string — 16-char hex hash of config snapshot (same as audit CSV)
+- `mode`: "base" | "buy" | "hype" — spin mode for correlation
+- `round_id`: string — roundId from SpinResponse (for frontend/backend correlation)
+- `bonus_variant`: "standard" | "vip_buy" | null — bonus type if enterFreeSpins triggered, else null
 
 ### Semantics
 
@@ -180,4 +184,28 @@ NOT emitted on idempotent replay (fast-path cache hit returns early without tele
 - Fast-path cache hit (before lock): no telemetry emitted.
 - Slow-path cache hit (inside lock): no telemetry emitted.
 - Only fresh spin processing emits spin_processed.
+
+### spin_rejected
+Emitted when POST /spin is rejected BEFORE entering critical section (lock not acquired or early validation failure).
+Used for observability of lock contention and request rejection rates.
+
+Поля:
+- `player_id`: string
+- `client_request_id`: string | null — null if request body parsing failed
+- `reason`: "ROUND_IN_PROGRESS" | "INVALID_REQUEST" | "INVALID_BET" | "FEATURE_DISABLED" — rejection reason code
+- `lock_acquire_ms`: number — time spent attempting lock before rejection (ms, 0 if rejected before lock)
+- `lock_wait_retries`: number — count of failed lock attempts before giving up (0 if immediate rejection)
+
+**spin_rejected semantics:**
+- Emitted on 409 ROUND_IN_PROGRESS (lock contention).
+- MAY be emitted on early validation failures (400 INVALID_BET, etc.) at implementation discretion.
+- NOT emitted on idempotent replay (those return 200 from cache).
+- sink failures MUST NOT break the request — catch and log internally.
+
+### Delivery Guarantee
+
+Telemetry sink failures MUST NOT break HTTP requests:
+- Sink emit() is wrapped in try/catch.
+- Exceptions are logged internally (not propagated).
+- Request continues and returns normal response.
 

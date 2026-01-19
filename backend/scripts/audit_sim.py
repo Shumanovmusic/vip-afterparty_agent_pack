@@ -24,6 +24,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings
+from app.config_hash import get_config_hash
 from app.logic.engine import BASE_SCATTER_CHANCE, GameEngine, MAX_WIN_TOTAL_X
 from app.logic.models import GameMode, GameState
 from app.logic.rng import SeededRNG
@@ -58,18 +59,6 @@ class SimulationStats:
     scatter_chance_base: float = BASE_SCATTER_CHANCE
     scatter_chance_effective: float = BASE_SCATTER_CHANCE
     scatter_chance_multiplier: float = 1.0
-
-
-def get_config_hash() -> str:
-    """Generate hash of current configuration per RNG_POLICY.md."""
-    config_snapshot = {
-        "max_win_total_x": settings.max_win_total_x,
-        "allowed_bets": list(settings.allowed_bets),
-        "enable_buy_feature": settings.enable_buy_feature,
-        "enable_hype_mode_ante_bet": settings.enable_hype_mode_ante_bet,
-    }
-    canonical = json.dumps(config_snapshot, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
 
 def get_git_commit() -> str:
