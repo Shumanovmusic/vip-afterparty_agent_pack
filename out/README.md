@@ -476,3 +476,161 @@ RESULT: PASSED - No tail regression detected
 
 - `0`: PASS - no regression detected
 - `1`: FAIL - regression detected or validation error
+
+---
+
+## Pacing Report (`make pacing-report`)
+
+The **pacing report** is a diagnostic tool for analyzing player experience metrics: win pacing, bonus pacing, and volatility sanity across all game modes.
+
+**NOT COMMITTED to repo** — these are diagnostic outputs.
+
+**NOT part of `make gate` or CI** — run manually when diagnosing pacing issues.
+
+### Purpose
+
+- Diagnose "feels dry/monotonous/too spiky" issues with data
+- Measure spins between wins and spins between bonuses
+- Identify long drought rates (>300/500 spins without bonus)
+- Compare pacing metrics across base/buy/hype modes
+
+### Commands
+
+```bash
+# Run pacing report (default params)
+make pacing-report
+
+# Run with custom parameters
+cd backend && .venv/bin/python -m scripts.pacing_report \
+    --seed PACING_2026 \
+    --rounds-base 200000 \
+    --rounds-buy 200000 \
+    --rounds-hype 200000 \
+    --verbose
+
+# Also save detailed CSV files
+cd backend && .venv/bin/python -m scripts.pacing_report --seed PACING_2026 --save-csv --verbose
+```
+
+### Default Parameters (gate-like)
+
+```
+Seed: AUDIT_2025
+Rounds (base): 20,000
+Rounds (buy):  20,000
+Rounds (hype): 20,000
+```
+
+### Output Files
+
+| File | Description |
+|------|-------------|
+| `pacing_report_<seed>.txt` | Text report (always generated) |
+| `pacing_base_<seed>.csv` | Base mode CSV (only with `--save-csv`) |
+| `pacing_buy_<seed>.csv` | Buy mode CSV (only with `--save-csv`) |
+| `pacing_hype_<seed>.csv` | Hype mode CSV (only with `--save-csv`) |
+
+### Metrics Explained
+
+**Win Pacing:**
+- `win_rate`: Percentage of spins with credit > 0
+- `dry_spins_rate`: Percentage of spins with credit == 0
+- `spins_between_wins` (p50/p90/p99): Median/90th/99th percentile of gaps between wins
+- `avg_win_x`, `p95_win_x`, `p99_win_x`: Win multiplier distribution
+
+**Bonus Pacing:**
+- `bonus_entry_rate`: Percentage of spins triggering bonus
+- `spins_between_bonuses` (p50/p90/p99): Gaps between bonus entries
+- `drought_rate_300`: Percentage of intervals > 300 spins without bonus
+- `drought_rate_500`: Percentage of intervals > 500 spins without bonus
+
+**Volatility:**
+- `max_win_x`: Maximum observed win multiplier
+- `rate_100x_plus`, `rate_500x_plus`, `rate_1000x_plus`: Big win frequencies
+
+### Example Output (Snippet)
+
+```
+================================================================================
+PACING REPORT
+================================================================================
+
+Timestamp:    2026-01-19T12:00:00Z
+Git commit:   abc1234
+Config hash:  6b282b3256cf6b4e
+Seed:         PACING_2026
+Rounds:       base=200,000, buy=200,000, hype=200,000
+
+--------------------------------------------------------------------------------
+  BASE MODE
+--------------------------------------------------------------------------------
+
+  CORE METRICS
+    RTP:               98.0954%
+    Win rate:          28.7140%
+    Dry spins rate:    71.2860%
+    Bonus entry rate:  0.2690%
+
+  WIN PACING
+    Spins between wins (p50/p90/p99): 2 / 6 / 12
+    ...
+
+================================================================================
+COMPARISON TABLE
+================================================================================
+
+Metric                              Base          Buy         Hype
+------------------------------------------------------------------
+RTP                            98.0954%     97.5432%     78.4321%
+Win rate                       28.7140%    100.0000%     28.9876%
+...
+
+================================================================================
+RISK FLAGS
+================================================================================
+
+  No risk flags detected.
+```
+
+### Risk Flags
+
+The report automatically checks for common pacing issues:
+
+| Flag | Condition | Meaning |
+|------|-----------|---------|
+| High dry rate | `dry_spins_rate > 80%` | Too many losing spins |
+| Bonus drought | `bonus p99 > 600 spins` | Some players wait very long for bonus |
+| Hype pacing | `hype bonus_rate <= base` | Hype mode should have higher bonus rate |
+
+### Reproducibility
+
+All pacing reports use deterministic seeding. Same seed + config_hash = identical results.
+
+```bash
+# Verify reproducibility
+make pacing-report  # Run twice, compare outputs
+diff out/pacing_report_PACING_2026.txt out/pacing_report_PACING_2026.txt.bak
+```
+
+### DO NOT COMMIT (explicit list)
+
+These output files are generated locally and **must NOT be committed**:
+
+```
+out/pacing_report_*.txt    # Text reports
+out/pacing_base_*.csv      # Base mode CSVs
+out/pacing_buy_*.csv       # Buy mode CSVs
+out/pacing_hype_*.csv      # Hype mode CSVs
+```
+
+Before committing, verify with:
+```bash
+git status | grep pacing
+# Should show nothing, or only untracked files
+```
+
+### Notes
+
+- Report output is NOT committed to git
+- CSV files are only generated with `--save-csv` flag
+- Output is locked to `out/` directory (fail-fast validation)

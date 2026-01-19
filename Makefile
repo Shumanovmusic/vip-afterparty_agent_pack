@@ -1,4 +1,4 @@
-.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate check-telemetry-delivery-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
+.PHONY: up down test test-quick test-full dev install clean install-hooks gate check-laws check-laws-freeze check-restorestate-freeze check-redis-atomicity check-crash-safety check-lock-ttl check-observability-gate check-telemetry-delivery-gate smoke-docker test-contract check-afterparty test-e2e test-e2e-harden frontend-install frontend-test frontend-build frontend-typecheck frontend-lint audit-long pacing-report diff-audit diff-audit-compare-base diff-audit-compare-buy diff-audit-compare-hype tail-baseline tail-progression audit-gate-snapshots check-baseline-changed
 
 up:
 	docker compose up -d
@@ -235,6 +235,21 @@ audit-long:
 	@head -1 out/audit_buy_200k.csv
 	@echo "--- audit_hype_200k.csv ---"
 	@head -1 out/audit_hype_200k.csv
+
+# =============================================================================
+# PACING REPORT (Non-blocking, NOT part of gate/CI)
+# =============================================================================
+# Diagnostic tool for analyzing win pacing, bonus pacing, and volatility.
+# Run manually: make pacing-report
+# Outputs: out/pacing_report_<seed>.txt
+# Optionally: pass --save-csv to also write CSV files
+# =============================================================================
+pacing-report:
+	@echo "=== PACING REPORT (non-blocking) ==="
+	@echo "This is NOT part of make gate or CI."
+	@echo ""
+	@mkdir -p out
+	cd backend && .venv/bin/python -m scripts.pacing_report --verbose
 
 # =============================================================================
 # DIFF AUDIT (Non-blocking, NOT part of gate/CI)
