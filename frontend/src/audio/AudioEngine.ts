@@ -10,6 +10,23 @@ import { isLoop } from './AudioTypes'
 import { AudioManifest, getAllSoundNames, getAsset } from './AudioManifest'
 import { AudioPolicy, PolicyConfig } from './AudioPolicy'
 
+/** Unlock AudioContext on first user gesture (Chrome autoplay policy) */
+let audioContextUnlocked = false
+function unlockAudioContext(): void {
+  if (audioContextUnlocked) return
+  const unlock = () => {
+    const ctx = (sound as any).context?.audioContext
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    audioContextUnlocked = true
+    document.removeEventListener('pointerdown', unlock, true)
+    document.removeEventListener('keydown', unlock, true)
+  }
+  document.addEventListener('pointerdown', unlock, true)
+  document.addEventListener('keydown', unlock, true)
+}
+
 /** Play options */
 export interface PlayOptions {
   /** Override volume (0-1) */
@@ -77,6 +94,7 @@ export class AudioEngine {
 
     await Promise.allSettled(loadPromises)
     this.loaded = true
+    unlockAudioContext()
     console.debug('[AudioEngine] Initialized')
   }
 
@@ -232,21 +250,23 @@ export class AudioEngine {
     }
 
     try {
-      const instance = this.soundAdapter.play(name, {
-        volume: finalVolume
-      }) as IMediaInstance
+      const result = this.soundAdapter.play(name, { volume: finalVolume })
 
-      // Track for concurrency
-      if (instance && !isLoop(name)) {
-        AudioPolicy.onSfxStart()
-        this.activeSfx.push({ name, instance, startTime: Date.now() })
-
-        // Clean up when done
-        instance.on('end', () => {
-          this.removeSfxInstance(instance)
-        })
+      // Handle async (Promise) case - @pixi/sound v6 returns Promise<IMediaInstance>
+      if (result instanceof Promise) {
+        result.then((instance) => {
+          if (instance && !isLoop(name)) {
+            this.trackSfxInstance(name, instance)
+          }
+        }).catch((err) => console.warn(`[AudioEngine] Async play error:`, err))
+        return null
       }
 
+      // Sync case
+      const instance = result as IMediaInstance
+      if (instance && !isLoop(name)) {
+        this.trackSfxInstance(name, instance)
+      }
       return instance
     } catch (error) {
       console.warn(`[AudioEngine] Error playing ${name}:`, error)
@@ -282,17 +302,30 @@ export class AudioEngine {
     const finalVolume = asset.baseVolume * decision.volumeMultiplier * this.masterVolume
 
     try {
-      const instance = this.soundAdapter.play(name, {
+      const result = this.soundAdapter.play(name, {
         volume: finalVolume,
         loop: true
-      }) as IMediaInstance
+      })
 
+      // Handle async (Promise) case - @pixi/sound v6 returns Promise<IMediaInstance>
+      if (result instanceof Promise) {
+        result.then((instance) => {
+          if (instance) {
+            this.activeLoops.set(name, instance)
+            this.originalLoopVolume.set(name, finalVolume)
+            AudioPolicy.onLoopStart()
+          }
+        }).catch((err) => console.warn(`[AudioEngine] Async loop error:`, err))
+        return null
+      }
+
+      // Sync case
+      const instance = result as IMediaInstance
       if (instance) {
         this.activeLoops.set(name, instance)
         this.originalLoopVolume.set(name, finalVolume)
         AudioPolicy.onLoopStart()
       }
-
       return instance
     } catch (error) {
       console.warn(`[AudioEngine] Error starting loop ${name}:`, error)
@@ -306,7 +339,9 @@ export class AudioEngine {
   stopLoop(name: SoundName): void {
     const instance = this.activeLoops.get(name)
     if (instance) {
-      instance.stop()
+      if (typeof instance.stop === 'function') {
+        instance.stop()
+      }
       this.activeLoops.delete(name)
       this.originalLoopVolume.delete(name)
       AudioPolicy.onLoopEnd()
@@ -318,7 +353,9 @@ export class AudioEngine {
    */
   stopAllLoops(): void {
     this.activeLoops.forEach((instance, _name) => {
-      instance.stop()
+      if (typeof instance.stop === 'function') {
+        instance.stop()
+      }
       AudioPolicy.onLoopEnd()
     })
     this.activeLoops.clear()
@@ -336,7 +373,9 @@ export class AudioEngine {
    */
   stopAllSfx(): void {
     for (const active of this.activeSfx) {
-      active.instance.stop()
+      if (typeof active.instance.stop === 'function') {
+        active.instance.stop()
+      }
       AudioPolicy.onSfxEnd()
     }
     this.activeSfx = []
@@ -410,6 +449,15 @@ export class AudioEngine {
   }
 
   // --- Cleanup ---
+
+  /**
+   * Track an SFX instance for concurrency management
+   */
+  private trackSfxInstance(name: SoundName, instance: IMediaInstance): void {
+    AudioPolicy.onSfxStart()
+    this.activeSfx.push({ name, instance, startTime: Date.now() })
+    instance.on('end', () => this.removeSfxInstance(instance))
+  }
 
   /**
    * Remove an SFX instance from tracking

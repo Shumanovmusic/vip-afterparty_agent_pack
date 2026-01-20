@@ -183,6 +183,12 @@ export class GameController {
       return
     }
 
+    // Buy feature not allowed during FREE_SPINS
+    if (GameModeStore.isInFreeSpins) {
+      console.warn('[GameController] Cannot buy feature during FREE_SPINS')
+      return
+    }
+
     if (!this._configuration?.enableBuyFeature) {
       console.warn('[GameController] Buy feature not enabled')
       return
