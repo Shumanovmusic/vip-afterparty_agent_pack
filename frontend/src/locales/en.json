@@ -8,6 +8,7 @@
   "hud": {
     "spin": "SPIN",
     "stop": "STOP",
+    "auto": "AUTO",
     "spinning": "...",
     "turbo": "Turbo Spin",
     "reduceMotion": "Reduce Motion",

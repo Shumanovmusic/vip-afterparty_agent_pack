@@ -36,6 +36,17 @@ let reelDebugLogged = false
 let reelsRootDebugLogged = false
 
 /**
+ * Spin correctness check result for a single reel
+ * Row order: row=0 is TOP, row=1 is MIDDLE, row=2 is BOTTOM
+ */
+export interface SpinCorrectnessFailure {
+  reelIndex: number
+  expected: number[]  // [row0, row1, row2] from backend
+  visible: number[]   // [row0, row1, row2] from renderer
+  isReversed: boolean // hint: expected == visible.reversed
+}
+
+/**
  * PixiReelsRenderer - Main reels rendering coordinator
  */
 export class PixiReelsRenderer {
@@ -71,6 +82,12 @@ export class PixiReelsRenderer {
   private _isSpinning = false
   private pendingResult: number[][] | null = null
   private quickStopRequested = false
+
+  // Correctness check state (DEV only)
+  private lastCorrectnessResult: { passed: boolean; failures: SpinCorrectnessFailure[] } | null = null
+
+  // Spin test state (DEV only)
+  private spinTestRunning = false
 
   constructor(parentContainer: Container) {
     // Create main container for reels
@@ -546,6 +563,91 @@ export class PixiReelsRenderer {
   }
 
   /**
+   * Check spin correctness (DEV only)
+   * Compares expected backend result with actual visible symbols
+   * Row order: row=0 is TOP, row=1 is MIDDLE, row=2 is BOTTOM
+   * @param resultGrid - Expected grid from backend [reel][row]
+   * @returns Object with passed status and any failures
+   */
+  private checkSpinCorrectness(resultGrid: number[][]): { passed: boolean; failures: SpinCorrectnessFailure[] } {
+    if (!import.meta.env.DEV) {
+      return { passed: true, failures: [] }
+    }
+
+    const failures: SpinCorrectnessFailure[] = []
+
+    for (let reelIndex = 0; reelIndex < REEL_COUNT; reelIndex++) {
+      const expected = resultGrid[reelIndex]
+      const visible = this.reelStrips[reelIndex].getVisibleSymbols()
+
+      // Check for exact match
+      let mismatch = false
+      for (let row = 0; row < VISIBLE_ROWS; row++) {
+        if (expected[row] !== visible[row]) {
+          mismatch = true
+          break
+        }
+      }
+
+      if (mismatch) {
+        // Check if it's a reversed order issue
+        const reversed = [...visible].reverse()
+        const isReversed = expected.every((v, i) => v === reversed[i])
+
+        failures.push({
+          reelIndex,
+          expected: [...expected],
+          visible: [...visible],
+          isReversed
+        })
+      }
+    }
+
+    const passed = failures.length === 0
+
+    // Always log errors
+    if (!passed) {
+      console.error('[SPIN CORRECTNESS FAILED]', {
+        totalFailures: failures.length,
+        failures: failures.map(f => ({
+          reel: f.reelIndex,
+          expected: f.expected,
+          visible: f.visible,
+          hint: f.isReversed ? 'REVERSED ORDER - expected == visible.reverse()' : 'VALUES MISMATCH'
+        }))
+      })
+    } else if (DEBUG_FLAGS.spinCorrectnessVerbose) {
+      console.log('[SPIN CORRECTNESS PASSED]', {
+        grid: resultGrid.map((col, i) => ({ reel: i, symbols: col }))
+      })
+    }
+
+    this.lastCorrectnessResult = { passed, failures }
+    return { passed, failures }
+  }
+
+  /**
+   * Get the last correctness check result (DEV only)
+   */
+  getLastCorrectnessResult(): { passed: boolean; failures: SpinCorrectnessFailure[] } | null {
+    return this.lastCorrectnessResult
+  }
+
+  /**
+   * Check if spin test is currently running
+   */
+  isSpinTestRunning(): boolean {
+    return this.spinTestRunning
+  }
+
+  /**
+   * Set spin test running state (called by ReelsView during automated tests)
+   */
+  setSpinTestRunning(running: boolean): void {
+    this.spinTestRunning = running
+  }
+
+  /**
    * Stop all reels with stagger L->R
    * @param finalGrid - Final 5x3 symbol grid (column-major: finalGrid[reel][row])
    */
@@ -569,6 +671,11 @@ export class PixiReelsRenderer {
       if (i < REEL_COUNT - 1) {
         await this.delay(stagger)
       }
+    }
+
+    // Run correctness check (DEV only) after all reels have stopped
+    if (import.meta.env.DEV) {
+      this.checkSpinCorrectness(finalGrid)
     }
 
     // Clear spin state

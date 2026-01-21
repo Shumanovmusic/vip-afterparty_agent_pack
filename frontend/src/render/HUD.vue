@@ -35,6 +35,9 @@ const allowedBets = computed(() => config.value?.allowedBets || [1.00])
 const currentBet = computed(() => allowedBets.value[selectedBetIndex.value])
 const canSpin = computed(() => props.controller.canSpin() && !isSpinning.value)
 
+// STOP button only enabled in BASE mode while spinning (disabled in FREE_SPINS for auto-spins)
+const canStop = computed(() => isSpinning.value && !isInFreeSpins.value)
+
 // Feature flags
 const enableTurbo = computed(() => config.value?.enableTurbo ?? true)
 const enableBuyFeature = computed(() => config.value?.enableBuyFeature ?? false)
@@ -55,16 +58,19 @@ const betDisplay = computed(() => {
   return `$${currentBet.value.toFixed(2)}`
 })
 
-// Handle spin button click (also handles STOP when spinning)
+// Handle spin button click (also handles STOP when spinning in BASE mode)
 async function handleSpin() {
   if (import.meta.env.DEV) {
-    console.log('SPIN POINTERDOWN', { canSpin: canSpin.value, isSpinning: isSpinning.value, bet: currentBet.value, hype: hypeModeEnabled.value })
+    console.log('SPIN POINTERDOWN', { canSpin: canSpin.value, isSpinning: isSpinning.value, canStop: canStop.value, bet: currentBet.value, hype: hypeModeEnabled.value })
   }
 
-  // If already spinning, trigger quick stop
+  // If already spinning and can stop (BASE mode only), trigger quick stop
   if (isSpinning.value) {
-    audioService.playUIClick()
-    props.controller.requestQuickStop()
+    if (canStop.value) {
+      audioService.playUIClick()
+      props.controller.requestQuickStop()
+    }
+    // In FREE_SPINS mode, clicking during spin does nothing (auto-spin in progress)
     return
   }
 
@@ -249,14 +255,15 @@ watch(() => props.controller.stateMachine.state, (state) => {
           </button>
         </div>
 
-        <!-- Spin button (shows STOP when spinning) -->
+        <!-- Spin button (shows STOP in BASE mode, AUTO in FREE_SPINS mode) -->
         <button
           class="spin-btn"
           :class="{
             spinning: isSpinning,
             turbo: turboEnabled && !isSpinning,
             hype: hypeModeEnabled && !isSpinning,
-            'stop-mode': isSpinning
+            'stop-mode': canStop,
+            'auto-mode': isSpinning && isInFreeSpins
           }"
           :disabled="!canSpin && !isSpinning"
           @click="handleSpin"
@@ -266,9 +273,13 @@ watch(() => props.controller.stateMachine.state, (state) => {
             class="spin-text"
           >{{ t('hud.spin') }}</span>
           <span
-            v-else
+            v-else-if="canStop"
             class="spin-text stop"
           >{{ t('hud.stop') }}</span>
+          <span
+            v-else
+            class="spin-text auto"
+          >{{ t('hud.auto') }}</span>
         </button>
 
         <!-- Buy Feature button (disabled during FREE_SPINS) -->
@@ -542,6 +553,17 @@ watch(() => props.controller.stateMachine.state, (state) => {
   box-shadow: 0 6px 30px rgba(243, 156, 18, 0.6);
 }
 
+.spin-btn.auto-mode {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  box-shadow: 0 4px 20px rgba(155, 89, 182, 0.4);
+  animation: spin-pulse 0.5s ease-in-out infinite;
+  cursor: not-allowed;
+}
+
+.spin-btn.auto-mode:hover {
+  transform: none;
+}
+
 @keyframes spin-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
@@ -554,6 +576,12 @@ watch(() => props.controller.stateMachine.state, (state) => {
 .spin-text.stop {
   font-size: 1rem;
   letter-spacing: 0.05em;
+}
+
+.spin-text.auto {
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
 }
 
 /* Buy Feature button */

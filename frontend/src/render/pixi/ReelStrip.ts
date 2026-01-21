@@ -509,6 +509,22 @@ export class ReelStrip {
     this.updateSlotPositions()
   }
 
+  /**
+   * Get currently visible symbol IDs (3 rows, top to bottom)
+   * Row order: row=0 is TOP, row=1 is MIDDLE, row=2 is BOTTOM
+   * @returns Array of 3 symbolIds [top, middle, bottom]
+   */
+  getVisibleSymbols(): number[] {
+    // Visible symbols are at slot indices 1, 2, 3 (slot 0 is buffer above, slot 4 is buffer below)
+    // After wraps during spin, the slots array is rotated, but indices 1-3 always hold visible rows
+    const visible: number[] = []
+    for (let row = 0; row < VISIBLE_ROWS; row++) {
+      const slotIndex = row + 1  // Slots 1, 2, 3 are visible
+      visible.push(this.slots[slotIndex]?.symbolId ?? -1)
+    }
+    return visible
+  }
+
   /** Debug helper for position validation */
   getDebugSprite(): Sprite | null {
     return this.slots[0]?.sprite ?? null

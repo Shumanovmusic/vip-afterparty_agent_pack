@@ -3,5 +3,5 @@
  */
 
 export { ReelStrip, type ReelStripConfig } from './ReelStrip'
-export { PixiReelsRenderer, type ReelsLayoutConfig } from './PixiReelsRenderer'
+export { PixiReelsRenderer, type ReelsLayoutConfig, type SpinCorrectnessFailure } from './PixiReelsRenderer'
 export { DEBUG_FLAGS } from './DebugFlags'
