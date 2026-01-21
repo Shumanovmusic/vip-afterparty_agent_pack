@@ -55,10 +55,17 @@ const betDisplay = computed(() => {
   return `$${currentBet.value.toFixed(2)}`
 })
 
-// Handle spin button click
+// Handle spin button click (also handles STOP when spinning)
 async function handleSpin() {
   if (import.meta.env.DEV) {
-    console.log('SPIN POINTERDOWN', { canSpin: canSpin.value, bet: currentBet.value, hype: hypeModeEnabled.value })
+    console.log('SPIN POINTERDOWN', { canSpin: canSpin.value, isSpinning: isSpinning.value, bet: currentBet.value, hype: hypeModeEnabled.value })
+  }
+
+  // If already spinning, trigger quick stop
+  if (isSpinning.value) {
+    audioService.playUIClick()
+    props.controller.requestQuickStop()
+    return
   }
 
   if (!canSpin.value) {
@@ -242,15 +249,16 @@ watch(() => props.controller.stateMachine.state, (state) => {
           </button>
         </div>
 
-        <!-- Spin button -->
+        <!-- Spin button (shows STOP when spinning) -->
         <button
           class="spin-btn"
           :class="{
             spinning: isSpinning,
-            turbo: turboEnabled,
-            hype: hypeModeEnabled
+            turbo: turboEnabled && !isSpinning,
+            hype: hypeModeEnabled && !isSpinning,
+            'stop-mode': isSpinning
           }"
-          :disabled="!canSpin"
+          :disabled="!canSpin && !isSpinning"
           @click="handleSpin"
         >
           <span
@@ -259,8 +267,8 @@ watch(() => props.controller.stateMachine.state, (state) => {
           >{{ t('hud.spin') }}</span>
           <span
             v-else
-            class="spin-text spinning"
-          >{{ t('hud.spinning') }}</span>
+            class="spin-text stop"
+          >{{ t('hud.stop') }}</span>
         </button>
 
         <!-- Buy Feature button (disabled during FREE_SPINS) -->
@@ -522,6 +530,18 @@ watch(() => props.controller.stateMachine.state, (state) => {
   animation: spin-pulse 0.5s ease-in-out infinite;
 }
 
+.spin-btn.stop-mode {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  box-shadow: 0 4px 20px rgba(243, 156, 18, 0.4);
+  animation: none;
+  cursor: pointer;
+}
+
+.spin-btn.stop-mode:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 30px rgba(243, 156, 18, 0.6);
+}
+
 @keyframes spin-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
@@ -529,6 +549,11 @@ watch(() => props.controller.stateMachine.state, (state) => {
 
 .spin-text {
   display: block;
+}
+
+.spin-text.stop {
+  font-size: 1rem;
+  letter-spacing: 0.05em;
 }
 
 /* Buy Feature button */

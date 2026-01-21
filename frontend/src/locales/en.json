@@ -7,6 +7,7 @@
   },
   "hud": {
     "spin": "SPIN",
+    "stop": "STOP",
     "spinning": "...",
     "turbo": "Turbo Spin",
     "reduceMotion": "Reduce Motion",

@@ -3,10 +3,10 @@
  * ReelsView - 5x3 reel grid component using Pixi.js sprites
  * Thin Vue wrapper around PixiReelsRenderer
  */
-import { ref, computed, onMounted, onUnmounted, inject, watch, type Ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, inject, watch, type Ref } from 'vue'
 import type { Application, Container } from 'pixi.js'
 import type { GameController } from '../GameController'
-import { PixiReelsRenderer, type ReelsLayoutConfig } from './pixi'
+import { PixiReelsRenderer, type ReelsLayoutConfig, DEBUG_FLAGS } from './pixi'
 
 const props = defineProps<{
   controller: GameController
@@ -19,6 +19,10 @@ const mainContainer = inject<Ref<Container | null>>('mainContainer')
 // Renderer instance
 const renderer = ref<PixiReelsRenderer | null>(null)
 let layoutLogged = false
+
+// Layout debounce state (rAF-based)
+let layoutRaf = 0
+let lastLayout: ReelsLayoutConfig | null = null
 
 // Layout calculations
 const layout = computed((): ReelsLayoutConfig => {
@@ -36,7 +40,7 @@ const layout = computed((): ReelsLayoutConfig => {
   const offsetX = (gameWidth - gridWidth) / 2
   const offsetY = (gameHeight - gridHeight) / 2 - 50  // Shift up for HUD space
 
-  if (import.meta.env.DEV && !layoutLogged) {
+  if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !layoutLogged) {
     layoutLogged = true
     console.log('[ReelsView] layout', {
       gameWidth,
@@ -61,16 +65,32 @@ const layout = computed((): ReelsLayoutConfig => {
   }
 })
 
-// Watch for layout changes and update renderer
-watch(layout, (newLayout) => {
-  if (renderer.value) {
-    renderer.value.layout(newLayout)
-    pixiApp?.value?.render?.()
-  }
-}, { deep: true })
+// Watch for layout changes and update renderer (rAF debounced)
+watch(
+  layout,
+  (newLayout) => {
+    lastLayout = newLayout
+    if (layoutRaf) cancelAnimationFrame(layoutRaf)
+    layoutRaf = requestAnimationFrame(() => {
+      layoutRaf = 0
+      if (renderer.value && lastLayout) {
+        renderer.value.layout(lastLayout)
+        pixiApp?.value?.render?.()
+      }
+    })
+  },
+  { deep: true, flush: 'post' }
+)
+
+onBeforeUnmount(() => {
+  if (layoutRaf) cancelAnimationFrame(layoutRaf)
+  layoutRaf = 0
+  lastLayout = null
+})
 
 // Subscribe to controller events
-let unsubscribe: (() => void) | null = null
+let unsubscribeSpinStart: (() => void) | null = null
+let unsubscribeQuickStop: (() => void) | null = null
 
 onMounted(() => {
   // Get the main Pixi container
@@ -81,7 +101,7 @@ onMounted(() => {
   }
 
   const layoutValue = layout.value
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
     console.log('[ReelsView] onMounted layout:', {
       offsetX: layoutValue.offsetX,
       offsetY: layoutValue.offsetY,
@@ -95,15 +115,21 @@ onMounted(() => {
   renderer.value.init(layoutValue)
   pixiApp?.value?.render?.()
 
-  // Listen for spin start to reset highlights
-  unsubscribe = props.controller.onSpinStart(() => {
+  // Listen for spin start to reset highlights and start spinning
+  unsubscribeSpinStart = props.controller.onSpinStart(() => {
     renderer.value?.resetHighlights()
     renderer.value?.startAllSpins()
+  })
+
+  // Listen for quick stop to accelerate reel stopping
+  unsubscribeQuickStop = props.controller.onQuickStop(() => {
+    renderer.value?.requestQuickStop()
   })
 })
 
 onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
+  if (unsubscribeSpinStart) unsubscribeSpinStart()
+  if (unsubscribeQuickStop) unsubscribeQuickStop()
   if (renderer.value) {
     renderer.value.destroy()
     renderer.value = null

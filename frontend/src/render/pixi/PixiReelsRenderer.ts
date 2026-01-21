@@ -67,6 +67,11 @@ export class PixiReelsRenderer {
   private wildPositions: Set<number> = new Set()
   private dimmedSymbols = false
 
+  // Spin state
+  private _isSpinning = false
+  private pendingResult: number[][] | null = null
+  private quickStopRequested = false
+
   constructor(parentContainer: Container) {
     // Create main container for reels
     this.container = new Container()
@@ -97,7 +102,7 @@ export class PixiReelsRenderer {
     this.reelsViewport.addChild(this.reelsContainer)
     this.applyPositionGuard(this.reelsContainer, 'reelsContainer')
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
       console.log(`[PixiReelsRenderer] constructor - parentContainer label: ${parentContainer.label}, children: ${parentContainer.children.length}`)
       console.log(`[PixiReelsRenderer] this.container position: (${this.container.x}, ${this.container.y})`)
       console.log(`[PixiReelsRenderer] this.container.parent: ${this.container.parent?.label ?? 'null'}, inDisplayList: ${this.container.parent !== null}`)
@@ -152,7 +157,7 @@ export class PixiReelsRenderer {
       }
     })
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
       console.log('[PixiReelsRenderer] init() complete', {
         reelsRoot: { x: this.reelsRoot.position.x, y: this.reelsRoot.position.y },
         reelsViewport: { x: this.reelsViewport.position.x, y: this.reelsViewport.position.y },
@@ -297,7 +302,7 @@ export class PixiReelsRenderer {
 
     const { symbolWidth, symbolHeight, offsetX, offsetY, gap } = this.layoutConfig
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
       console.log(`[PixiReelsRenderer] Creating ${REEL_COUNT} reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}x${symbolHeight})`)
     }
 
@@ -311,14 +316,14 @@ export class PixiReelsRenderer {
         gap
       }
 
-      if (import.meta.env.DEV) {
+      if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
         console.log(`[PixiReelsRenderer] Reel ${i}: x=${config.x}`)
       }
       const strip = new ReelStrip(config, this.reelsContainer)
       strip.setSymbols(this.currentGrid[i])
       this.reelStrips.push(strip)
 
-      if (import.meta.env.DEV && !reelsRootDebugLogged) {
+      if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !reelsRootDebugLogged) {
         reelsRootDebugLogged = true
         console.log('[DBG] frame parent', this.reelFrame?.container?.parent?.label ?? this.reelFrame?.container?.parent)
         console.log('[DBG] reels parent', this.reelsRoot?.parent?.label ?? this.reelsRoot?.parent)
@@ -326,7 +331,7 @@ export class PixiReelsRenderer {
         console.log('[DBG] container pos', this.container?.position)
       }
 
-      if (import.meta.env.DEV && !reelDebugLogged) {
+      if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !reelDebugLogged) {
         reelDebugLogged = true
         const sprite = strip.getDebugSprite()
         if (sprite) {
@@ -338,7 +343,7 @@ export class PixiReelsRenderer {
       }
     }
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
       console.log(`[PixiReelsRenderer] Created ${this.reelStrips.length} strips, reelsContainer has ${this.reelsContainer.children.length} children`)
       console.log('[PixiReelsRenderer] After createReelStrips:', {
         reelsRootX: this.reelsRoot.position.x,
@@ -494,21 +499,68 @@ export class PixiReelsRenderer {
   }
 
   /**
+   * Check if any reels are currently spinning
+   */
+  isSpinning(): boolean {
+    return this._isSpinning || this.reelStrips.some(strip => strip.isAnimating())
+  }
+
+  /**
+   * Check if quick stop was requested
+   */
+  isQuickStopRequested(): boolean {
+    return this.quickStopRequested
+  }
+
+  /**
    * Start all reels spinning
    */
   startAllSpins(): void {
+    this._isSpinning = true
+    this.pendingResult = null
+    this.quickStopRequested = false
+
     for (const strip of this.reelStrips) {
       strip.startSpin()
     }
   }
 
   /**
+   * Request quick stop on all spinning reels
+   * If result is pending, stops immediately; otherwise waits for result
+   */
+  requestQuickStop(): void {
+    if (!this._isSpinning) return
+
+    this.quickStopRequested = true
+
+    // Propagate to all reel strips
+    for (const strip of this.reelStrips) {
+      strip.requestQuickStop()
+    }
+
+    // If we have a pending result, trigger stop now
+    if (this.pendingResult) {
+      this.stopAllReels(this.pendingResult)
+    }
+  }
+
+  /**
    * Stop all reels with stagger L->R
+   * @param finalGrid - Final 5x3 symbol grid (column-major: finalGrid[reel][row])
    */
   async stopAllReels(finalGrid: number[][]): Promise<void> {
-    const stagger = MotionPrefs.turboEnabled
-      ? TIMING.REEL_STOP_STAGGER_MS / 2
-      : TIMING.REEL_STOP_STAGGER_MS
+    // Store result in case quick stop is requested later
+    this.pendingResult = finalGrid
+
+    // Calculate stagger based on turbo mode and quick stop
+    let stagger = TIMING.REEL_STOP_STAGGER_MS
+    if (MotionPrefs.turboEnabled) {
+      stagger = stagger / 2
+    }
+    if (this.quickStopRequested) {
+      stagger = stagger / 3
+    }
 
     for (let i = 0; i < REEL_COUNT; i++) {
       this.currentGrid[i] = [...finalGrid[i]]
@@ -518,6 +570,11 @@ export class PixiReelsRenderer {
         await this.delay(stagger)
       }
     }
+
+    // Clear spin state
+    this._isSpinning = false
+    this.pendingResult = null
+    this.quickStopRequested = false
   }
 
   /**

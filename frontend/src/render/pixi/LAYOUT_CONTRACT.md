@@ -22,8 +22,10 @@
 - Mask is drawn at `(0, 0)` in `reelsViewport` coordinates.
 
 ## Manual Smoke Checklist
-- Resize the window 5 times.
+- Resize the window continuously for 5 seconds (drag edge rapidly).
+- Orientation change (mobile emulation in DevTools: toggle portrait ↔ landscape).
 - Toggle motion prefs (if available).
 - Run 20 spins.
 - Enter bonus (scatter).
 - Verify frame/reels remain centered and mask shows 5 reels.
+- **Console gate**: Verify no `[LAYOUT GUARD]` or `[LAYOUT ASSERT FAILED]` warnings/errors.

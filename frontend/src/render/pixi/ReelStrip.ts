@@ -1,9 +1,12 @@
 /**
  * ReelStrip - Single reel column with Sprite-based rendering
- * Uses Sprites with textures from AssetLoader (atlas or fallback)
- * Respects UX_ANIMATION_SPEC.md for bounce/timing rules
+ * Implements smooth vertical scrolling with symbol wrap-around
+ * Deterministic stop ensures final grid matches backend result exactly
  *
- * Pixi v8 NOTE: Uses software clipping via sprite.visible for per-symbol culling
+ * Coordinate system:
+ * - All Y positions are local to reelsContainer (0 = top of visible area)
+ * - Visible window: [0, VISIBLE_ROWS * symbolHeight)
+ * - Symbols wrap from bottom to top during spin
  */
 
 import { Container, Sprite, Ticker, Texture } from 'pixi.js'
@@ -11,6 +14,7 @@ import { MotionPrefs } from '../../ux/MotionPrefs'
 import { AssetLoader } from '../assets/AssetLoader'
 import { getSymbolKey } from '../assets/AssetManifest'
 import { SymbolRenderer } from './SymbolRenderer'
+import { DEBUG_FLAGS } from './DebugFlags'
 
 /** Configuration for a reel strip */
 export interface ReelStripConfig {
@@ -25,42 +29,49 @@ export interface ReelStripConfig {
 /** Animation state */
 type SpinState = 'idle' | 'spinning' | 'stopping' | 'bouncing'
 
-/** Symbol data with Sprite and position tracking */
+/** Symbol slot with Sprite and position tracking */
 interface SymbolSlot {
   sprite: Sprite
   symbolId: number
-  currentY: number
+  /** Logical row index in the slot array (0 = buffer above, 1-3 = visible, 4 = buffer below) */
+  slotIndex: number
 }
 
 /** Animation constants */
-const BUFFER_SYMBOLS = 5
-const SPIN_VELOCITY_INITIAL = 30
-const SPIN_VELOCITY_MAX = 50
+const BUFFER_SYMBOLS = 5  // 1 above + 3 visible + 1 below
+const VISIBLE_ROWS = 3
+
+// Velocity in pixels per frame (~60fps)
+const SPIN_VELOCITY_INITIAL = 20
+const SPIN_VELOCITY_MAX = 40
+const SPIN_ACCELERATION = 1.5
 const SPIN_DECELERATION = 2
+const STOP_MIN_VELOCITY = 6
+
+// Bounce animation
 const BOUNCE_DURATION_MS = 150
-const BOUNCE_OVERSHOOT_PX = 10
+const BOUNCE_OVERSHOOT_PX = 8
+
+// Symbol stream for deterministic spinning (cycles through all symbols)
+const SPIN_SYMBOL_STREAM = [0, 5, 1, 6, 2, 7, 3, 8, 4, 9]
 
 /** Debug flag for first texture log */
 let textureDebugLogged = false
 
 /**
- * Get texture for a symbol ID with debug logging (once)
- * Maps symbol IDs (0-9) to texture keys (sym_0 through sym_9)
- * See ASSET_SPEC_V1.md for full mapping:
- *   0-4 → L1-L5, 5-7 → H1-H3, 8 → WD, 9 → SC
+ * Get texture for a symbol ID
  */
 function getTextureForSymbol(symbolId: number): Texture {
   const key = getSymbolKey(symbolId)
 
-  if (import.meta.env.DEV && !textureDebugLogged) {
+  if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
     console.log(`[ReelStrip] getTextureForSymbol called: SymbolRenderer.isReady=${SymbolRenderer.isReady}`)
   }
 
-  // Use SymbolRenderer for VIP chip textures (programmatic)
   if (SymbolRenderer.isReady) {
     const texture = SymbolRenderer.getTexture(key)
 
-    if (import.meta.env.DEV && !textureDebugLogged) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
       textureDebugLogged = true
       console.log(`[ReelStrip] SymbolRenderer texture: key=${key}, size=${texture.width}x${texture.height}`)
     }
@@ -68,10 +79,9 @@ function getTextureForSymbol(symbolId: number): Texture {
     return texture
   }
 
-  // Fallback to AssetLoader (atlas or fallback)
   const texture = AssetLoader.getSymbolTexture(symbolId)
 
-  if (import.meta.env.DEV && !textureDebugLogged) {
+  if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
     textureDebugLogged = true
     console.log(`[ReelStrip] AssetLoader FALLBACK texture: key=${key}, size=${texture.width}x${texture.height}`)
   }
@@ -80,8 +90,7 @@ function getTextureForSymbol(symbolId: number): Texture {
 }
 
 /**
- * ReelStrip class - manages a single reel column
- * Uses Sprites with software visibility clipping
+ * ReelStrip - Manages a single reel column with smooth scrolling
  */
 export class ReelStrip {
   private slots: SymbolSlot[] = []
@@ -93,8 +102,14 @@ export class ReelStrip {
   // Animation state
   private state: SpinState = 'idle'
   private velocity = 0
+  private scrollOffset = 0  // Current scroll offset (0 = aligned to grid)
   private targetSymbols: number[] = []
   private stopResolver: (() => void) | null = null
+  private quickStopRequested = false
+
+  // Symbol stream state for spinning
+  private streamIndex = 0
+  private wrapCount = 0  // Number of symbols wrapped during stop
 
   // Dimmed state per row
   private dimmedRows: Set<number> = new Set()
@@ -105,37 +120,45 @@ export class ReelStrip {
     this.baseX = config.x
     this.baseY = config.y
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
       console.log(`[ReelStrip] Creating reel: config=(${config.x}, ${config.y})`)
     }
 
-    // Create symbol slots with Sprites
     this.createSymbolSlots()
   }
 
+  /** Get current spin state */
+  getState(): SpinState {
+    return this.state
+  }
+
+  /** Check if this reel is currently animating */
+  isAnimating(): boolean {
+    return this.state !== 'idle'
+  }
+
   /** Software clipping: update sprite visibility based on LOCAL coords */
-  private updateSpriteClipping(slot: SymbolSlot): void {
-    const { symbolHeight, visibleRows, gap } = this.config
-    // LOCAL coords - visible area is 0 to (symbolHeight * visibleRows)
-    // baseY is the x-offset for this reel column, not relevant for vertical clipping
-    const visibleTop = 0
-    const visibleBottom = symbolHeight * visibleRows
-    const spriteTop = slot.currentY
-    const spriteBottom = slot.currentY + (symbolHeight - gap)
+  private updateSpriteClipping(slot: SymbolSlot, y: number): void {
+    const { symbolHeight, gap } = this.config
+    const visibleTop = -symbolHeight * 0.5  // Allow partial visibility at top
+    const visibleBottom = VISIBLE_ROWS * symbolHeight + symbolHeight * 0.5
+    const spriteTop = y
+    const spriteBottom = y + (symbolHeight - gap)
     slot.sprite.visible = !(spriteBottom <= visibleTop || spriteTop >= visibleBottom)
   }
 
   /** Create Sprite-based symbol slots */
   private createSymbolSlots(): void {
-    const { symbolHeight, symbolWidth, gap, visibleRows } = this.config
+    const { symbolHeight, gap } = this.config
     const slotBaseX = this.baseX + gap / 2
 
-    if (import.meta.env.DEV) {
-      console.log(`[ReelStrip] createSymbolSlots: baseX=${this.baseX}, baseY=${this.baseY}, slotBaseX=${slotBaseX}, rows=${visibleRows}, symbolWidth=${symbolWidth}`)
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
+      console.log(`[ReelStrip] createSymbolSlots: baseX=${this.baseX}, slotBaseX=${slotBaseX}`)
     }
 
     for (let i = 0; i < BUFFER_SYMBOLS; i++) {
-      const slotY = this.baseY + (i - 1) * symbolHeight + gap / 2
+      // Position: slot 0 is above visible, slots 1-3 are visible, slot 4 is below
+      const slotY = (i - 1) * symbolHeight + gap / 2
 
       const texture = getTextureForSymbol(0)
       const sprite = new Sprite(texture)
@@ -143,29 +166,22 @@ export class ReelStrip {
       this.applySpriteScale(sprite)
       sprite.position.set(slotBaseX, slotY)
 
-      if (import.meta.env.DEV && i === 0) {
+      if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && i === 0) {
         console.log(`[ReelStrip] Sprite ${i} created:`, {
-          reelBaseX: this.baseX,
-          gap: gap,
-          symbolWidth: symbolWidth,
-          slotBaseX: slotBaseX,
-          slotY: slotY,
+          slotY,
           spriteX: sprite.position.x,
           spriteY: sprite.position.y,
-          spriteWidth: sprite.width,
-          spriteHeight: sprite.height,
-          parentLabel: this.parent.label,
         })
       }
 
       const slot: SymbolSlot = {
         sprite,
         symbolId: 0,
-        currentY: slotY,
+        slotIndex: i,
       }
 
       this.slots.push(slot)
-      this.updateSpriteClipping(slot)
+      this.updateSpriteClipping(slot, slotY)
     }
   }
 
@@ -186,37 +202,42 @@ export class ReelStrip {
     const textureWidth = Math.max(sprite.texture.width, 1)
     const textureHeight = Math.max(sprite.texture.height, 1)
 
-    if (import.meta.env.DEV && (sprite.texture.width === 0 || sprite.texture.height === 0)) {
-      console.warn('[ReelStrip] Texture size is zero, using fallback scale', {
-        textureWidth: sprite.texture.width,
-        textureHeight: sprite.texture.height,
-      })
-    }
-
     sprite.scale.set(slotWidth / textureWidth, slotHeight / textureHeight)
   }
 
-  /** Update slot position (used during animation) */
-  private updateSlotPosition(slot: SymbolSlot): void {
-    const slotX = this.baseX + this.config.gap / 2
-    slot.sprite.position.set(slotX, slot.currentY)
-    this.updateSpriteClipping(slot)
+  /** Update all slot positions based on current scroll offset */
+  private updateSlotPositions(): void {
+    const { symbolHeight, gap } = this.config
+    const slotBaseX = this.baseX + gap / 2
+
+    for (let i = 0; i < this.slots.length; i++) {
+      const slot = this.slots[i]
+      // Base Y + scroll offset
+      const y = (i - 1) * symbolHeight + gap / 2 + this.scrollOffset
+      slot.sprite.position.set(slotBaseX, y)
+      this.updateSpriteClipping(slot, y)
+    }
   }
 
   /**
    * Set symbols on this reel (3 visible positions)
+   * Immediate update, no animation
    */
   setSymbols(ids: number[]): void {
-    // Set visible symbols (indices 1, 2, 3)
-    for (let i = 0; i < 3; i++) {
+    // Set visible symbols (indices 1, 2, 3 in slot array)
+    for (let i = 0; i < VISIBLE_ROWS; i++) {
       const slotIndex = i + 1
       const symbolId = ids[i] ?? 0
       this.updateSlotSymbol(this.slots[slotIndex], symbolId)
     }
 
-    // Set buffer symbols
-    this.updateSlotSymbol(this.slots[0], ids[0] ?? 0)
-    this.updateSlotSymbol(this.slots[4], ids[2] ?? 0)
+    // Set buffer symbols to match edges
+    this.updateSlotSymbol(this.slots[0], ids[0] ?? 0)  // Above = same as top
+    this.updateSlotSymbol(this.slots[4], ids[2] ?? 0)  // Below = same as bottom
+
+    // Reset scroll offset to aligned state
+    this.scrollOffset = 0
+    this.updateSlotPositions()
   }
 
   /**
@@ -227,6 +248,10 @@ export class ReelStrip {
 
     this.state = 'spinning'
     this.velocity = SPIN_VELOCITY_INITIAL
+    this.scrollOffset = 0
+    this.quickStopRequested = false
+    this.wrapCount = 0
+    this.streamIndex = Math.floor(Math.random() * SPIN_SYMBOL_STREAM.length)
     this.clearDimming()
 
     Ticker.shared.add(this.onTick, this)
@@ -234,15 +259,19 @@ export class ReelStrip {
 
   /**
    * Stop spinning with target symbols
+   * @param targetSymbols - Final 3 symbols (top to bottom)
+   * @param withBounce - Optional override for bounce animation
    */
   stopSpin(targetSymbols: number[], withBounce?: boolean): Promise<void> {
-    if (this.state !== 'spinning') {
+    if (this.state !== 'spinning' && this.state !== 'stopping') {
+      // Not spinning - just set symbols directly
       this.setSymbols(targetSymbols)
       return Promise.resolve()
     }
 
     this.targetSymbols = targetSymbols
     this.state = 'stopping'
+    this.wrapCount = 0
 
     const shouldBounce = withBounce ?? MotionPrefs.shouldShowBounce()
 
@@ -257,6 +286,15 @@ export class ReelStrip {
     })
   }
 
+  /**
+   * Request quick stop (faster deceleration)
+   */
+  requestQuickStop(): void {
+    if (this.state === 'spinning' || this.state === 'stopping') {
+      this.quickStopRequested = true
+    }
+  }
+
   /** Animation tick handler */
   private onTick = (): void => {
     if (this.state === 'idle' || this.state === 'bouncing') {
@@ -264,40 +302,74 @@ export class ReelStrip {
     }
 
     const { symbolHeight } = this.config
+    const decel = this.quickStopRequested ? SPIN_DECELERATION * 3 : SPIN_DECELERATION
 
+    // Update velocity
     if (this.state === 'spinning') {
       if (this.velocity < SPIN_VELOCITY_MAX) {
-        this.velocity += 1
+        this.velocity = Math.min(this.velocity + SPIN_ACCELERATION, SPIN_VELOCITY_MAX)
       }
     } else if (this.state === 'stopping') {
-      this.velocity = Math.max(this.velocity - SPIN_DECELERATION, 5)
-    }
-
-    // Move all symbols up - just update Y positions
-    for (const slot of this.slots) {
-      slot.currentY -= this.velocity
-      this.updateSlotPosition(slot)
-    }
-
-    // Check for wrap-around (symbol goes above visible area) - ABS coords
-    const wrapThreshold = this.baseY - symbolHeight
-    for (const slot of this.slots) {
-      if (slot.currentY < wrapThreshold) {
-        const bottomY = this.getBottomY()
-        slot.currentY = bottomY
-        this.updateSlotPosition(slot)
-
-        if (this.state === 'spinning') {
-          const newSymbolId = Math.floor(Math.random() * 10)
-          this.updateSlotSymbol(slot, newSymbolId)
-        }
+      // During stopping, ensure we've wrapped enough symbols before slowing down
+      const minWraps = this.quickStopRequested ? 2 : 4
+      if (this.wrapCount >= minWraps) {
+        this.velocity = Math.max(this.velocity - decel, STOP_MIN_VELOCITY)
       }
     }
 
-    if (this.state === 'stopping') {
-      if (this.velocity <= 8) {
+    // Move symbols down (positive scroll = symbols move down visually)
+    this.scrollOffset += this.velocity
+
+    // Check for wrap-around (when scroll exceeds one symbol height)
+    if (this.scrollOffset >= symbolHeight) {
+      this.scrollOffset -= symbolHeight
+      this.onSymbolWrap()
+    }
+
+    this.updateSlotPositions()
+
+    // Check for stop condition
+    if (this.state === 'stopping' && this.velocity <= STOP_MIN_VELOCITY) {
+      // Check if we're close enough to aligned position
+      if (this.scrollOffset < this.velocity * 2) {
         this.finishStop()
       }
+    }
+  }
+
+  /** Handle symbol wrap-around during spin */
+  private onSymbolWrap(): void {
+    // Rotate slot array: move first slot to end
+    const topSlot = this.slots.shift()!
+    this.slots.push(topSlot)
+
+    // Update slot indices
+    for (let i = 0; i < this.slots.length; i++) {
+      this.slots[i].slotIndex = i
+    }
+
+    // Assign new symbol to the bottom slot
+    const bottomSlot = this.slots[this.slots.length - 1]
+
+    if (this.state === 'stopping') {
+      this.wrapCount++
+      // Inject target symbols as we approach stop
+      // wrapCount 1: inject target[2] (bottom)
+      // wrapCount 2: inject target[1] (middle)
+      // wrapCount 3: inject target[0] (top)
+      // After that, keep injecting from top to maintain buffer
+      const targetIndex = 3 - this.wrapCount
+      if (targetIndex >= 0 && targetIndex < this.targetSymbols.length) {
+        this.updateSlotSymbol(bottomSlot, this.targetSymbols[targetIndex])
+      } else if (this.wrapCount === 4) {
+        // Inject buffer above (same as top visible)
+        this.updateSlotSymbol(bottomSlot, this.targetSymbols[0])
+      }
+    } else {
+      // During spin: use deterministic symbol stream
+      const newSymbolId = SPIN_SYMBOL_STREAM[this.streamIndex]
+      this.streamIndex = (this.streamIndex + 1) % SPIN_SYMBOL_STREAM.length
+      this.updateSlotSymbol(bottomSlot, newSymbolId)
     }
   }
 
@@ -305,11 +377,15 @@ export class ReelStrip {
   private finishStop(): void {
     Ticker.shared.remove(this.onTick, this)
 
+    // Snap to aligned position
+    this.scrollOffset = 0
+
+    // Ensure final symbols match target exactly
     this.setSymbols(this.targetSymbols)
-    this.resetSlotPositions()
 
     this.state = 'idle'
     this.velocity = 0
+    this.quickStopRequested = false
 
     if (this.stopResolver) {
       this.stopResolver()
@@ -317,57 +393,35 @@ export class ReelStrip {
     }
   }
 
-  /** Get the Y position for placing a symbol at the bottom */
-  private getBottomY(): number {
-    let maxY = -Infinity
-    for (const slot of this.slots) {
-      if (slot.currentY > maxY) maxY = slot.currentY
-    }
-    return maxY + this.config.symbolHeight
-  }
-
-  /** Reset slot positions to default layout (ABS coords) */
-  private resetSlotPositions(): void {
-    const { symbolHeight, gap } = this.config
-
-    for (let i = 0; i < this.slots.length; i++) {
-      this.slots[i].currentY = this.baseY + (i - 1) * symbolHeight + gap / 2
-      this.updateSlotPosition(this.slots[i])
-    }
-  }
-
-  /** Play bounce animation by updating positions */
+  /** Play bounce animation */
   private playBounce(): Promise<void> {
     return new Promise((resolve) => {
       this.state = 'bouncing'
       const startTime = performance.now()
-
-      // Store initial Y positions
-      const startYs = this.slots.map(s => s.currentY)
+      const startOffset = this.scrollOffset
 
       const animate = (): void => {
         const elapsed = performance.now() - startTime
         const progress = Math.min(elapsed / BOUNCE_DURATION_MS, 1)
 
-        let offsetY = 0
+        // Bounce: overshoot down, then settle back
+        let bounceOffset = 0
         if (progress < 0.4) {
-          offsetY = BOUNCE_OVERSHOOT_PX * (progress / 0.4)
+          bounceOffset = BOUNCE_OVERSHOOT_PX * (progress / 0.4)
         } else {
           const settleProgress = (progress - 0.4) / 0.6
           const easeOut = 1 - Math.pow(1 - settleProgress, 2)
-          offsetY = BOUNCE_OVERSHOOT_PX * (1 - easeOut)
+          bounceOffset = BOUNCE_OVERSHOOT_PX * (1 - easeOut)
         }
 
-        // Update positions - just move sprites
-        for (let i = 0; i < this.slots.length; i++) {
-          this.slots[i].currentY = startYs[i] + offsetY
-          this.updateSlotPosition(this.slots[i])
-        }
+        this.scrollOffset = startOffset + bounceOffset
+        this.updateSlotPositions()
 
         if (progress < 1) {
           requestAnimationFrame(animate)
         } else {
-          this.resetSlotPositions()
+          this.scrollOffset = 0
+          this.updateSlotPositions()
           this.state = 'idle'
           resolve()
         }
@@ -399,9 +453,11 @@ export class ReelStrip {
 
   /** Update sprite alpha based on dimmed state */
   private updateDimming(): void {
-    for (let row = 0; row < 3; row++) {
+    for (let row = 0; row < VISIBLE_ROWS; row++) {
       const slotIndex = row + 1
-      this.slots[slotIndex].sprite.alpha = this.dimmedRows.has(row) ? 0.3 : 1
+      if (slotIndex < this.slots.length) {
+        this.slots[slotIndex].sprite.alpha = this.dimmedRows.has(row) ? 0.3 : 1
+      }
     }
   }
 
@@ -410,14 +466,13 @@ export class ReelStrip {
    */
   setHighlight(row: number, highlighted: boolean): void {
     const slotIndex = row + 1
-    if (highlighted) {
+    if (highlighted && slotIndex < this.slots.length) {
       this.slots[slotIndex].sprite.alpha = 1
     }
   }
 
   /**
    * Refresh all textures (called when MotionPrefs change)
-   * Forces re-fetch of textures which may have different visual styles
    */
   refreshTextures(): void {
     for (const slot of this.slots) {
@@ -449,7 +504,9 @@ export class ReelStrip {
       }
     }
 
-    this.resetSlotPositions()
+    // Reset positions
+    this.scrollOffset = 0
+    this.updateSlotPositions()
   }
 
   /** Debug helper for position validation */
@@ -461,6 +518,8 @@ export class ReelStrip {
   getDebugSnapshot(): {
     baseX: number
     baseY: number
+    state: SpinState
+    scrollOffset: number
     slots: Array<{
       x: number
       y: number
@@ -468,11 +527,14 @@ export class ReelStrip {
       height: number
       visible: boolean
       alpha: number
+      symbolId: number
     }>
   } {
     return {
       baseX: this.baseX,
       baseY: this.baseY,
+      state: this.state,
+      scrollOffset: this.scrollOffset,
       slots: this.slots.map(slot => ({
         x: slot.sprite.x,
         y: slot.sprite.y,
@@ -480,6 +542,7 @@ export class ReelStrip {
         height: slot.sprite.height,
         visible: slot.sprite.visible,
         alpha: slot.sprite.alpha,
+        symbolId: slot.symbolId,
       }))
     }
   }
@@ -493,6 +556,5 @@ export class ReelStrip {
       slot.sprite.destroy()
     }
     this.slots = []
-
   }
 }

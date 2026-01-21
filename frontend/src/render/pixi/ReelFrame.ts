@@ -6,6 +6,7 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { MotionPrefs } from '../../ux/MotionPrefs'
+import { DEBUG_FLAGS } from './DebugFlags'
 
 export interface ReelFrameConfig {
   gridWidth: number
@@ -64,7 +65,7 @@ export class ReelFrame {
     const { gridWidth, gridHeight, offsetX, offsetY } = this.config
     const g = this.frameGraphics
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
       console.log('[ReelFrame] draw called:', {
         gridWidth,
         gridHeight,

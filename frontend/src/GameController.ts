@@ -14,6 +14,7 @@ import { MotionPrefs } from './ux/MotionPrefs'
 import { audioService } from './audio/AudioService'
 
 type SpinStartListener = () => void
+type QuickStopListener = () => void
 type ErrorListener = (error: NetworkErrorEvent) => void
 type StateChangeListener = (from: GameState, to: GameState) => void
 
@@ -31,6 +32,7 @@ export class GameController {
 
   // Event listeners
   private spinStartListeners: Set<SpinStartListener> = new Set()
+  private quickStopListeners: Set<QuickStopListener> = new Set()
   private errorListeners: Set<ErrorListener> = new Set()
 
   constructor(playerId: string = 'dev-player') {
@@ -246,12 +248,21 @@ export class GameController {
   }
 
   /**
-   * Skip current animations
+   * Skip current animations and request quick stop on reels
    */
   skip(): void {
     if (MotionPrefs.allowSkip && this.scenarioRunner.running) {
       this.scenarioRunner.skip()
     }
+    // Always notify quick stop listeners (for reel animation)
+    this.notifyQuickStop()
+  }
+
+  /**
+   * Request quick stop on reels only (without skipping scenario)
+   */
+  requestQuickStop(): void {
+    this.notifyQuickStop()
   }
 
   // --- Event Subscriptions ---
@@ -262,6 +273,14 @@ export class GameController {
   onSpinStart(listener: SpinStartListener): () => void {
     this.spinStartListeners.add(listener)
     return () => this.spinStartListeners.delete(listener)
+  }
+
+  /**
+   * Subscribe to quick stop events (for reel animation acceleration)
+   */
+  onQuickStop(listener: QuickStopListener): () => void {
+    this.quickStopListeners.add(listener)
+    return () => this.quickStopListeners.delete(listener)
   }
 
   /**
@@ -283,6 +302,10 @@ export class GameController {
 
   private notifySpinStart(): void {
     this.spinStartListeners.forEach(l => l())
+  }
+
+  private notifyQuickStop(): void {
+    this.quickStopListeners.forEach(l => l())
   }
 
   private handleNetworkError(error: NetworkErrorEvent): void {
