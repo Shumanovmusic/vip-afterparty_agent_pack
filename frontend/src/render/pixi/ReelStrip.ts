@@ -1,14 +1,16 @@
 /**
- * ReelStrip - Single reel column with Graphics-based rendering
- * Uses pure Graphics (like ParticleEmitter) which works in Pixi v8
+ * ReelStrip - Single reel column with Sprite-based rendering
+ * Uses Sprites with textures from AssetLoader (atlas or fallback)
  * Respects UX_ANIMATION_SPEC.md for bounce/timing rules
  *
- * Pixi v8 NOTE: Graphics positioning works, Sprites don't.
+ * Pixi v8 NOTE: Uses software clipping via sprite.visible instead of masks
+ * (Pixi v8 masks require specific setup that can break in some configurations)
  */
 
-import { Container, Graphics, Ticker } from 'pixi.js'
+import { Container, Sprite, Ticker, Texture, Graphics } from 'pixi.js'
 import { MotionPrefs } from '../../ux/MotionPrefs'
-import { SYMBOL_FALLBACK_COLORS, getSymbolKey } from '../assets/AssetManifest'
+import { AssetLoader } from '../assets/AssetLoader'
+import { getSymbolKey } from '../assets/AssetManifest'
 
 /** Configuration for a reel strip */
 export interface ReelStripConfig {
@@ -23,11 +25,10 @@ export interface ReelStripConfig {
 /** Animation state */
 type SpinState = 'idle' | 'spinning' | 'stopping' | 'bouncing'
 
-/** Symbol data with Graphics and position tracking */
+/** Symbol data with Sprite and position tracking */
 interface SymbolSlot {
-  graphic: Graphics
+  sprite: Sprite
   symbolId: number
-  baseX: number
   currentY: number
 }
 
@@ -39,14 +40,39 @@ const SPIN_DECELERATION = 2
 const BOUNCE_DURATION_MS = 150
 const BOUNCE_OVERSHOOT_PX = 10
 
+/** Debug flag for first texture log */
+let textureDebugLogged = false
+
+/**
+ * Get texture for a symbol ID with debug logging (once)
+ * Maps symbol IDs (0-9) to texture keys (sym_0 through sym_9)
+ * See ASSET_SPEC_V1.md for full mapping:
+ *   0-4 → L1-L5, 5-7 → H1-H3, 8 → WD, 9 → SC
+ */
+function getTextureForSymbol(symbolId: number): Texture {
+  const texture = AssetLoader.getSymbolTexture(symbolId)
+
+  // Debug: log first texture request
+  if (!textureDebugLogged) {
+    textureDebugLogged = true
+    const key = getSymbolKey(symbolId)
+    console.log(`[ReelStrip] First texture: key=${key}, size=${texture.width}x${texture.height}, valid=${texture !== Texture.EMPTY && texture !== Texture.WHITE}`)
+  }
+
+  return texture
+}
+
 /**
  * ReelStrip class - manages a single reel column
- * Uses Graphics (which positions correctly in Pixi v8)
+ * Uses Sprites with software visibility clipping
  */
 export class ReelStrip {
-  public readonly container: Container
   private slots: SymbolSlot[] = []
   private config: ReelStripConfig
+  private parent: Container
+  private baseX: number
+  private baseY: number
+  private debugBorder: Graphics | null = null
 
   // Animation state
   private state: SpinState = 'idle'
@@ -57,116 +83,98 @@ export class ReelStrip {
   // Dimmed state per row
   private dimmedRows: Set<number> = new Set()
 
-  // Base Y for bounce animation
-  private baseY: number = 0
-
-  constructor(config: ReelStripConfig) {
+  constructor(config: ReelStripConfig, parent: Container) {
     this.config = config
+    this.parent = parent
+    this.baseX = config.x
     this.baseY = config.y
 
-    // Create container at (0,0) - children will be at absolute positions
-    this.container = new Container()
-    this.container.label = `ReelStrip-${config.x}`
-    this.container.eventMode = 'none'
+    console.log(`[ReelStrip] Creating reel: config=(${config.x}, ${config.y})`)
 
-    console.log(`[ReelStrip] Creating reel at x=${config.x}`)
-
-    // Create symbol slots with Graphics
-    // Note: Software clipping via g.visible is used instead of Pixi masks (Pixi v8 compatibility)
+    // Create symbol slots with Sprites
     this.createSymbolSlots()
   }
 
-  /** Create Graphics-based symbol slots */
+  /** Software clipping: update sprite visibility based on position (ABSOLUTE coords) */
+  private updateSpriteClipping(slot: SymbolSlot): void {
+    // DEBUG: always visible to test rendering
+    slot.sprite.visible = true
+    // Proper clipping with ABSOLUTE coords (uncomment when DEBUG removed):
+    // const { symbolHeight, visibleRows, gap } = this.config
+    // const visibleTop = this.baseY
+    // const visibleBottom = this.baseY + symbolHeight * visibleRows
+    // const spriteTop = slot.currentY
+    // const spriteBottom = slot.currentY + (symbolHeight - gap)
+    // slot.sprite.visible = !(spriteBottom <= visibleTop || spriteTop >= visibleBottom)
+  }
+
+  /** Create Sprite-based symbol slots */
   private createSymbolSlots(): void {
-    const { x, y, symbolWidth, symbolHeight, gap } = this.config
+    const { symbolWidth, symbolHeight, gap, visibleRows } = this.config
     const slotWidth = symbolWidth - gap
     const slotHeight = symbolHeight - gap
+    const slotBaseX = this.baseX + gap / 2
 
-    console.log(`[ReelStrip] Creating ${BUFFER_SYMBOLS} Graphics slots, slotSize=${slotWidth}x${slotHeight}`)
+    // DEBUG: Add visible border around reel area
+    const border = new Graphics()
+    border.rect(0, 0, symbolWidth, symbolHeight * visibleRows)
+    border.stroke({ width: 2, color: 0x00ff00 })
+    border.position.set(this.baseX, this.baseY)
+    this.parent.addChild(border)
+    this.debugBorder = border
 
     for (let i = 0; i < BUFFER_SYMBOLS; i++) {
-      // ABSOLUTE positions (like ParticleEmitter does)
-      const slotX = x + gap / 2
-      const slotY = y + (i - 1) * symbolHeight + gap / 2
+      const slotY = this.baseY + (i - 1) * symbolHeight + gap / 2
 
-      // Create Graphics and draw colored rectangle
-      const graphic = new Graphics()
-      this.drawSymbol(graphic, slotX, slotY, slotWidth, slotHeight, 0)
+      const texture = getTextureForSymbol(0)
+      const sprite = new Sprite(texture)
+      this.parent.addChild(sprite)
+      this.applySpriteScale(sprite)
+      sprite.position.set(slotBaseX, slotY)
 
-      console.log(`[ReelStrip] Slot ${i}: ABSOLUTE pos=(${slotX}, ${slotY})`)
-
-      this.slots.push({
-        graphic,
+      const slot: SymbolSlot = {
+        sprite,
         symbolId: 0,
-        baseX: slotX,
         currentY: slotY,
-      })
+      }
 
-      this.container.addChild(graphic)
+      this.slots.push(slot)
+      this.updateSpriteClipping(slot)
     }
-
-    console.log(`[ReelStrip] Container children: ${this.container.children.length}`)
   }
 
-  /** Draw a symbol as colored rectangle at position */
-  private drawSymbol(
-    g: Graphics,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    symbolId: number
-  ): void {
-    g.clear()
-
-    // Software clipping to visible bounds
-    const visibleTop = this.baseY
-    const visibleBottom = this.baseY + this.config.symbolHeight * this.config.visibleRows
-
-    // Skip if completely outside visible area
-    const isOutside = y + height <= visibleTop || y >= visibleBottom
-    if (isOutside) {
-      g.visible = false
-      return
-    }
-
-    g.visible = true
-
-    // Clip to visible bounds
-    const clippedY = Math.max(y, visibleTop)
-    const clippedBottom = Math.min(y + height, visibleBottom)
-    const clippedHeight = clippedBottom - clippedY
-
-    // Don't draw if clipped to nothing
-    if (clippedHeight <= 0) {
-      g.visible = false
-      return
-    }
-
-    // Get color for this symbol
-    const key = getSymbolKey(symbolId)
-    const color = SYMBOL_FALLBACK_COLORS[key]
-
-    // Draw rect at clipped position
-    const isFullyVisible = y >= visibleTop && y + height <= visibleBottom
-    if (isFullyVisible) {
-      g.roundRect(x, y, width, height, 8)
-    } else {
-      // Partially clipped - draw clipped rect
-      g.rect(x, clippedY, width, clippedHeight)
-    }
-    g.fill({ color })
-  }
-
-  /** Update a slot's symbol */
+  /** Update a slot's symbol and texture */
   private updateSlotSymbol(slot: SymbolSlot, symbolId: number): void {
     if (slot.symbolId !== symbolId) {
-      const { symbolWidth, symbolHeight, gap } = this.config
-      const slotWidth = symbolWidth - gap
-      const slotHeight = symbolHeight - gap
-      this.drawSymbol(slot.graphic, slot.baseX, slot.currentY, slotWidth, slotHeight, symbolId)
       slot.symbolId = symbolId
+      slot.sprite.texture = getTextureForSymbol(symbolId)
+      this.applySpriteScale(slot.sprite)
     }
+  }
+
+  /** Ensure sprite scale matches current symbol dimensions */
+  private applySpriteScale(sprite: Sprite): void {
+    const { symbolWidth, symbolHeight, gap } = this.config
+    const slotWidth = symbolWidth - gap
+    const slotHeight = symbolHeight - gap
+    const textureWidth = Math.max(sprite.texture.width, 1)
+    const textureHeight = Math.max(sprite.texture.height, 1)
+
+    if (import.meta.env.DEV && (sprite.texture.width === 0 || sprite.texture.height === 0)) {
+      console.warn('[ReelStrip] Texture size is zero, using fallback scale', {
+        textureWidth: sprite.texture.width,
+        textureHeight: sprite.texture.height,
+      })
+    }
+
+    sprite.scale.set(slotWidth / textureWidth, slotHeight / textureHeight)
+  }
+
+  /** Update slot position (used during animation) */
+  private updateSlotPosition(slot: SymbolSlot): void {
+    const slotX = this.baseX + this.config.gap / 2
+    slot.sprite.position.set(slotX, slot.currentY)
+    this.updateSpriteClipping(slot)
   }
 
   /**
@@ -229,7 +237,7 @@ export class ReelStrip {
       return
     }
 
-    const { y, symbolWidth, symbolHeight, gap } = this.config
+    const { symbolHeight } = this.config
 
     if (this.state === 'spinning') {
       if (this.velocity < SPIN_VELOCITY_MAX) {
@@ -239,27 +247,24 @@ export class ReelStrip {
       this.velocity = Math.max(this.velocity - SPIN_DECELERATION, 5)
     }
 
-    // Move all symbols up and redraw at new positions
-    const slotWidth = symbolWidth - gap
-    const slotHeight = symbolHeight - gap
+    // Move all symbols up - just update Y positions
     for (const slot of this.slots) {
       slot.currentY -= this.velocity
-      this.drawSymbol(slot.graphic, slot.baseX, slot.currentY, slotWidth, slotHeight, slot.symbolId)
+      this.updateSlotPosition(slot)
     }
 
-    // Check for wrap-around (symbol goes above visible area)
-    const wrapThreshold = y - symbolHeight
+    // Check for wrap-around (symbol goes above visible area) - ABS coords
+    const wrapThreshold = this.baseY - symbolHeight
     for (const slot of this.slots) {
       if (slot.currentY < wrapThreshold) {
         const bottomY = this.getBottomY()
         slot.currentY = bottomY
+        this.updateSlotPosition(slot)
 
         if (this.state === 'spinning') {
-          const newSymbolId = Math.floor(Math.random() * 8)
-          slot.symbolId = newSymbolId
+          const newSymbolId = Math.floor(Math.random() * 10)
+          this.updateSlotSymbol(slot, newSymbolId)
         }
-        // Redraw at new position
-        this.drawSymbol(slot.graphic, slot.baseX, slot.currentY, slotWidth, slotHeight, slot.symbolId)
       }
     }
 
@@ -295,17 +300,13 @@ export class ReelStrip {
     return maxY + this.config.symbolHeight
   }
 
-  /** Reset slot positions to default layout */
+  /** Reset slot positions to default layout (ABS coords) */
   private resetSlotPositions(): void {
-    const { x, symbolWidth, symbolHeight, gap } = this.config
-    const y = this.baseY
-    const slotWidth = symbolWidth - gap
-    const slotHeight = symbolHeight - gap
+    const { symbolHeight, gap } = this.config
 
     for (let i = 0; i < this.slots.length; i++) {
-      this.slots[i].baseX = x + gap / 2
-      this.slots[i].currentY = y + (i - 1) * symbolHeight + gap / 2
-      this.drawSymbol(this.slots[i].graphic, this.slots[i].baseX, this.slots[i].currentY, slotWidth, slotHeight, this.slots[i].symbolId)
+      this.slots[i].currentY = this.baseY + (i - 1) * symbolHeight + gap / 2
+      this.updateSlotPosition(this.slots[i])
     }
   }
 
@@ -314,9 +315,6 @@ export class ReelStrip {
     return new Promise((resolve) => {
       this.state = 'bouncing'
       const startTime = performance.now()
-      const { symbolWidth, symbolHeight, gap } = this.config
-      const slotWidth = symbolWidth - gap
-      const slotHeight = symbolHeight - gap
 
       // Store initial Y positions
       const startYs = this.slots.map(s => s.currentY)
@@ -334,10 +332,10 @@ export class ReelStrip {
           offsetY = BOUNCE_OVERSHOOT_PX * (1 - easeOut)
         }
 
-        // Redraw at new positions
+        // Update positions - just move sprites
         for (let i = 0; i < this.slots.length; i++) {
           this.slots[i].currentY = startYs[i] + offsetY
-          this.drawSymbol(this.slots[i].graphic, this.slots[i].baseX, this.slots[i].currentY, slotWidth, slotHeight, this.slots[i].symbolId)
+          this.updateSlotPosition(this.slots[i])
         }
 
         if (progress < 1) {
@@ -373,11 +371,11 @@ export class ReelStrip {
     this.updateDimming()
   }
 
-  /** Update graphic alpha based on dimmed state */
+  /** Update sprite alpha based on dimmed state */
   private updateDimming(): void {
     for (let row = 0; row < 3; row++) {
       const slotIndex = row + 1
-      this.slots[slotIndex].graphic.alpha = this.dimmedRows.has(row) ? 0.3 : 1
+      this.slots[slotIndex].sprite.alpha = this.dimmedRows.has(row) ? 0.3 : 1
     }
   }
 
@@ -387,7 +385,7 @@ export class ReelStrip {
   setHighlight(row: number, highlighted: boolean): void {
     const slotIndex = row + 1
     if (highlighted) {
-      this.slots[slotIndex].graphic.alpha = 1
+      this.slots[slotIndex].sprite.alpha = 1
     }
   }
 
@@ -396,13 +394,74 @@ export class ReelStrip {
    */
   updateLayout(update: Partial<ReelStripConfig>): void {
     Object.assign(this.config, update)
+    this.baseX = this.config.x
     this.baseY = this.config.y
+
+    if (this.debugBorder) {
+      this.debugBorder.position.set(this.baseX, this.baseY)
+      if (update.symbolWidth !== undefined || update.symbolHeight !== undefined || update.visibleRows !== undefined) {
+        this.debugBorder.clear()
+        this.debugBorder.rect(0, 0, this.config.symbolWidth, this.config.symbolHeight * this.config.visibleRows)
+        this.debugBorder.stroke({ width: 2, color: 0x00ff00 })
+      }
+    }
+
+    // Update sprite scales if dimensions changed
+    if (update.symbolWidth !== undefined || update.symbolHeight !== undefined || update.gap !== undefined) {
+      for (const slot of this.slots) {
+        this.applySpriteScale(slot.sprite)
+      }
+    }
+
     this.resetSlotPositions()
+  }
+
+  /** Debug helper for position validation */
+  getDebugSprite(): Sprite | null {
+    return this.slots[0]?.sprite ?? null
+  }
+
+  /** Debug snapshot for slot positions */
+  getDebugSnapshot(): {
+    baseX: number
+    baseY: number
+    slots: Array<{
+      x: number
+      y: number
+      width: number
+      height: number
+      visible: boolean
+      alpha: number
+    }>
+  } {
+    return {
+      baseX: this.baseX,
+      baseY: this.baseY,
+      slots: this.slots.map(slot => ({
+        x: slot.sprite.x,
+        y: slot.sprite.y,
+        width: slot.sprite.width,
+        height: slot.sprite.height,
+        visible: slot.sprite.visible,
+        alpha: slot.sprite.alpha,
+      }))
+    }
   }
 
   /** Clean up resources */
   destroy(): void {
     Ticker.shared.remove(this.onTick, this)
-    this.container.destroy({ children: true })
+
+    for (const slot of this.slots) {
+      this.parent.removeChild(slot.sprite)
+      slot.sprite.destroy()
+    }
+    this.slots = []
+
+    if (this.debugBorder) {
+      this.parent.removeChild(this.debugBorder)
+      this.debugBorder.destroy()
+      this.debugBorder = null
+    }
   }
 }

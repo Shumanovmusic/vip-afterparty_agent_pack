@@ -17,6 +17,7 @@ const mainContainer = inject<Ref<Container | null>>('mainContainer')
 
 // Renderer instance
 const renderer = ref<PixiReelsRenderer | null>(null)
+let layoutLogged = false
 
 // Layout calculations
 const layout = computed((): ReelsLayoutConfig => {
@@ -33,6 +34,20 @@ const layout = computed((): ReelsLayoutConfig => {
 
   const offsetX = (gameWidth - gridWidth) / 2
   const offsetY = (gameHeight - gridHeight) / 2 - 50  // Shift up for HUD space
+
+  if (import.meta.env.DEV && !layoutLogged) {
+    layoutLogged = true
+    console.log('[ReelsView] layout', {
+      gameWidth,
+      gameHeight,
+      gridWidth,
+      gridHeight,
+      symbolWidth,
+      symbolHeight,
+      offsetX,
+      offsetY,
+    })
+  }
 
   return {
     gridWidth,

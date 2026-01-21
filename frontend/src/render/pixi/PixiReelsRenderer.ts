@@ -26,6 +26,8 @@ const HIGHLIGHT_BORDER_WIDTH = 3
 const WILD_GLOW_COLOR = 0xffd700
 const WILD_GLOW_ALPHA = 0.5
 
+let reelDebugLogged = false
+
 /**
  * PixiReelsRenderer - Main reels rendering coordinator
  */
@@ -50,12 +52,7 @@ export class PixiReelsRenderer {
   private wildPositions: Set<number> = new Set()
   private dimmedSymbols = false
 
-  private parentRef: Container | null = null
-
   constructor(parentContainer: Container) {
-    // Store parent reference for debug
-    this.parentRef = parentContainer
-
     // Create main container for reels
     this.container = new Container()
     this.container.label = 'PixiReelsRenderer'
@@ -79,8 +76,6 @@ export class PixiReelsRenderer {
   init(layout: ReelsLayoutConfig): void {
     this.layout = layout
 
-    // Pixi v8 workaround: x/y positions don't work, use absolute coordinates in Graphics
-
     this.createReelStrips()
     this.setupEventHandlers()
 
@@ -95,7 +90,7 @@ export class PixiReelsRenderer {
 
     const { symbolWidth, symbolHeight, offsetX, offsetY, gap } = this.layout
 
-    console.log(`[PixiReelsRenderer] Creating 5 reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}, ${symbolHeight})`)
+    console.log(`[PixiReelsRenderer] Creating 5 reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}x${symbolHeight})`)
 
     for (let i = 0; i < 5; i++) {
       const config: ReelStripConfig = {
@@ -108,10 +103,20 @@ export class PixiReelsRenderer {
       }
 
       console.log(`[PixiReelsRenderer] Reel ${i}: x=${config.x}`)
-      const strip = new ReelStrip(config)
+      const strip = new ReelStrip(config, this.container)
       strip.setSymbols(this.currentGrid[i])
       this.reelStrips.push(strip)
-      this.container.addChild(strip.container)
+
+      if (import.meta.env.DEV && !reelDebugLogged) {
+        reelDebugLogged = true
+        const sprite = strip.getDebugSprite()
+        if (sprite) {
+          const spriteGlobal = sprite.getGlobalPosition()
+          const containerGlobal = this.container.getGlobalPosition()
+          console.log(`[ReelStrip Debug] base=(${config.x}, ${config.y}) sprite=(${sprite.x}, ${sprite.y}) spriteGlobal=(${spriteGlobal.x.toFixed(1)}, ${spriteGlobal.y.toFixed(1)}) reelsContainerGlobal=(${containerGlobal.x.toFixed(1)}, ${containerGlobal.y.toFixed(1)})`)
+          console.log('[ReelStrip Debug] snapshot', strip.getDebugSnapshot())
+        }
+      }
     }
 
     console.log(`[PixiReelsRenderer] Created ${this.reelStrips.length} strips, container has ${this.container.children.length} children`)
