@@ -4,7 +4,7 @@
  * Thin Vue wrapper around PixiReelsRenderer
  */
 import { ref, computed, onMounted, onUnmounted, inject, watch, type Ref } from 'vue'
-import type { Container } from 'pixi.js'
+import type { Application, Container } from 'pixi.js'
 import type { GameController } from '../GameController'
 import { PixiReelsRenderer, type ReelsLayoutConfig } from './pixi'
 
@@ -13,6 +13,7 @@ const props = defineProps<{
 }>()
 
 const getGameDimensions = inject<() => { width: number; height: number }>('getGameDimensions')
+const pixiApp = inject<Ref<Application | null>>('pixiApp')
 const mainContainer = inject<Ref<Container | null>>('mainContainer')
 
 // Renderer instance
@@ -64,6 +65,7 @@ const layout = computed((): ReelsLayoutConfig => {
 watch(layout, (newLayout) => {
   if (renderer.value) {
     renderer.value.updateLayout(newLayout)
+    pixiApp?.value?.render?.()
   }
 }, { deep: true })
 
@@ -78,9 +80,20 @@ onMounted(() => {
     return
   }
 
+  const layoutValue = layout.value
+  if (import.meta.env.DEV) {
+    console.log('[ReelsView] onMounted layout:', {
+      offsetX: layoutValue.offsetX,
+      offsetY: layoutValue.offsetY,
+      gridWidth: layoutValue.gridWidth,
+      symbolWidth: layoutValue.symbolWidth,
+    })
+  }
+
   // Create renderer
   renderer.value = new PixiReelsRenderer(container)
-  renderer.value.init(layout.value)
+  renderer.value.init(layoutValue)
+  pixiApp?.value?.render?.()
 
   // Listen for spin start to reset highlights
   unsubscribe = props.controller.onSpinStart(() => {
