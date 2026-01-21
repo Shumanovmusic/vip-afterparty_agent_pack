@@ -1,47 +1,25 @@
 <script setup lang="ts">
 /**
- * ReelsView - 5x3 reel grid component
- * Renders symbols and handles reel animations
+ * ReelsView - 5x3 reel grid component using Pixi.js sprites
+ * Thin Vue wrapper around PixiReelsRenderer
  */
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, watch, type Ref } from 'vue'
+import type { Container } from 'pixi.js'
 import type { GameController } from '../GameController'
-import { Animations } from '../ux/animations/AnimationLibrary'
-import { flatToGrid } from '../ux/animations/AnimationLibrary'
-import { getSymbolKey, SYMBOL_FALLBACK_COLORS } from './assets/AssetManifest'
+import { PixiReelsRenderer, type ReelsLayoutConfig } from './pixi'
 
 const props = defineProps<{
   controller: GameController
 }>()
 
 const getGameDimensions = inject<() => { width: number; height: number }>('getGameDimensions')
+const mainContainer = inject<Ref<Container | null>>('mainContainer')
 
-// Grid state: 5 reels x 3 rows = 15 symbols
-const grid = ref<number[][]>([
-  [0, 0, 0],
-  [0, 0, 0],
-  [0, 0, 0],
-  [0, 0, 0],
-  [0, 0, 0]
-])
-
-// Animation states
-const reelSpinning = ref<boolean[]>([false, false, false, false, false])
-const highlightedPositions = ref<Set<number>>(new Set())
-const wildPositions = ref<Set<number>>(new Set())
-const dimmedSymbols = ref(false)
-
-/**
- * Get symbol color from centralized manifest
- * Converts numeric color to CSS hex string
- */
-function getSymbolColor(symbolId: number): string {
-  const key = getSymbolKey(symbolId)
-  const color = SYMBOL_FALLBACK_COLORS[key] ?? 0x666666
-  return '#' + color.toString(16).padStart(6, '0')
-}
+// Renderer instance
+const renderer = ref<PixiReelsRenderer | null>(null)
 
 // Layout calculations
-const layout = computed(() => {
+const layout = computed((): ReelsLayoutConfig => {
   const dims = getGameDimensions?.() || { width: 400, height: 600 }
   const gameWidth = dims.width
   const gameHeight = dims.height
@@ -67,156 +45,66 @@ const layout = computed(() => {
   }
 })
 
-// Get symbol position
-function getSymbolStyle(reelIndex: number, rowIndex: number) {
-  const l = layout.value
-  const flatIndex = reelIndex * 3 + rowIndex
-  const symbolId = grid.value[reelIndex][rowIndex]
-
-  return {
-    left: `${l.offsetX + reelIndex * l.symbolWidth}px`,
-    top: `${l.offsetY + rowIndex * l.symbolHeight}px`,
-    width: `${l.symbolWidth - l.gap}px`,
-    height: `${l.symbolHeight - l.gap}px`,
-    backgroundColor: getSymbolColor(symbolId),
-    opacity: dimmedSymbols.value && !highlightedPositions.value.has(flatIndex) ? 0.3 : 1,
-    transform: reelSpinning.value[reelIndex] ? 'scaleY(0.8)' : 'scaleY(1)',
-    boxShadow: wildPositions.value.has(flatIndex) ? '0 0 20px #ffd700' : 'none',
-    border: highlightedPositions.value.has(flatIndex) ? '3px solid #ffd700' : '2px solid rgba(255,255,255,0.1)'
+// Watch for layout changes and update renderer
+watch(layout, (newLayout) => {
+  if (renderer.value) {
+    renderer.value.updateLayout(newLayout)
   }
-}
-
-// Set up animation event handlers
-function setupAnimationHandlers() {
-  Animations.setEvents({
-    onReelSpinStart: (reelIndex) => {
-      reelSpinning.value[reelIndex] = true
-    },
-    onReelStop: (reelIndex, symbols) => {
-      reelSpinning.value[reelIndex] = false
-      grid.value[reelIndex] = symbols
-    },
-    onRevealComplete: () => {
-      reelSpinning.value = [false, false, false, false, false]
-    },
-    onWinLineHighlight: (_lineId, positions) => {
-      dimmedSymbols.value = true
-      positions.forEach(pos => {
-        const flatIndex = pos.reel * 3 + pos.row
-        highlightedPositions.value.add(flatIndex)
-      })
-    },
-    onSpotlightWilds: (positions) => {
-      positions.forEach(pos => {
-        wildPositions.value.add(pos)
-        // Also set symbol to wild (8)
-        const gridPos = flatToGrid(pos)
-        grid.value[gridPos.reel][gridPos.row] = 8
-      })
-    }
-  })
-}
-
-// Reset highlights
-function resetHighlights() {
-  highlightedPositions.value.clear()
-  wildPositions.value.clear()
-  dimmedSymbols.value = false
-}
+}, { deep: true })
 
 // Subscribe to controller events
 let unsubscribe: (() => void) | null = null
 
 onMounted(() => {
-  setupAnimationHandlers()
+  // Get the main Pixi container
+  const container = mainContainer?.value
+  if (!container) {
+    console.warn('[ReelsView] mainContainer not available')
+    return
+  }
 
-  // Listen for spin start to reset
+  // Create renderer
+  renderer.value = new PixiReelsRenderer(container)
+  renderer.value.init(layout.value)
+
+  // Listen for spin start to reset highlights
   unsubscribe = props.controller.onSpinStart(() => {
-    resetHighlights()
-    reelSpinning.value = [true, true, true, true, true]
+    renderer.value?.resetHighlights()
+    renderer.value?.startAllSpins()
   })
 })
 
 onUnmounted(() => {
   if (unsubscribe) unsubscribe()
+  if (renderer.value) {
+    renderer.value.destroy()
+    renderer.value = null
+  }
 })
 
 // Expose for parent
 defineExpose({
   setGrid: (newGrid: number[][]) => {
-    grid.value = newGrid
+    renderer.value?.setGrid(newGrid)
   },
-  resetHighlights
+  resetHighlights: () => {
+    renderer.value?.resetHighlights()
+  }
 })
 </script>
 
 <template>
-  <div class="reels-view">
-    <!-- Symbol grid -->
-    <div
-      v-for="(reel, reelIndex) in grid"
-      :key="`reel-${reelIndex}`"
-      class="reel"
-    >
-      <div
-        v-for="(symbol, rowIndex) in reel"
-        :key="`symbol-${reelIndex}-${rowIndex}`"
-        class="symbol"
-        :style="getSymbolStyle(reelIndex, rowIndex)"
-      >
-        <span class="symbol-id">{{ symbol }}</span>
-      </div>
-    </div>
-
-    <!-- Win line overlay would go here -->
-  </div>
+  <!-- Pixi rendering handled in canvas, this is just a placeholder for Vue slot -->
+  <div class="reels-view-placeholder" />
 </template>
 
 <style scoped>
-.reels-view {
+.reels-view-placeholder {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-}
-
-.reel {
-  position: absolute;
-}
-
-.symbol {
-  position: absolute;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    transform 0.15s ease-out,
-    opacity 0.2s ease-out,
-    box-shadow 0.3s ease-out;
-}
-
-.symbol-id {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1.5rem;
-  font-weight: bold;
-  font-family: system-ui, sans-serif;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-/* Spinning animation */
-.symbol[style*="scaleY(0.8)"] {
-  animation: spin-blur 0.1s linear infinite;
-}
-
-@keyframes spin-blur {
-  0%, 100% {
-    filter: blur(0px);
-  }
-  50% {
-    filter: blur(2px);
-  }
 }
 </style>
