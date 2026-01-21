@@ -27,7 +27,7 @@ export interface AnimationEvents {
   onReelSpinStart?: (reelIndex: number) => void
   onReelStop?: (reelIndex: number, symbols: number[]) => void
   onRevealComplete?: () => void
-  onWinLineHighlight?: (lineId: number, positions: GridPosition[]) => void
+  onWinLineHighlight?: (lineId: number, positions: GridPosition[], amount: number) => void
   onWinTextPopup?: (amount: number, position: { x: number; y: number }) => void
   onSpotlightWilds?: (positions: number[]) => void
   onEventBanner?: (type: EventType, multiplier?: number) => void
@@ -35,6 +35,8 @@ export interface AnimationEvents {
   onHeatMeterUpdate?: (level: number) => void
   onCelebration?: (tier: WinTier) => void
   onBoomOverlay?: () => void
+  /** Called after all events processed to show win presentation */
+  onWinResult?: (totalWin: number, winPositions: GridPosition[], currencySymbol: string) => void
 }
 
 /**
@@ -134,18 +136,34 @@ export class AnimationLibrary {
    */
   async highlightWinLine(
     lineId: number,
-    _amount: number,
+    amount: number,
     winX: number
   ): Promise<void> {
-    // For now, positions would come from a payline definition
-    // Simplified: just emit event with lineId
-    this.events.onWinLineHighlight?.(lineId, [])
+    // Get positions for this payline (placeholder - real impl would have payline definitions)
+    const positions = getPaylinePositions(lineId)
+
+    // Emit event with lineId, positions, and amount
+    this.events.onWinLineHighlight?.(lineId, positions, amount)
 
     const duration = MotionPrefs.turboEnabled
       ? TIMING.TURBO_FEEDBACK_MAX_MS
       : MotionPrefs.getWinPopupDuration(winX)
 
     return this.delay(duration)
+  }
+
+  /**
+   * Present win result (called after all win events processed)
+   * @param totalWin - Total win amount
+   * @param winPositions - All winning positions (empty = highlight all)
+   * @param currencySymbol - Currency symbol for formatting
+   */
+  presentWinResult(
+    totalWin: number,
+    winPositions: GridPosition[] = [],
+    currencySymbol = '$'
+  ): void {
+    this.events.onWinResult?.(totalWin, winPositions, currencySymbol)
   }
 
   /**

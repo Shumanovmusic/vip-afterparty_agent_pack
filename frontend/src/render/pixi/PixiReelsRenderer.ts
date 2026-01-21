@@ -11,6 +11,7 @@ import { SymbolRenderer } from './SymbolRenderer'
 import { DEBUG_FLAGS } from './DebugFlags'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
+import { WinPresenter, type WinPosition } from './win/WinPresenter'
 
 /** Layout configuration for the reels grid */
 export interface ReelsLayoutConfig {
@@ -60,6 +61,7 @@ export class PixiReelsRenderer {
   private highlightGraphics: Graphics
   private wildGlowGraphics: Graphics
   private debugGrid: Graphics | null = null
+  private winPresenter: WinPresenter | null = null
   private layoutConfig: ReelsLayoutConfig | null = null
   private motionPrefsUnsubscribe: (() => void) | null = null
   private layoutInProgress = false
@@ -88,6 +90,10 @@ export class PixiReelsRenderer {
 
   // Spin test state (DEV only)
   private spinTestRunning = false
+
+  // Pending win presentation data (accumulated from winLine events)
+  private pendingWinPositions: WinPosition[] = []
+  private pendingWinAmount = 0
 
   constructor(parentContainer: Container) {
     // Create main container for reels
@@ -160,6 +166,7 @@ export class PixiReelsRenderer {
     this.reelsRoot.addChildAt(this.reelFrame.container, 0)
 
     this.createReelStrips()
+    this.createWinPresenter(layout)
     this.setupEventHandlers()
 
     this.layout(layout)
@@ -230,6 +237,13 @@ export class PixiReelsRenderer {
 
       this.drawHighlights()
       this.drawWildGlow()
+
+      // Update WinPresenter config
+      this.winPresenter?.updateConfig({
+        symbolWidth: layout.symbolWidth,
+        symbolHeight: layout.symbolHeight,
+        gap: layout.gap
+      })
     } finally {
       this.layoutInProgress = false
     }
@@ -372,14 +386,28 @@ export class PixiReelsRenderer {
     }
   }
 
+  /** Create WinPresenter for win display */
+  private createWinPresenter(layout: ReelsLayoutConfig): void {
+    this.winPresenter = new WinPresenter(
+      this.reelsViewport,
+      {
+        symbolWidth: layout.symbolWidth,
+        symbolHeight: layout.symbolHeight,
+        gap: layout.gap
+      },
+      this.reelStrips
+    )
+  }
+
   /** Set up event handlers from AnimationLibrary */
   private setupEventHandlers(): void {
     Animations.setEvents({
       onReelSpinStart: (reelIndex) => this.onReelSpinStart(reelIndex),
       onReelStop: (reelIndex, symbols) => this.onReelStop(reelIndex, symbols),
       onRevealComplete: () => this.onRevealComplete(),
-      onWinLineHighlight: (lineId, positions) => this.onWinLineHighlight(lineId, positions),
-      onSpotlightWilds: (positions) => this.onSpotlightWilds(positions)
+      onWinLineHighlight: (lineId, positions, amount) => this.onWinLineHighlight(lineId, positions, amount),
+      onSpotlightWilds: (positions) => this.onSpotlightWilds(positions),
+      onWinResult: (totalWin, winPositions, currencySymbol) => this.onWinResult(totalWin, winPositions, currencySymbol)
     })
   }
 
@@ -406,16 +434,33 @@ export class PixiReelsRenderer {
   }
 
   /** Handle win line highlight event */
-  private onWinLineHighlight(_lineId: number, positions: GridPosition[]): void {
+  private onWinLineHighlight(_lineId: number, positions: GridPosition[], amount: number): void {
     this.dimmedSymbols = true
 
+    // Accumulate positions for this win line
     positions.forEach(pos => {
       const flatIndex = pos.reel * VISIBLE_ROWS + pos.row
       this.highlightedPositions.add(flatIndex)
+      // Also add to pending win positions for WinPresenter
+      this.pendingWinPositions.push(pos)
     })
+
+    // Accumulate amount
+    this.pendingWinAmount += amount
 
     this.updateDimming()
     this.drawHighlights()
+  }
+
+  /** Handle win result event (final presentation) */
+  private onWinResult(totalWin: number, winPositions: GridPosition[], currencySymbol: string): void {
+    if (!this.winPresenter) return
+
+    // Use provided positions or fall back to accumulated positions
+    const positions = winPositions.length > 0 ? winPositions : this.pendingWinPositions
+
+    // Present the win
+    this.winPresenter.presentWin(totalWin, positions, currencySymbol)
   }
 
   /** Handle spotlight wilds event */
@@ -513,6 +558,12 @@ export class PixiReelsRenderer {
     for (const strip of this.reelStrips) {
       strip.clearDimming()
     }
+
+    // Clear win presentation and reset pending data
+    this.winPresenter?.clear()
+    this.winPresenter?.resetAllScales()
+    this.pendingWinPositions = []
+    this.pendingWinAmount = 0
   }
 
   /**
@@ -701,6 +752,49 @@ export class PixiReelsRenderer {
     this.layout(layout)
   }
 
+  /**
+   * Present win with highlight, pop animation, and label
+   * @param totalWin - Total win amount
+   * @param positions - Array of winning positions (flat indices or grid positions)
+   * @param currencySymbol - Currency symbol for formatting
+   */
+  presentWin(totalWin: number, positions: (number | WinPosition)[] = [], currencySymbol = '$'): void {
+    if (!this.winPresenter) return
+
+    // Convert flat indices to grid positions
+    const winPositions: WinPosition[] = positions.map(p => {
+      if (typeof p === 'number') {
+        return { reel: Math.floor(p / VISIBLE_ROWS), row: p % VISIBLE_ROWS }
+      }
+      return p
+    })
+
+    this.winPresenter.presentWin(totalWin, winPositions, currencySymbol)
+  }
+
+  /**
+   * Accumulate win positions from a winLine event
+   * Call finalizeWinPresentation() after all winLine events to show the combined result
+   */
+  accumulateWinLine(amount: number, positions: WinPosition[]): void {
+    this.pendingWinAmount += amount
+    this.pendingWinPositions.push(...positions)
+  }
+
+  /**
+   * Finalize and show accumulated win presentation
+   * @param currencySymbol - Currency symbol for formatting
+   */
+  finalizeWinPresentation(currencySymbol = '$'): void {
+    if (this.pendingWinAmount > 0 && this.winPresenter) {
+      this.winPresenter.presentWin(
+        this.pendingWinAmount,
+        this.pendingWinPositions,
+        currencySymbol
+      )
+    }
+  }
+
   /** Utility delay function */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
@@ -715,6 +809,10 @@ export class PixiReelsRenderer {
     // Destroy frame
     this.reelFrame?.destroy()
     this.reelFrame = null
+
+    // Destroy win presenter
+    this.winPresenter?.destroy()
+    this.winPresenter = null
 
     for (const strip of this.reelStrips) {
       strip.destroy()

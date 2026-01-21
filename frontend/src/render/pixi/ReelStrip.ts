@@ -525,6 +525,36 @@ export class ReelStrip {
     return visible
   }
 
+  /**
+   * Get the Sprite for a visible row (for win animations)
+   * Row order: row=0 is TOP, row=1 is MIDDLE, row=2 is BOTTOM
+   * @returns Sprite or null if row is out of bounds
+   */
+  getSpriteForRow(row: number): Sprite | null {
+    if (row < 0 || row >= VISIBLE_ROWS) return null
+    const slotIndex = row + 1  // Slots 1, 2, 3 are visible
+    return this.slots[slotIndex]?.sprite ?? null
+  }
+
+  /**
+   * Reset sprite scale to 1 (used after win animations)
+   */
+  resetSpriteScale(row: number): void {
+    const sprite = this.getSpriteForRow(row)
+    if (sprite) {
+      this.applySpriteScale(sprite)
+    }
+  }
+
+  /**
+   * Reset all visible sprites to normal scale
+   */
+  resetAllSpriteScales(): void {
+    for (let row = 0; row < VISIBLE_ROWS; row++) {
+      this.resetSpriteScale(row)
+    }
+  }
+
   /** Debug helper for position validation */
   getDebugSprite(): Sprite | null {
     return this.slots[0]?.sprite ?? null

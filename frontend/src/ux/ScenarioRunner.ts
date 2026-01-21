@@ -135,6 +135,13 @@ export class ScenarioRunner {
       // === Process Events (reveal, wins, etc.) ===
       await this.processEvents(response.events)
 
+      // === Present Win Result (if any) ===
+      if (response.outcome.totalWin > 0) {
+        // Get currency symbol from context (fallback to $)
+        const currencySymbol = response.context?.currency ?? '$'
+        Animations.presentWinResult(response.outcome.totalWin, [], currencySymbol)
+      }
+
       // Stop spin loop after reels revealed
       audioService.onReelsComplete()
       this.callbacks.onReelsStopped?.()
