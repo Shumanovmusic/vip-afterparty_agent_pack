@@ -3,11 +3,10 @@
  * Uses Sprites with textures from AssetLoader (atlas or fallback)
  * Respects UX_ANIMATION_SPEC.md for bounce/timing rules
  *
- * Pixi v8 NOTE: Uses software clipping via sprite.visible instead of masks
- * (Pixi v8 masks require specific setup that can break in some configurations)
+ * Pixi v8 NOTE: Uses software clipping via sprite.visible for per-symbol culling
  */
 
-import { Container, Sprite, Ticker, Texture, Graphics } from 'pixi.js'
+import { Container, Sprite, Ticker, Texture } from 'pixi.js'
 import { MotionPrefs } from '../../ux/MotionPrefs'
 import { AssetLoader } from '../assets/AssetLoader'
 import { getSymbolKey } from '../assets/AssetManifest'
@@ -53,6 +52,10 @@ let textureDebugLogged = false
 function getTextureForSymbol(symbolId: number): Texture {
   const key = getSymbolKey(symbolId)
 
+  if (import.meta.env.DEV && !textureDebugLogged) {
+    console.log(`[ReelStrip] getTextureForSymbol called: SymbolRenderer.isReady=${SymbolRenderer.isReady}`)
+  }
+
   // Use SymbolRenderer for VIP chip textures (programmatic)
   if (SymbolRenderer.isReady) {
     const texture = SymbolRenderer.getTexture(key)
@@ -70,7 +73,7 @@ function getTextureForSymbol(symbolId: number): Texture {
 
   if (import.meta.env.DEV && !textureDebugLogged) {
     textureDebugLogged = true
-    console.log(`[ReelStrip] AssetLoader texture: key=${key}, size=${texture.width}x${texture.height}`)
+    console.log(`[ReelStrip] AssetLoader FALLBACK texture: key=${key}, size=${texture.width}x${texture.height}`)
   }
 
   return texture
@@ -86,7 +89,6 @@ export class ReelStrip {
   private parent: Container
   private baseX: number
   private baseY: number
-  private debugBorder: Graphics | null = null
 
   // Animation state
   private state: SpinState = 'idle'
@@ -111,31 +113,26 @@ export class ReelStrip {
     this.createSymbolSlots()
   }
 
-  /** Software clipping: update sprite visibility based on position (ABSOLUTE coords) */
+  /** Software clipping: update sprite visibility based on LOCAL coords */
   private updateSpriteClipping(slot: SymbolSlot): void {
-    // DEBUG: always visible to test rendering
-    slot.sprite.visible = true
-    // Proper clipping with ABSOLUTE coords (uncomment when DEBUG removed):
-    // const { symbolHeight, visibleRows, gap } = this.config
-    // const visibleTop = this.baseY
-    // const visibleBottom = this.baseY + symbolHeight * visibleRows
-    // const spriteTop = slot.currentY
-    // const spriteBottom = slot.currentY + (symbolHeight - gap)
-    // slot.sprite.visible = !(spriteBottom <= visibleTop || spriteTop >= visibleBottom)
+    const { symbolHeight, visibleRows, gap } = this.config
+    // LOCAL coords - visible area is 0 to (symbolHeight * visibleRows)
+    // baseY is the x-offset for this reel column, not relevant for vertical clipping
+    const visibleTop = 0
+    const visibleBottom = symbolHeight * visibleRows
+    const spriteTop = slot.currentY
+    const spriteBottom = slot.currentY + (symbolHeight - gap)
+    slot.sprite.visible = !(spriteBottom <= visibleTop || spriteTop >= visibleBottom)
   }
 
   /** Create Sprite-based symbol slots */
   private createSymbolSlots(): void {
-    const { symbolWidth, symbolHeight, gap, visibleRows } = this.config
+    const { symbolHeight, symbolWidth, gap, visibleRows } = this.config
     const slotBaseX = this.baseX + gap / 2
 
-    // DEBUG: Add visible border around reel area
-    const border = new Graphics()
-    border.rect(0, 0, symbolWidth, symbolHeight * visibleRows)
-    border.stroke({ width: 2, color: 0x00ff00 })
-    border.position.set(this.baseX, this.baseY)
-    this.parent.addChild(border)
-    this.debugBorder = border
+    if (import.meta.env.DEV) {
+      console.log(`[ReelStrip] createSymbolSlots: baseX=${this.baseX}, baseY=${this.baseY}, slotBaseX=${slotBaseX}, rows=${visibleRows}, symbolWidth=${symbolWidth}`)
+    }
 
     for (let i = 0; i < BUFFER_SYMBOLS; i++) {
       const slotY = this.baseY + (i - 1) * symbolHeight + gap / 2
@@ -145,6 +142,21 @@ export class ReelStrip {
       this.parent.addChild(sprite)
       this.applySpriteScale(sprite)
       sprite.position.set(slotBaseX, slotY)
+
+      if (import.meta.env.DEV && i === 0) {
+        console.log(`[ReelStrip] Sprite ${i} created:`, {
+          reelBaseX: this.baseX,
+          gap: gap,
+          symbolWidth: symbolWidth,
+          slotBaseX: slotBaseX,
+          slotY: slotY,
+          spriteX: sprite.position.x,
+          spriteY: sprite.position.y,
+          spriteWidth: sprite.width,
+          spriteHeight: sprite.height,
+          parentLabel: this.parent.label,
+        })
+      }
 
       const slot: SymbolSlot = {
         sprite,
@@ -414,6 +426,14 @@ export class ReelStrip {
     }
   }
 
+  setBase(x: number, y: number): void {
+    this.updateLayout({ x, y })
+  }
+
+  getBase(): { x: number; y: number } {
+    return { x: this.baseX, y: this.baseY }
+  }
+
   /**
    * Update layout configuration
    */
@@ -421,15 +441,6 @@ export class ReelStrip {
     Object.assign(this.config, update)
     this.baseX = this.config.x
     this.baseY = this.config.y
-
-    if (this.debugBorder) {
-      this.debugBorder.position.set(this.baseX, this.baseY)
-      if (update.symbolWidth !== undefined || update.symbolHeight !== undefined || update.visibleRows !== undefined) {
-        this.debugBorder.clear()
-        this.debugBorder.rect(0, 0, this.config.symbolWidth, this.config.symbolHeight * this.config.visibleRows)
-        this.debugBorder.stroke({ width: 2, color: 0x00ff00 })
-      }
-    }
 
     // Update sprite scales if dimensions changed
     if (update.symbolWidth !== undefined || update.symbolHeight !== undefined || update.gap !== undefined) {
@@ -483,10 +494,5 @@ export class ReelStrip {
     }
     this.slots = []
 
-    if (this.debugBorder) {
-      this.parent.removeChild(this.debugBorder)
-      this.debugBorder.destroy()
-      this.debugBorder = null
-    }
   }
 }

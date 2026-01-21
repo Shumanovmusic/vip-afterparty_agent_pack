@@ -6,8 +6,9 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { ReelStrip, type ReelStripConfig } from './ReelStrip'
-import { ReelFrame } from './ReelFrame'
+import { ReelFrame, REEL_FRAME_PADDING } from './ReelFrame'
 import { SymbolRenderer } from './SymbolRenderer'
+import { DEBUG_FLAGS } from './DebugFlags'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 
@@ -28,6 +29,9 @@ const HIGHLIGHT_BORDER_WIDTH = 3
 const WILD_GLOW_COLOR = 0xffd700
 const WILD_GLOW_ALPHA = 0.5
 
+const REEL_COUNT = 5
+const VISIBLE_ROWS = 3
+
 let reelDebugLogged = false
 let reelsRootDebugLogged = false
 
@@ -37,13 +41,17 @@ let reelsRootDebugLogged = false
 export class PixiReelsRenderer {
   public readonly container: Container
   private reelsRoot: Container
+  private reelsViewport: Container
+  private reelsMask: Graphics
   private reelsContainer: Container
   private reelStrips: ReelStrip[] = []
   private reelFrame: ReelFrame | null = null
   private highlightGraphics: Graphics
   private wildGlowGraphics: Graphics
-  private layout: ReelsLayoutConfig | null = null
+  private debugGrid: Graphics | null = null
+  private layoutConfig: ReelsLayoutConfig | null = null
   private motionPrefsUnsubscribe: (() => void) | null = null
+  private layoutInProgress = false
 
   // Grid state
   private currentGrid: number[][] = [
@@ -70,23 +78,24 @@ export class PixiReelsRenderer {
     this.reelsRoot.label = 'reelsRoot'
     this.reelsRoot.eventMode = 'none'
     this.container.addChild(this.reelsRoot)
+    this.applyPositionGuard(this.reelsRoot, 'reelsRoot')
 
-    if (import.meta.env.DEV) {
-      const position = this.reelsRoot.position
-      const originalSet = position.set.bind(position)
-      position.set = ((x: number | { x: number; y: number }, y?: number) => {
-        const nextX = typeof x === 'number' ? x : x?.x ?? 0
-        const nextY = typeof x === 'number' ? (y ?? x) : x?.y ?? 0
-        const stack = new Error().stack?.split('\n').slice(1, 6).join('\n')
-        console.log('[reelsRoot.position.set]', nextX, nextY, stack)
-        return originalSet(x as any, y as any)
-      }) as typeof position.set
-    }
+    this.reelsViewport = new Container()
+    this.reelsViewport.label = 'reelsViewport'
+    this.reelsViewport.eventMode = 'none'
+    this.reelsRoot.addChild(this.reelsViewport)
+    this.applyPositionGuard(this.reelsViewport, 'reelsViewport')
+
+    this.reelsMask = new Graphics()
+    this.reelsMask.label = 'reelsMask'
+    this.reelsViewport.addChild(this.reelsMask)
+    this.reelsViewport.mask = this.reelsMask
 
     this.reelsContainer = new Container()
     this.reelsContainer.label = 'reelsContainer'
     this.reelsContainer.eventMode = 'none'
-    this.reelsRoot.addChild(this.reelsContainer)
+    this.reelsViewport.addChild(this.reelsContainer)
+    this.applyPositionGuard(this.reelsContainer, 'reelsContainer')
 
     if (import.meta.env.DEV) {
       console.log(`[PixiReelsRenderer] constructor - parentContainer label: ${parentContainer.label}, children: ${parentContainer.children.length}`)
@@ -105,54 +114,33 @@ export class PixiReelsRenderer {
     // Create overlay graphics layers
     this.highlightGraphics = new Graphics()
     this.highlightGraphics.label = 'HighlightOverlay'
+    this.reelsViewport.addChild(this.highlightGraphics)
 
     this.wildGlowGraphics = new Graphics()
     this.wildGlowGraphics.label = 'WildGlowOverlay'
+    this.reelsViewport.addChild(this.wildGlowGraphics)
+
+    if (DEBUG_FLAGS.reelsGrid) {
+      this.debugGrid = new Graphics()
+      this.debugGrid.label = 'DEBUG_REELS_GRID'
+      this.reelsViewport.addChild(this.debugGrid)
+    }
   }
 
   /**
    * Initialize the reels renderer with layout
    */
   init(layout: ReelsLayoutConfig): void {
-    this.layout = layout
-
-    this.reelsRoot.position.set(layout.offsetX, layout.offsetY)
-
-    if (import.meta.env.DEV) {
-      const globalPos = this.reelsRoot.getGlobalPosition()
-      const parentTransform = this.container.parent?.worldTransform
-      console.log('[PixiReelsRenderer] init() position check:', {
-        // Local position
-        layoutOffsetX: layout.offsetX,
-        layoutOffsetY: layout.offsetY,
-        reelsRootLocalX: this.reelsRoot.position.x,
-        reelsRootLocalY: this.reelsRoot.position.y,
-        // Global position (after all transforms)
-        reelsRootGlobalX: globalPos.x,
-        reelsRootGlobalY: globalPos.y,
-        // Parent (mainContainer) transform
-        parentScaleX: parentTransform?.a,
-        parentScaleY: parentTransform?.d,
-        parentTranslateX: parentTransform?.tx,
-        parentTranslateY: parentTransform?.ty,
-        // Container positions
-        reelsContainerX: this.reelsContainer.position.x,
-        reelsContainerY: this.reelsContainer.position.y,
-      })
-    }
+    this.layoutConfig = layout
 
     // Create frame FIRST (renders behind reels)
     this.reelFrame = new ReelFrame()
     this.reelsRoot.addChildAt(this.reelFrame.container, 0)
-    this.reelFrame.resize({
-      gridWidth: layout.gridWidth,
-      gridHeight: layout.gridHeight,
-      offsetX: 0,
-      offsetY: 0
-    })
 
     this.createReelStrips()
     this.setupEventHandlers()
+
+    this.layout(layout)
 
     // Subscribe to MotionPrefs changes for texture refresh
     this.motionPrefsUnsubscribe = MotionPrefs.onChange(() => {
@@ -164,71 +152,162 @@ export class PixiReelsRenderer {
       }
     })
 
-    // Add overlay graphics on top of reels
-    this.reelsRoot.addChild(this.highlightGraphics)
-    this.reelsRoot.addChild(this.wildGlowGraphics)
-
-    // DEBUG: Verify position persists after frame added
     if (import.meta.env.DEV) {
-      console.log('[PixiReelsRenderer] init() END - Container scales:', {
-        containerScaleX: this.container.scale.x,
-        containerScaleY: this.container.scale.y,
-        reelsRootScaleX: this.reelsRoot.scale.x,
-        reelsRootScaleY: this.reelsRoot.scale.y,
-        reelsContainerScaleX: this.reelsContainer.scale.x,
-        reelsContainerScaleY: this.reelsContainer.scale.y,
+      console.log('[PixiReelsRenderer] init() complete', {
+        reelsRoot: { x: this.reelsRoot.position.x, y: this.reelsRoot.position.y },
+        reelsViewport: { x: this.reelsViewport.position.x, y: this.reelsViewport.position.y },
+        reelsContainer: { x: this.reelsContainer.position.x, y: this.reelsContainer.position.y },
       })
-
-      // Verify position on next frame (after any potential resets)
-      requestAnimationFrame(() => {
-        const globalPos = this.reelsRoot.getGlobalPosition()
-        const wt = this.reelsRoot.worldTransform
-        console.log('[PixiReelsRenderer] AFTER FIRST FRAME - position check:', {
-          reelsRootLocalX: this.reelsRoot.position.x,
-          reelsRootLocalY: this.reelsRoot.position.y,
-          reelsRootGlobalX: globalPos.x,
-          reelsRootGlobalY: globalPos.y,
-          worldTransform: wt ? `a=${wt.a.toFixed(2)}, b=${wt.b.toFixed(2)}, c=${wt.c.toFixed(2)}, d=${wt.d.toFixed(2)}, tx=${wt.tx.toFixed(2)}, ty=${wt.ty.toFixed(2)}` : 'null',
-        })
-      })
-
-      // DEBUG: Add visual crosshair marker at reelsRoot origin (should appear at center)
-      const debugMarker = new Graphics()
-      debugMarker.label = 'DEBUG_CROSSHAIR'
-      // Red cross at (0,0) of reelsRoot - should appear at offset position
-      debugMarker.moveTo(-50, 0).lineTo(50, 0).stroke({ width: 4, color: 0xff0000 })
-      debugMarker.moveTo(0, -50).lineTo(0, 50).stroke({ width: 4, color: 0xff0000 })
-      // Add circle at center
-      debugMarker.circle(0, 0, 10).fill({ color: 0xff0000 })
-      this.reelsRoot.addChild(debugMarker)
-
-      // Also add GREEN marker at ABSOLUTE (100, 100) on mainContainer/stage to verify coordinate system
-      const absMarker = new Graphics()
-      absMarker.label = 'DEBUG_ABS_MARKER'
-      absMarker.circle(0, 0, 15).fill({ color: 0x00ff00 })
-      absMarker.position.set(100, 100)
-      this.container.parent?.addChild(absMarker)
-      console.log('[DEBUG] Added markers: RED at reelsRoot(0,0), GREEN at mainContainer(100,100)')
     }
   }
 
-  /** Create the 5 reel strips */
-  private createReelStrips(): void {
-    if (!this.layout) return
-
-    const { symbolWidth, symbolHeight, offsetX, offsetY, gap } = this.layout
-
-    if (import.meta.env.DEV) {
-      console.log(`[PixiReelsRenderer] Creating 5 reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}x${symbolHeight})`)
+  /**
+   * Apply layout contract (single source of truth)
+   */
+  layout(layout: ReelsLayoutConfig): void {
+    if (this.layoutInProgress) {
+      if (import.meta.env.DEV) {
+        console.warn('[LAYOUT] Re-entrant layout call ignored', layout)
+      }
+      return
     }
 
-    for (let i = 0; i < 5; i++) {
+    this.layoutInProgress = true
+    const reelsWidth = REEL_COUNT * layout.symbolWidth
+    const reelsHeight = VISIBLE_ROWS * layout.symbolHeight
+
+    try {
+      this.layoutConfig = layout
+
+      this.reelsRoot.position.set(layout.offsetX, layout.offsetY)
+      this.reelsViewport.position.set(REEL_FRAME_PADDING, REEL_FRAME_PADDING)
+      this.reelsContainer.position.set(0, 0)
+
+      this.reelFrame?.resize({
+        gridWidth: reelsWidth,
+        gridHeight: reelsHeight,
+        offsetX: REEL_FRAME_PADDING,
+        offsetY: REEL_FRAME_PADDING
+      })
+
+      this.reelsMask.clear()
+      this.reelsMask.rect(0, 0, reelsWidth, reelsHeight)
+      this.reelsMask.fill({ color: 0xffffff, alpha: 1 })
+
+      this.updateDebugGrid(reelsHeight, layout.symbolWidth)
+
+      for (let i = 0; i < this.reelStrips.length; i++) {
+        this.reelStrips[i].updateLayout({
+          x: i * layout.symbolWidth,
+          y: 0,
+          symbolWidth: layout.symbolWidth,
+          symbolHeight: layout.symbolHeight,
+          gap: layout.gap
+        })
+      }
+
+      this.drawHighlights()
+      this.drawWildGlow()
+    } finally {
+      this.layoutInProgress = false
+    }
+
+    this.assertLayout(layout, reelsWidth, reelsHeight)
+  }
+
+  private applyPositionGuard(container: Container, label: string): void {
+    if (!import.meta.env.DEV) return
+
+    const position = container.position
+    const originalSet = position.set.bind(position)
+    position.set = ((x: number | { x: number; y: number }, y?: number) => {
+      if (!this.layoutInProgress) {
+        const nextX = typeof x === 'number' ? x : x?.x ?? 0
+        const nextY = typeof x === 'number' ? (y ?? x) : x?.y ?? 0
+        const stack = new Error().stack?.split('\n').slice(1, 6).join('\n')
+        console.warn('[LAYOUT GUARD]', `${label}.position.set`, {
+          x: nextX,
+          y: nextY,
+          stack,
+        })
+      }
+      return originalSet(x as any, y as any)
+    }) as typeof position.set
+  }
+
+  private updateDebugGrid(reelsHeight: number, symbolWidth: number): void {
+    if (!this.debugGrid) return
+
+    this.debugGrid.clear()
+
+    for (let i = 0; i <= REEL_COUNT; i++) {
+      const x = i * symbolWidth
+      this.debugGrid.moveTo(x, 0).lineTo(x, reelsHeight).stroke({
+        width: 1,
+        color: 0x00ffff,
+        alpha: 0.4,
+      })
+    }
+
+    this.debugGrid.moveTo(-6, 0).lineTo(6, 0).stroke({ width: 2, color: 0xff0000 })
+    this.debugGrid.moveTo(0, -6).lineTo(0, 6).stroke({ width: 2, color: 0xff0000 })
+  }
+
+  private assertLayout(layout: ReelsLayoutConfig, reelsWidth: number, reelsHeight: number): void {
+    if (!import.meta.env.DEV) return
+
+    const failures: string[] = []
+
+    if (this.reelsRoot.position.x !== layout.offsetX || this.reelsRoot.position.y !== layout.offsetY) {
+      failures.push('reelsRoot')
+    }
+
+    if (
+      this.reelsViewport.position.x !== REEL_FRAME_PADDING ||
+      this.reelsViewport.position.y !== REEL_FRAME_PADDING
+    ) {
+      failures.push('reelsViewport')
+    }
+
+    if (this.reelsContainer.position.x !== 0 || this.reelsContainer.position.y !== 0) {
+      failures.push('reelsContainer')
+    }
+
+    for (let i = 0; i < this.reelStrips.length; i++) {
+      const base = this.reelStrips[i].getBase()
+      if (base.x !== i * layout.symbolWidth || base.y !== 0) {
+        failures.push(`reelStrip[${i}]`)
+      }
+    }
+
+    if (failures.length > 0) {
+      console.error('[LAYOUT ASSERT FAILED]', {
+        failures,
+        reelsRoot: { x: this.reelsRoot.position.x, y: this.reelsRoot.position.y },
+        reelsViewport: { x: this.reelsViewport.position.x, y: this.reelsViewport.position.y },
+        reelsContainer: { x: this.reelsContainer.position.x, y: this.reelsContainer.position.y },
+        reelsMask: { width: reelsWidth, height: reelsHeight },
+      })
+    }
+  }
+
+  /** Create reel strips */
+  private createReelStrips(): void {
+    if (!this.layoutConfig) return
+
+    const { symbolWidth, symbolHeight, offsetX, offsetY, gap } = this.layoutConfig
+
+    if (import.meta.env.DEV) {
+      console.log(`[PixiReelsRenderer] Creating ${REEL_COUNT} reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}x${symbolHeight})`)
+    }
+
+    for (let i = 0; i < REEL_COUNT; i++) {
       const config: ReelStripConfig = {
         x: i * symbolWidth,
         y: 0,
         symbolWidth,
         symbolHeight,
-        visibleRows: 3,
+        visibleRows: VISIBLE_ROWS,
         gap
       }
 
@@ -265,8 +344,8 @@ export class PixiReelsRenderer {
         reelsRootX: this.reelsRoot.position.x,
         reelsRootY: this.reelsRoot.position.y,
         reelsContainerChildren: this.reelsContainer.children.length,
-        gridWidth: this.layout?.gridWidth,
-        symbolWidth: this.layout?.symbolWidth,
+        gridWidth: this.layoutConfig?.gridWidth,
+        symbolWidth: this.layoutConfig?.symbolWidth,
       })
     }
   }
@@ -309,7 +388,7 @@ export class PixiReelsRenderer {
     this.dimmedSymbols = true
 
     positions.forEach(pos => {
-      const flatIndex = pos.reel * 3 + pos.row
+      const flatIndex = pos.reel * VISIBLE_ROWS + pos.row
       this.highlightedPositions.add(flatIndex)
     })
 
@@ -331,9 +410,9 @@ export class PixiReelsRenderer {
 
   /** Update symbol dimming based on current state */
   private updateDimming(): void {
-    for (let reel = 0; reel < 5; reel++) {
-      for (let row = 0; row < 3; row++) {
-        const flatIndex = reel * 3 + row
+    for (let reel = 0; reel < REEL_COUNT; reel++) {
+      for (let row = 0; row < VISIBLE_ROWS; row++) {
+        const flatIndex = reel * VISIBLE_ROWS + row
         const shouldDim = this.dimmedSymbols && !this.highlightedPositions.has(flatIndex)
         this.reelStrips[reel].setDimmed(row, shouldDim)
       }
@@ -342,15 +421,15 @@ export class PixiReelsRenderer {
 
   /** Draw highlight borders around winning positions */
   private drawHighlights(): void {
-    if (!this.layout) return
+    if (!this.layoutConfig) return
 
     this.highlightGraphics.clear()
 
-    const { symbolWidth, symbolHeight, gap } = this.layout
+    const { symbolWidth, symbolHeight, gap } = this.layoutConfig
 
     for (const flatIndex of this.highlightedPositions) {
-      const reel = Math.floor(flatIndex / 3)
-      const row = flatIndex % 3
+      const reel = Math.floor(flatIndex / VISIBLE_ROWS)
+      const row = flatIndex % VISIBLE_ROWS
 
       const x = reel * symbolWidth + gap / 2
       const y = row * symbolHeight + gap / 2
@@ -367,15 +446,15 @@ export class PixiReelsRenderer {
 
   /** Draw glow effect for wild symbols */
   private drawWildGlow(): void {
-    if (!this.layout) return
+    if (!this.layoutConfig) return
 
     this.wildGlowGraphics.clear()
 
-    const { symbolWidth, symbolHeight, gap } = this.layout
+    const { symbolWidth, symbolHeight, gap } = this.layoutConfig
 
     for (const flatIndex of this.wildPositions) {
-      const reel = Math.floor(flatIndex / 3)
-      const row = flatIndex % 3
+      const reel = Math.floor(flatIndex / VISIBLE_ROWS)
+      const row = flatIndex % VISIBLE_ROWS
 
       const x = reel * symbolWidth + gap / 2
       const y = row * symbolHeight + gap / 2
@@ -431,11 +510,11 @@ export class PixiReelsRenderer {
       ? TIMING.REEL_STOP_STAGGER_MS / 2
       : TIMING.REEL_STOP_STAGGER_MS
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < REEL_COUNT; i++) {
       this.currentGrid[i] = [...finalGrid[i]]
       await this.reelStrips[i].stopSpin(finalGrid[i])
 
-      if (i < 4) {
+      if (i < REEL_COUNT - 1) {
         await this.delay(stagger)
       }
     }
@@ -446,7 +525,7 @@ export class PixiReelsRenderer {
    */
   setGrid(grid: number[][]): void {
     this.currentGrid = grid.map(col => [...col])
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < REEL_COUNT; i++) {
       this.reelStrips[i].setSymbols(this.currentGrid[i])
     }
   }
@@ -455,32 +534,7 @@ export class PixiReelsRenderer {
    * Update layout configuration
    */
   updateLayout(layout: ReelsLayoutConfig): void {
-    this.layout = layout
-
-    const { symbolWidth, symbolHeight, gap } = layout
-
-    this.reelsRoot.position.set(layout.offsetX, layout.offsetY)
-
-    // Update frame
-    this.reelFrame?.resize({
-      gridWidth: layout.gridWidth,
-      gridHeight: layout.gridHeight,
-      offsetX: 0,
-      offsetY: 0
-    })
-
-    for (let i = 0; i < this.reelStrips.length; i++) {
-      this.reelStrips[i].updateLayout({
-        x: i * symbolWidth,
-        y: 0,
-        symbolWidth,
-        symbolHeight,
-        gap
-      })
-    }
-
-    this.drawHighlights()
-    this.drawWildGlow()
+    this.layout(layout)
   }
 
   /** Utility delay function */

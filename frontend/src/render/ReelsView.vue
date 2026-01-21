@@ -64,7 +64,7 @@ const layout = computed((): ReelsLayoutConfig => {
 // Watch for layout changes and update renderer
 watch(layout, (newLayout) => {
   if (renderer.value) {
-    renderer.value.updateLayout(newLayout)
+    renderer.value.layout(newLayout)
     pixiApp?.value?.render?.()
   }
 }, { deep: true })

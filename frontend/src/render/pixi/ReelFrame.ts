@@ -15,12 +15,12 @@ export interface ReelFrameConfig {
 }
 
 // VIP color palette
-const VIP_PURPLE_OUTER = 0x1a0a2e
-const VIP_PURPLE_INNER = 0x2a0b3f
+const VIP_PURPLE_OUTER = 0x3a1a5e  // Brightened from 0x1a0a2e
+const VIP_PURPLE_INNER = 0x4a2b6f  // Brightened from 0x2a0b3f
 const VIP_GOLD = 0xf6c85f
 const VIP_RAGE_RED = 0xe74c3c
 
-const FRAME_PADDING = 12
+export const REEL_FRAME_PADDING = 12
 const GOLD_STROKE_WIDTH = 3
 const CORNER_CIRCLE_RADIUS = 6
 
@@ -64,16 +64,26 @@ export class ReelFrame {
     const { gridWidth, gridHeight, offsetX, offsetY } = this.config
     const g = this.frameGraphics
 
+    if (import.meta.env.DEV) {
+      console.log('[ReelFrame] draw called:', {
+        gridWidth,
+        gridHeight,
+        offsetX,
+        offsetY,
+        containerParent: this.container.parent?.label,
+      })
+    }
+
     g.clear()
 
     const accentColor = this.rageModeActive ? VIP_RAGE_RED : VIP_GOLD
     const shouldGlow = !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion
 
     // Frame bounds (expanded from grid)
-    const frameX = offsetX - FRAME_PADDING
-    const frameY = offsetY - FRAME_PADDING
-    const frameW = gridWidth + FRAME_PADDING * 2
-    const frameH = gridHeight + FRAME_PADDING * 2
+    const frameX = offsetX - REEL_FRAME_PADDING
+    const frameY = offsetY - REEL_FRAME_PADDING
+    const frameW = gridWidth + REEL_FRAME_PADDING * 2
+    const frameH = gridHeight + REEL_FRAME_PADDING * 2
 
     // Outer glow (only if motion allowed)
     if (shouldGlow) {

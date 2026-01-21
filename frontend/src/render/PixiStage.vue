@@ -46,31 +46,6 @@ async function initPixi() {
     powerPreference: 'high-performance'
   })
 
-  if (import.meta.env.DEV) {
-    const renderer = app.renderer as unknown as { render: (...args: any[]) => void }
-    const originalRender = renderer.render.bind(renderer)
-    renderer.render = (firstArg: any, ...rest: any[]) => {
-      let container: any = null
-      let target: any = null
-      if (firstArg && typeof firstArg === 'object' && 'container' in firstArg) {
-        container = firstArg.container
-        target = firstArg.target
-      } else {
-        container = firstArg
-        target = rest[0]
-      }
-
-      if (container && !target) {
-        const label = container.label ?? container.name ?? container.constructor?.name
-        const x = container.position?.x
-        const y = container.position?.y
-        console.log('[RENDER ROOT]', label, 'pos=', x, y)
-      }
-
-      return originalRender(firstArg, ...rest)
-    }
-  }
-
   canvasContainer.value.appendChild(app.canvas as HTMLCanvasElement)
 
   // Create main container with safe area offset
