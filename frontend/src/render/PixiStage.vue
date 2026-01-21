@@ -10,6 +10,7 @@ import { getSafeAreaOffset, watchSafeArea } from '../ux/SafeArea'
 import { Animations } from '../ux/animations/AnimationLibrary'
 import { AssetLoader } from './assets/AssetLoader'
 import { setPixiApp as setFallbackPixiApp } from './assets/FallbackSprite'
+import { SymbolRenderer } from './pixi/SymbolRenderer'
 import { initVFX, destroyVFX } from './vfx'
 import ReelsView from './ReelsView.vue'
 import Overlays from './Overlays.vue'
@@ -61,6 +62,9 @@ async function initPixi() {
   // Set up asset loading
   setFallbackPixiApp(app)
   await AssetLoader.init()
+
+  // Initialize SymbolRenderer for VIP chip textures
+  SymbolRenderer.setPixiApp(app)
 
   // Initialize VFX system
   initVFX(container)

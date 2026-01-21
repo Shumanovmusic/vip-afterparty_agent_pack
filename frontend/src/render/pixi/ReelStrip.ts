@@ -11,6 +11,7 @@ import { Container, Sprite, Ticker, Texture, Graphics } from 'pixi.js'
 import { MotionPrefs } from '../../ux/MotionPrefs'
 import { AssetLoader } from '../assets/AssetLoader'
 import { getSymbolKey } from '../assets/AssetManifest'
+import { SymbolRenderer } from './SymbolRenderer'
 
 /** Configuration for a reel strip */
 export interface ReelStripConfig {
@@ -50,13 +51,26 @@ let textureDebugLogged = false
  *   0-4 → L1-L5, 5-7 → H1-H3, 8 → WD, 9 → SC
  */
 function getTextureForSymbol(symbolId: number): Texture {
+  const key = getSymbolKey(symbolId)
+
+  // Use SymbolRenderer for VIP chip textures (programmatic)
+  if (SymbolRenderer.isReady) {
+    const texture = SymbolRenderer.getTexture(key)
+
+    if (import.meta.env.DEV && !textureDebugLogged) {
+      textureDebugLogged = true
+      console.log(`[ReelStrip] SymbolRenderer texture: key=${key}, size=${texture.width}x${texture.height}`)
+    }
+
+    return texture
+  }
+
+  // Fallback to AssetLoader (atlas or fallback)
   const texture = AssetLoader.getSymbolTexture(symbolId)
 
-  // Debug: log first texture request
-  if (!textureDebugLogged) {
+  if (import.meta.env.DEV && !textureDebugLogged) {
     textureDebugLogged = true
-    const key = getSymbolKey(symbolId)
-    console.log(`[ReelStrip] First texture: key=${key}, size=${texture.width}x${texture.height}, valid=${texture !== Texture.EMPTY && texture !== Texture.WHITE}`)
+    console.log(`[ReelStrip] AssetLoader texture: key=${key}, size=${texture.width}x${texture.height}`)
   }
 
   return texture
@@ -89,7 +103,9 @@ export class ReelStrip {
     this.baseX = config.x
     this.baseY = config.y
 
-    console.log(`[ReelStrip] Creating reel: config=(${config.x}, ${config.y})`)
+    if (import.meta.env.DEV) {
+      console.log(`[ReelStrip] Creating reel: config=(${config.x}, ${config.y})`)
+    }
 
     // Create symbol slots with Sprites
     this.createSymbolSlots()
@@ -111,8 +127,6 @@ export class ReelStrip {
   /** Create Sprite-based symbol slots */
   private createSymbolSlots(): void {
     const { symbolWidth, symbolHeight, gap, visibleRows } = this.config
-    const slotWidth = symbolWidth - gap
-    const slotHeight = symbolHeight - gap
     const slotBaseX = this.baseX + gap / 2
 
     // DEBUG: Add visible border around reel area
@@ -386,6 +400,17 @@ export class ReelStrip {
     const slotIndex = row + 1
     if (highlighted) {
       this.slots[slotIndex].sprite.alpha = 1
+    }
+  }
+
+  /**
+   * Refresh all textures (called when MotionPrefs change)
+   * Forces re-fetch of textures which may have different visual styles
+   */
+  refreshTextures(): void {
+    for (const slot of this.slots) {
+      slot.sprite.texture = getTextureForSymbol(slot.symbolId)
+      this.applySpriteScale(slot.sprite)
     }
   }
 

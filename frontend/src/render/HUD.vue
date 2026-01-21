@@ -8,7 +8,6 @@ import { useI18n } from 'vue-i18n'
 import type { GameController } from '../GameController'
 import { GameModeStore } from '../state/GameModeStore'
 import { MotionPrefs } from '../ux/MotionPrefs'
-import { getSafeAreaInsets } from '../ux/SafeArea'
 import { audioService } from '../audio/AudioService'
 
 const { t } = useI18n()
@@ -51,9 +50,6 @@ const canToggleHypeMode = computed(() =>
   enableHypeMode.value && !isInFreeSpins.value
 )
 
-// Safe area for bottom padding
-const safeArea = ref(getSafeAreaInsets())
-
 // Formatted bet display
 const betDisplay = computed(() => {
   return `$${currentBet.value.toFixed(2)}`
@@ -61,7 +57,16 @@ const betDisplay = computed(() => {
 
 // Handle spin button click
 async function handleSpin() {
-  if (!canSpin.value) return
+  if (import.meta.env.DEV) {
+    console.log('SPIN POINTERDOWN', { canSpin: canSpin.value, bet: currentBet.value, hype: hypeModeEnabled.value })
+  }
+
+  if (!canSpin.value) {
+    if (import.meta.env.DEV) {
+      console.warn('[HUD] Spin blocked: canSpin=false')
+    }
+    return
+  }
 
   // UI click sound
   audioService.playUIClick()
@@ -155,10 +160,7 @@ watch(() => props.controller.stateMachine.state, (state) => {
 </script>
 
 <template>
-  <div
-    class="hud"
-    :style="{ paddingBottom: `${safeArea.bottom + 16}px` }"
-  >
+  <div class="hud">
     <!-- Top bar: Settings toggle -->
     <div class="top-bar">
       <button
@@ -215,61 +217,63 @@ watch(() => props.controller.stateMachine.state, (state) => {
       </div>
     </Transition>
 
-    <!-- Bottom controls -->
-    <div class="bottom-controls">
-      <!-- Bet selector -->
-      <div class="bet-selector">
-        <button
-          class="bet-btn"
-          :disabled="selectedBetIndex <= 0"
-          @click="adjustBet(-1)"
-        >
-          -
-        </button>
-        <div class="bet-display">
-          <span class="bet-label">{{ t('hud.bet') }}</span>
-          <span class="bet-value">{{ betDisplay }}</span>
+    <!-- Control dock with safe area padding -->
+    <div class="control-dock">
+      <div class="bottom-controls">
+        <!-- Bet selector -->
+        <div class="bet-selector">
+          <button
+            class="bet-btn"
+            :disabled="selectedBetIndex <= 0"
+            @click="adjustBet(-1)"
+          >
+            -
+          </button>
+          <div class="bet-display">
+            <span class="bet-label">{{ t('hud.bet') }}</span>
+            <span class="bet-value">{{ betDisplay }}</span>
+          </div>
+          <button
+            class="bet-btn"
+            :disabled="selectedBetIndex >= allowedBets.length - 1"
+            @click="adjustBet(1)"
+          >
+            +
+          </button>
         </div>
+
+        <!-- Spin button -->
         <button
-          class="bet-btn"
-          :disabled="selectedBetIndex >= allowedBets.length - 1"
-          @click="adjustBet(1)"
+          class="spin-btn"
+          :class="{
+            spinning: isSpinning,
+            turbo: turboEnabled,
+            hype: hypeModeEnabled
+          }"
+          :disabled="!canSpin"
+          @click="handleSpin"
         >
-          +
+          <span
+            v-if="!isSpinning"
+            class="spin-text"
+          >{{ t('hud.spin') }}</span>
+          <span
+            v-else
+            class="spin-text spinning"
+          >{{ t('hud.spinning') }}</span>
+        </button>
+
+        <!-- Buy Feature button (disabled during FREE_SPINS) -->
+        <button
+          v-if="enableBuyFeature"
+          class="buy-btn"
+          :disabled="!canBuyFeature"
+          @click="handleBuyFeature"
+        >
+          <span class="buy-label">{{ t('hud.buy') }}</span>
+          <span class="buy-cost">{{ t('hud.buyCost', { cost: 100 }) }}</span>
         </button>
       </div>
-
-      <!-- Spin button -->
-      <button
-        class="spin-btn"
-        :class="{
-          spinning: isSpinning,
-          turbo: turboEnabled,
-          hype: hypeModeEnabled
-        }"
-        :disabled="!canSpin"
-        @click="handleSpin"
-      >
-        <span
-          v-if="!isSpinning"
-          class="spin-text"
-        >{{ t('hud.spin') }}</span>
-        <span
-          v-else
-          class="spin-text spinning"
-        >{{ t('hud.spinning') }}</span>
-      </button>
-
-      <!-- Buy Feature button (disabled during FREE_SPINS) -->
-      <button
-        v-if="enableBuyFeature"
-        class="buy-btn"
-        :disabled="!canBuyFeature"
-        @click="handleBuyFeature"
-      >
-        <span class="buy-label">{{ t('hud.buy') }}</span>
-        <span class="buy-cost">{{ t('hud.buyCost', { cost: 100 }) }}</span>
-      </button>
     </div>
 
     <!-- FREE_SPINS mode indicator -->
@@ -294,10 +298,10 @@ watch(() => props.controller.stateMachine.state, (state) => {
 <style scoped>
 .hud {
   position: absolute;
+  top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px;
   pointer-events: none;
   z-index: 200;
 }
@@ -393,12 +397,29 @@ watch(() => props.controller.stateMachine.state, (state) => {
   opacity: 0;
 }
 
+/* Control dock - VIP styled bottom area with safe area */
+.control-dock {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 16px calc(env(safe-area-inset-bottom, 34px) + 16px);
+  background: linear-gradient(
+    to top,
+    rgba(42, 11, 63, 0.95) 0%,
+    rgba(42, 11, 63, 0.8) 60%,
+    rgba(42, 11, 63, 0) 100%
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 /* Bottom controls */
 .bottom-controls {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 /* Bet selector */
@@ -409,15 +430,19 @@ watch(() => props.controller.stateMachine.state, (state) => {
 }
 
 .bet-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  font-size: 1.5rem;
+  font-size: 20px;
+  font-weight: bold;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bet-btn:hover:not(:disabled) {
@@ -450,8 +475,8 @@ watch(() => props.controller.stateMachine.state, (state) => {
 
 /* Spin button */
 .spin-btn {
-  width: 100px;
-  height: 100px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
   background: linear-gradient(135deg, #e74c3c, #c0392b);
   border: 4px solid rgba(255, 255, 255, 0.2);

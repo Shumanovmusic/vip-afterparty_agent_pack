@@ -6,6 +6,8 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { ReelStrip, type ReelStripConfig } from './ReelStrip'
+import { ReelFrame } from './ReelFrame'
+import { SymbolRenderer } from './SymbolRenderer'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 
@@ -34,9 +36,11 @@ let reelDebugLogged = false
 export class PixiReelsRenderer {
   public readonly container: Container
   private reelStrips: ReelStrip[] = []
+  private reelFrame: ReelFrame | null = null
   private highlightGraphics: Graphics
   private wildGlowGraphics: Graphics
   private layout: ReelsLayoutConfig | null = null
+  private motionPrefsUnsubscribe: (() => void) | null = null
 
   // Grid state
   private currentGrid: number[][] = [
@@ -59,8 +63,10 @@ export class PixiReelsRenderer {
     this.container.eventMode = 'none'
     parentContainer.addChild(this.container)
 
-    console.log(`[PixiReelsRenderer] constructor - parentContainer label: ${parentContainer.label}, children: ${parentContainer.children.length}`)
-    console.log(`[PixiReelsRenderer] this.container position: (${this.container.x}, ${this.container.y})`)
+    if (import.meta.env.DEV) {
+      console.log(`[PixiReelsRenderer] constructor - parentContainer label: ${parentContainer.label}, children: ${parentContainer.children.length}`)
+      console.log(`[PixiReelsRenderer] this.container position: (${this.container.x}, ${this.container.y})`)
+    }
 
     // Create overlay graphics layers
     this.highlightGraphics = new Graphics()
@@ -76,8 +82,28 @@ export class PixiReelsRenderer {
   init(layout: ReelsLayoutConfig): void {
     this.layout = layout
 
+    // Create frame FIRST (renders behind reels)
+    this.reelFrame = new ReelFrame()
+    this.container.addChild(this.reelFrame.container)
+    this.reelFrame.resize({
+      gridWidth: layout.gridWidth,
+      gridHeight: layout.gridHeight,
+      offsetX: layout.offsetX,
+      offsetY: layout.offsetY
+    })
+
     this.createReelStrips()
     this.setupEventHandlers()
+
+    // Subscribe to MotionPrefs changes for texture refresh
+    this.motionPrefsUnsubscribe = MotionPrefs.onChange(() => {
+      // Clear SymbolRenderer cache so new textures are generated with updated prefs
+      SymbolRenderer.clearCache()
+      // Refresh textures on all reel strips
+      for (const strip of this.reelStrips) {
+        strip.refreshTextures()
+      }
+    })
 
     // Add overlay graphics on top of reels
     this.container.addChild(this.highlightGraphics)
@@ -90,7 +116,9 @@ export class PixiReelsRenderer {
 
     const { symbolWidth, symbolHeight, offsetX, offsetY, gap } = this.layout
 
-    console.log(`[PixiReelsRenderer] Creating 5 reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}x${symbolHeight})`)
+    if (import.meta.env.DEV) {
+      console.log(`[PixiReelsRenderer] Creating 5 reel strips: offset=(${offsetX}, ${offsetY}), symbolSize=(${symbolWidth}x${symbolHeight})`)
+    }
 
     for (let i = 0; i < 5; i++) {
       const config: ReelStripConfig = {
@@ -102,7 +130,9 @@ export class PixiReelsRenderer {
         gap
       }
 
-      console.log(`[PixiReelsRenderer] Reel ${i}: x=${config.x}`)
+      if (import.meta.env.DEV) {
+        console.log(`[PixiReelsRenderer] Reel ${i}: x=${config.x}`)
+      }
       const strip = new ReelStrip(config, this.container)
       strip.setSymbols(this.currentGrid[i])
       this.reelStrips.push(strip)
@@ -119,7 +149,9 @@ export class PixiReelsRenderer {
       }
     }
 
-    console.log(`[PixiReelsRenderer] Created ${this.reelStrips.length} strips, container has ${this.container.children.length} children`)
+    if (import.meta.env.DEV) {
+      console.log(`[PixiReelsRenderer] Created ${this.reelStrips.length} strips, container has ${this.container.children.length} children`)
+    }
   }
 
   /** Set up event handlers from AnimationLibrary */
@@ -310,6 +342,14 @@ export class PixiReelsRenderer {
 
     const { symbolWidth, symbolHeight, offsetX, offsetY, gap } = layout
 
+    // Update frame
+    this.reelFrame?.resize({
+      gridWidth: layout.gridWidth,
+      gridHeight: layout.gridHeight,
+      offsetX: layout.offsetX,
+      offsetY: layout.offsetY
+    })
+
     for (let i = 0; i < this.reelStrips.length; i++) {
       this.reelStrips[i].updateLayout({
         x: offsetX + i * symbolWidth,
@@ -331,6 +371,14 @@ export class PixiReelsRenderer {
 
   /** Clean up resources */
   destroy(): void {
+    // Unsubscribe from MotionPrefs
+    this.motionPrefsUnsubscribe?.()
+    this.motionPrefsUnsubscribe = null
+
+    // Destroy frame
+    this.reelFrame?.destroy()
+    this.reelFrame = null
+
     for (const strip of this.reelStrips) {
       strip.destroy()
     }
