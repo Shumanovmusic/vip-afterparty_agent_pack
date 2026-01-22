@@ -9,6 +9,7 @@ import { ReelStrip, type ReelStripConfig } from './ReelStrip'
 import { ReelFrame, REEL_FRAME_PADDING } from './ReelFrame'
 import { SymbolRenderer } from './SymbolRenderer'
 import { DEBUG_FLAGS } from './DebugFlags'
+import { SparkleOverlay } from './fx/SparkleOverlay'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
@@ -98,6 +99,10 @@ export class PixiReelsRenderer {
   private pendingWinPositions: WinPosition[] = []
   private pendingWinAmount = 0
 
+  // Sparkle overlay system
+  private sparkleLayer: Container | null = null
+  private sparkleOverlays: SparkleOverlay[] = []
+
   constructor(parentContainer: Container) {
     // Create main container for reels
     this.container = new Container()
@@ -170,11 +175,12 @@ export class PixiReelsRenderer {
 
     this.createReelStrips()
     this.createWinPresenter(layout)
+    this.initSparklePool()
     this.setupEventHandlers()
 
     this.layout(layout)
 
-    // Subscribe to MotionPrefs changes for texture refresh
+    // Subscribe to MotionPrefs changes for texture refresh and sparkle gating
     this.motionPrefsUnsubscribe = MotionPrefs.onChange(() => {
       // Clear SymbolRenderer cache so new textures are generated with updated prefs
       SymbolRenderer.clearCache()
@@ -182,6 +188,8 @@ export class PixiReelsRenderer {
       for (const strip of this.reelStrips) {
         strip.refreshTextures()
       }
+      // Refresh sparkle visibility based on new juice settings
+      this.refreshSparkles()
     })
 
     if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout) {
@@ -247,6 +255,10 @@ export class PixiReelsRenderer {
         symbolHeight: layout.symbolHeight,
         gap: layout.gap
       })
+
+      // Update sparkle positions and refresh visibility
+      this.updateSparklePositions()
+      this.refreshSparkles()
     } finally {
       this.layoutInProgress = false
     }
@@ -401,6 +413,11 @@ export class PixiReelsRenderer {
       this.reelStrips
     )
 
+    // Connect ReelFrame for pulse effects
+    if (this.reelFrame) {
+      this.winPresenter.setReelFrame(this.reelFrame)
+    }
+
     // Create cadence controller
     this.winCadence = new WinCadenceV2()
     this.winCadence.setCallbacks({
@@ -417,6 +434,108 @@ export class PixiReelsRenderer {
         }
       }
     })
+  }
+
+  /**
+   * Unified juice/effects enabled check
+   * OFF if turbo, reduceMotion, or sparklesEnabled debug flag is false
+   */
+  get juiceEnabled(): boolean {
+    return !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion && DEBUG_FLAGS.sparklesEnabled
+  }
+
+  /**
+   * Initialize sparkle overlay pool (15 overlays for 5x3 grid)
+   * Call after createWinPresenter in init()
+   */
+  private initSparklePool(): void {
+    if (!this.layoutConfig) return
+
+    // Create sparkle layer inside reelsViewport (reels-local coordinates)
+    this.sparkleLayer = new Container()
+    this.sparkleLayer.label = 'SparkleLayer'
+    this.sparkleLayer.eventMode = 'none'
+
+    // Insert after reelsContainer, before highlightGraphics
+    const insertIndex = this.reelsViewport.getChildIndex(this.highlightGraphics)
+    this.reelsViewport.addChildAt(this.sparkleLayer, insertIndex)
+
+    const { symbolWidth, symbolHeight } = this.layoutConfig
+
+    // Create 15 overlays (5 reels x 3 rows)
+    for (let i = 0; i < REEL_COUNT * VISIBLE_ROWS; i++) {
+      const overlay = new SparkleOverlay({
+        width: symbolWidth,
+        height: symbolHeight,
+        pointCount: 6,
+        color: 0xffd700,  // VIP Gold
+        maxRadius: 5
+      })
+
+      this.sparkleOverlays.push(overlay)
+      this.sparkleLayer.addChild(overlay.container)
+    }
+
+    // Position overlays
+    this.updateSparklePositions()
+  }
+
+  /**
+   * Update sparkle overlay positions based on current layout
+   */
+  private updateSparklePositions(): void {
+    if (!this.layoutConfig || !this.sparkleLayer) return
+
+    const { symbolWidth, symbolHeight } = this.layoutConfig
+
+    for (let reel = 0; reel < REEL_COUNT; reel++) {
+      for (let row = 0; row < VISIBLE_ROWS; row++) {
+        const index = reel * VISIBLE_ROWS + row
+        const overlay = this.sparkleOverlays[index]
+        if (overlay) {
+          overlay.container.position.set(reel * symbolWidth, row * symbolHeight)
+          overlay.updateConfig({ width: symbolWidth, height: symbolHeight })
+        }
+      }
+    }
+  }
+
+  /**
+   * Refresh sparkle visibility based on current grid state
+   * Enables sparkles only for WILD (id=8) and DIAMOND (id=6)
+   */
+  refreshSparkles(): void {
+    // Gate: hide all if juice disabled or spinning
+    if (!this.juiceEnabled || this._isSpinning) {
+      this.deactivateAllSparkles()
+      return
+    }
+
+    for (let reel = 0; reel < REEL_COUNT; reel++) {
+      const visibleSymbols = this.reelStrips[reel]?.getVisibleSymbols() ?? this.currentGrid[reel]
+      for (let row = 0; row < VISIBLE_ROWS; row++) {
+        const index = reel * VISIBLE_ROWS + row
+        const overlay = this.sparkleOverlays[index]
+        if (!overlay) continue
+
+        const symbolId = visibleSymbols[row]
+        // Enable for WILD (id=8) or DIAMOND (id=6)
+        if (symbolId === 8 || symbolId === 6) {
+          overlay.activate()
+        } else {
+          overlay.deactivate()
+        }
+      }
+    }
+  }
+
+  /**
+   * Deactivate all sparkle overlays
+   */
+  private deactivateAllSparkles(): void {
+    for (const overlay of this.sparkleOverlays) {
+      overlay.deactivate()
+    }
   }
 
   /** Set up event handlers from AnimationLibrary */
@@ -616,6 +735,9 @@ export class PixiReelsRenderer {
     // Cancel and clear cadence
     this.winCadence?.cancel()
     this.winCadence?.clear()
+
+    // Deactivate sparkles (will be refreshed after spin stops)
+    this.deactivateAllSparkles()
   }
 
   /**
@@ -666,6 +788,9 @@ export class PixiReelsRenderer {
 
     // Reset all sprite scales before starting (ensure no symbol remains scaled)
     this.winPresenter?.resetAllScales()
+
+    // Deactivate sparkles during spin
+    this.deactivateAllSparkles()
 
     for (const strip of this.reelStrips) {
       strip.startSpin()
@@ -812,6 +937,9 @@ export class PixiReelsRenderer {
     this._isSpinning = false
     this.pendingResult = null
     this.quickStopRequested = false
+
+    // Refresh sparkles after stop (will show on WILD/DIAMOND)
+    this.refreshSparkles()
   }
 
   /**
@@ -928,6 +1056,14 @@ export class PixiReelsRenderer {
     this.winPresenter?.destroy()
     this.winPresenter = null
 
+    // Destroy sparkle overlays
+    for (const overlay of this.sparkleOverlays) {
+      overlay.destroy()
+    }
+    this.sparkleOverlays = []
+    this.sparkleLayer?.destroy({ children: true })
+    this.sparkleLayer = null
+
     for (const strip of this.reelStrips) {
       strip.destroy()
     }
@@ -937,3 +1073,4 @@ export class PixiReelsRenderer {
     this.container.destroy({ children: true })
   }
 }
+

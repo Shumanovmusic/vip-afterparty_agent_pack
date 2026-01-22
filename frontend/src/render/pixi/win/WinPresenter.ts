@@ -9,6 +9,7 @@ import { formatCurrency } from '../../../i18n/format'
 import { GameModeStore } from '../../../state/GameModeStore'
 import { DEBUG_FLAGS } from '../DebugFlags'
 import type { ReelStrip } from '../ReelStrip'
+import type { ReelFrame } from '../ReelFrame'
 
 const REEL_COUNT = 5
 
@@ -70,6 +71,9 @@ export class WinPresenter {
   // Monotonic presentId for stale timer protection
   private presentId = 0
 
+  // ReelFrame reference for pulse effects
+  private reelFrame: ReelFrame | null = null
+
   constructor(
     parent: Container,
     config: WinPresenterConfig,
@@ -120,6 +124,13 @@ export class WinPresenter {
   }
 
   /**
+   * Set ReelFrame reference for pulse effects
+   */
+  setReelFrame(frame: ReelFrame): void {
+    this.reelFrame = frame
+  }
+
+  /**
    * Present win with highlights, pop animation, and label
    * @param totalWin - Total win amount
    * @param positions - Array of winning positions (empty = highlight middle row)
@@ -160,6 +171,9 @@ export class WinPresenter {
 
     // Show win label
     this.showLabel(totalWin, currencySymbol)
+
+    // Trigger frame pulse on total win (stronger pulse)
+    this.reelFrame?.pulse(0.22, 280)
 
     // Schedule automatic cleanup based on mode with presentId guard
     const duration = this.getLabelDuration()
@@ -223,6 +237,9 @@ export class WinPresenter {
     if (!MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion) {
       this.startPopAnimations(positions)
     }
+
+    // Trigger frame pulse on line highlight (subtle pulse)
+    this.reelFrame?.pulse(0.12, 180)
 
     // Note: Total win label shown separately after cadence
     if (DEBUG_FLAGS.winVerbose) {

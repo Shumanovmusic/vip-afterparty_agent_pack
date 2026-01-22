@@ -18,4 +18,6 @@ export const DEBUG_FLAGS = {
   cadenceVerbose: false,
   /** Enable win cadence test mode (DEV only). Press L to show test cadence. */
   cadenceTestEnabled: import.meta.env.DEV,
+  /** Enable sparkle overlays on WILD/DIAMOND (DEV toggle with P key). */
+  sparklesEnabled: import.meta.env.DEV,
 }

@@ -240,6 +240,10 @@ class SymbolRendererImpl {
       g.fill({ color: colors.accent, alpha: 0.2 })
     }
 
+    // Drop shadow (offset 2, 3)
+    g.roundRect(padding + 2, padding + 3, size - padding * 2, size - padding * 2, 10)
+    g.fill({ color: 0x000000, alpha: 0.35 })
+
     // Card panel
     g.roundRect(padding, padding, size - padding * 2, size - padding * 2, 10)
     g.fill({ color: colors.primary })
@@ -248,9 +252,9 @@ class SymbolRendererImpl {
     g.roundRect(padding + 4, padding + 4, size - padding * 2 - 8, (size - padding * 2) / 2 - 4, 6)
     g.fill({ color: 0xffffff, alpha: 0.15 })
 
-    // Neon border
+    // Neon border (thicker stroke for readability)
     g.roundRect(padding, padding, size - padding * 2, size - padding * 2, 10)
-    g.stroke({ width: 3, color: colors.accent })
+    g.stroke({ width: 4, color: colors.accent })
 
     // Corner sparkles (small stars)
     const sparkleOffset = 22
@@ -623,7 +627,7 @@ class SymbolRendererImpl {
       fontSize: fontSize,
       fontWeight: bold ? 'bold' : 'normal',
       fill: color,
-      stroke: { color: 0x000000, width: 3 },
+      stroke: { color: 0x000000, width: 4 },
       dropShadow: {
         color: 0x000000,
         blur: 4,

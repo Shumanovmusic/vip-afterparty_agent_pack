@@ -28,6 +28,9 @@ const CORNER_CIRCLE_RADIUS = 6
 export class ReelFrame {
   public readonly container: Container
   private frameGraphics: Graphics
+  private glowGraphics: Graphics | null = null
+  private glowAlpha = 0
+  private pulseAnimationId: number | null = null
   private config: ReelFrameConfig | null = null
   private rageModeActive = false
   private motionPrefsUnsubscribe: (() => void) | null = null
@@ -36,6 +39,12 @@ export class ReelFrame {
     this.container = new Container()
     this.container.label = 'ReelFrame'
     this.container.eventMode = 'none' // No hit testing
+
+    // Create separate glow layer (drawn once, alpha animated)
+    this.glowGraphics = new Graphics()
+    this.glowGraphics.label = 'FrameGlow'
+    this.glowGraphics.alpha = 0
+    this.container.addChild(this.glowGraphics)  // Behind frame
 
     this.frameGraphics = new Graphics()
     this.frameGraphics.label = 'FrameGraphics'
@@ -122,16 +131,99 @@ export class ReelFrame {
       g.circle(corner.x, corner.y, CORNER_CIRCLE_RADIUS - 2)
       g.fill({ color: VIP_PURPLE_INNER })
     }
+
+    // Redraw glow graphics with updated config
+    this.drawGlow()
+  }
+
+  /**
+   * Pulse the frame glow
+   * @param intensity - Peak alpha (0-1), default 0.6
+   * @param durationMs - Total duration, default 400ms
+   */
+  pulse(intensity = 0.6, durationMs = 400): void {
+    if (MotionPrefs.turboEnabled || MotionPrefs.reduceMotion) return
+    this.cancelPulse()
+
+    const startTime = performance.now()
+    const peakTime = durationMs * 0.25  // Peak at 25%
+
+    const animate = (): void => {
+      const elapsed = performance.now() - startTime
+      if (elapsed >= durationMs) {
+        this.glowAlpha = 0
+        this.updateGlowAlpha()
+        this.pulseAnimationId = null
+        return
+      }
+
+      if (elapsed < peakTime) {
+        this.glowAlpha = intensity * (elapsed / peakTime)
+      } else {
+        const decay = (elapsed - peakTime) / (durationMs - peakTime)
+        this.glowAlpha = intensity * (1 - decay * decay)  // Ease-out
+      }
+
+      this.updateGlowAlpha()
+      this.pulseAnimationId = requestAnimationFrame(animate)
+    }
+
+    this.pulseAnimationId = requestAnimationFrame(animate)
+  }
+
+  private updateGlowAlpha(): void {
+    if (this.glowGraphics) {
+      this.glowGraphics.alpha = this.glowAlpha
+    }
+  }
+
+  private cancelPulse(): void {
+    if (this.pulseAnimationId !== null) {
+      cancelAnimationFrame(this.pulseAnimationId)
+      this.pulseAnimationId = null
+    }
+    this.glowAlpha = 0
+    this.updateGlowAlpha()
+  }
+
+  /**
+   * Draw glow graphics (called when config changes)
+   */
+  private drawGlow(): void {
+    if (!this.config || !this.glowGraphics) return
+    const { gridWidth, gridHeight, offsetX, offsetY } = this.config
+    const accentColor = this.rageModeActive ? VIP_RAGE_RED : VIP_GOLD
+
+    const frameX = offsetX - REEL_FRAME_PADDING
+    const frameY = offsetY - REEL_FRAME_PADDING
+    const frameW = gridWidth + REEL_FRAME_PADDING * 2
+    const frameH = gridHeight + REEL_FRAME_PADDING * 2
+
+    const g = this.glowGraphics
+    g.clear()
+
+    // Multi-layer glow
+    g.roundRect(frameX - 8, frameY - 8, frameW + 16, frameH + 16, 16)
+    g.fill({ color: accentColor, alpha: 0.25 })
+
+    g.roundRect(frameX - 4, frameY - 4, frameW + 8, frameH + 8, 12)
+    g.fill({ color: accentColor, alpha: 0.4 })
   }
 
   destroy(): void {
+    // Cancel any active pulse
+    this.cancelPulse()
+
     // Unsubscribe from MotionPrefs
     if (this.motionPrefsUnsubscribe) {
       this.motionPrefsUnsubscribe()
       this.motionPrefsUnsubscribe = null
     }
 
+    this.glowGraphics?.destroy()
+    this.glowGraphics = null
     this.frameGraphics.destroy()
     this.container.destroy({ children: true })
   }
 }
+
