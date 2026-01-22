@@ -15,7 +15,7 @@ import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/A
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
 import { WinCadenceV2 } from './win/WinCadenceV2'
-import { BigWinPresenter, WinTier, computeWinTier } from './win/BigWinPresenter'
+import { BigWinPresenter, WinTier, computeWinTier, PRELUDE_MIN_MS } from './win/BigWinPresenter'
 import type { CellPosition } from '../../game/paylines/PAYLINES_TABLE'
 import { audioService } from '../../audio/AudioService'
 
@@ -127,6 +127,9 @@ export class PixiReelsRenderer {
 
   // Win sequence cancel token (Batch 7) - prevents stale async chains on fast spins/skips
   private winSeqId = 0
+
+  // Win sequence prelude skip flag (Batch 9) - allows skipping prelude phase with Space
+  private winSeqSkipRequested = false
 
   constructor(parentContainer: Container) {
     // Create main container for reels
@@ -935,11 +938,16 @@ export class PixiReelsRenderer {
 
   /**
    * Skip the current celebration (for external calls like Space key)
+   * Also sets winSeqSkipRequested to skip prelude phase if still running
    */
   requestCelebrationSkip(): void {
+    // If celebration overlay is active, skip it
     if (this.celebrationActive && this.bigWinPresenter?.active) {
       this.bigWinPresenter.skip()
+      return
     }
+    // Otherwise, skip the prelude phase (Batch 9)
+    this.winSeqSkipRequested = true
   }
 
   /**
@@ -1041,6 +1049,11 @@ export class PixiReelsRenderer {
    * Handle win result event (final presentation)
    * Uses cancel token pattern (winSeqId) to prevent stale async chains
    * on fast spins/skips from showing old overlays
+   *
+   * Win Sequence V2 (Batch 9): Tier-specific prelude durations
+   * - NONE: cadence + PRELUDE_MIN_MS.NONE wait + win label
+   * - BIG/MEGA: cadence (capped 1200ms) + PRELUDE_MIN_MS[tier] wait + celebration
+   * - EPIC: brief flash of all winning positions + PRELUDE_MIN_MS.EPIC wait + celebration
    */
   private async onWinResult(totalWin: number, winPositions: GridPosition[], currencySymbol: string): Promise<void> {
     if (!this.winPresenter) return
@@ -1058,11 +1071,12 @@ export class PixiReelsRenderer {
     // Compute tier for celebration decision
     const tier = computeWinTier(totalWin, this.betAmount)
 
-    // Helper to check if this sequence is still current
+    // Helper to check if this sequence is still current or skip requested
     const isCancelled = () => seq !== this.winSeqId
+    const shouldSkipPrelude = () => this.winSeqSkipRequested
 
+    // ========== NONE tier: cadence + prelude wait + win label ==========
     if (tier === WinTier.NONE) {
-      // No celebration - run normal cadence + win label
       if (this.winCadence && this.winCadence.lineCount > 0) {
         this.winCadence.setCallbacks({
           presentLine: (cellPositions: CellPosition[], amount: number, lineId: number) => {
@@ -1074,32 +1088,56 @@ export class PixiReelsRenderer {
             this.winPresenter?.clearLine()
           },
           onCadenceComplete: () => {
-            if (isCancelled()) return
-            if (this.pendingWinAmount > 0) {
-              this.winPresenter?.presentWin(this.pendingWinAmount, positions, currencySymbol)
-            }
+            // Label shown after prelude wait below
           }
         })
-        this.winCadence.run()
-      } else {
-        if (!isCancelled()) {
-          this.winPresenter.presentWin(totalWin, positions, currencySymbol)
-        }
+        await this.winCadence.run()
+      }
+
+      if (isCancelled()) return
+
+      // Wait for prelude time (1 cycle highlight) unless skip requested
+      const elapsed = performance.now() - startTime
+      const preludeMs = PRELUDE_MIN_MS.NONE
+      if (!shouldSkipPrelude() && elapsed < preludeMs) {
+        await this.delay(preludeMs - elapsed)
+      }
+
+      if (isCancelled()) return
+
+      // Show win label
+      if (this.pendingWinAmount > 0) {
+        this.winPresenter?.presentWin(this.pendingWinAmount, positions, currencySymbol)
       }
       return
     }
 
-    // For Epic tier: cancel cadence immediately, then celebrate
+    // ========== EPIC tier: brief flash of all wins + short prelude + celebration ==========
     if (tier === WinTier.EPIC) {
+      // Cancel cadence - EPIC goes straight to flash + celebration
       this.winCadence?.cancel()
+
       if (isCancelled()) return
+
+      // Briefly show all winning positions (flash effect)
+      // Convert GridPosition[] to CellPosition[] for presentLine
+      const cellPositions = positions.map(p => ({ reel: p.reel, row: p.row }))
+      this.winPresenter.presentLine(cellPositions, totalWin, -1)
+
+      // Wait for EPIC prelude (brief, overlay is already long)
+      const preludeMs = PRELUDE_MIN_MS.EPIC
+      if (!shouldSkipPrelude()) {
+        await this.delay(preludeMs)
+      }
+
+      if (isCancelled()) return
+
       await this.presentCelebration(totalWin, currencySymbol)
       return
     }
 
-    // For Big/Mega tier: cap cadence at 1200ms, then celebrate
-    // Prelude duration: Epic=500ms, others=800ms
-    const PRELUDE_MIN_MS = 800
+    // ========== BIG/MEGA tier: cadence (capped) + prelude wait + celebration ==========
+    const tierPreludeMs = tier === WinTier.BIG ? PRELUDE_MIN_MS.BIG : PRELUDE_MIN_MS.MEGA
 
     if (this.winCadence && this.winCadence.lineCount > 0) {
       this.winCadence.setCallbacks({
@@ -1122,8 +1160,8 @@ export class PixiReelsRenderer {
 
     // Wait for minimum prelude time to let player "see the win"
     const elapsed = performance.now() - startTime
-    if (elapsed < PRELUDE_MIN_MS) {
-      await this.delay(PRELUDE_MIN_MS - elapsed)
+    if (!shouldSkipPrelude() && elapsed < tierPreludeMs) {
+      await this.delay(tierPreludeMs - elapsed)
     }
 
     if (isCancelled()) return
@@ -1289,6 +1327,9 @@ export class PixiReelsRenderer {
 
     // Cancel any pending win sequence (Batch 7 race condition fix)
     this.winSeqId++
+
+    // Reset prelude skip flag (Batch 9)
+    this.winSeqSkipRequested = false
 
     // Reset all sprite scales before starting (ensure no symbol remains scaled)
     this.winPresenter?.resetAllScales()

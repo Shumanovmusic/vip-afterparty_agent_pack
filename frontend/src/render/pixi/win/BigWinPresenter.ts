@@ -17,6 +17,17 @@ export enum WinTier {
   EPIC = 'epic'
 }
 
+/**
+ * Tier-specific prelude durations (ms) before BigWin overlay appears
+ * Player needs time to "see the win" before celebration
+ */
+export const PRELUDE_MIN_MS = {
+  NONE: 600,   // 1 cycle highlight
+  BIG: 800,    // Standard prelude
+  MEGA: 900,   // Slightly longer for bigger wins
+  EPIC: 550    // Brief, overlay is already long
+} as const
+
 /** Configuration for presenting a big win */
 export interface BigWinConfig {
   totalWin: number
