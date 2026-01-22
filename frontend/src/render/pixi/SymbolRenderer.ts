@@ -26,6 +26,15 @@ const NEON_GREEN = 0x00ff88     // Card ranks accent
 const DIAMOND_CYAN = 0x00e5ff   // Diamond gem
 const CHAMPAGNE_GOLD = 0xffe89f // Champagne bubbles
 
+// VIP Symbol Pack v1.1 - Key & Bonus colors
+const KEY_GOLD = 0xffd700       // Key primary
+const KEY_GOLD_GLOW = 0xffaa00  // Key glow
+const BONUS_PURPLE = 0x9c27b0   // Bonus chip primary
+const BONUS_GOLD_EDGE = 0xffc107 // Bonus chip edge accents
+
+// Unified Scatter label constant
+const SCATTER_LABEL = 'FREE'
+
 class SymbolRendererImpl {
   private textureCache: Map<CacheKey, Texture> = new Map()
   private pixiApp: Application | null = null
@@ -73,7 +82,10 @@ class SymbolRendererImpl {
     if (id <= 4) return this.generateLowSymbol(id, key, opts)
     if (id <= 7) return this.generateHighSymbol(id, key, opts)
     if (id === 8) return this.generateWild(opts)
-    return this.generateScatter(opts)
+    if (id === 9) return this.generateScatter(opts)
+    if (id === 10) return this.generateKey(opts)    // VIP Symbol Pack v1.1: Key (mid)
+    if (id === 11) return this.generateBonus(opts)  // VIP Symbol Pack v1.1: Bonus chip (special)
+    return this.generateScatter(opts) // Fallback for unknown IDs
   }
 
   // ==========================================================================
@@ -253,6 +265,154 @@ class SymbolRendererImpl {
   }
 
   // ==========================================================================
+  // VIP Symbol Pack v1.1 - Key & Bonus Drawing Functions
+  // ==========================================================================
+
+  /**
+   * Draw a key silhouette (VIP mid symbol) - neon gold with purple shadow
+   * Components: Ring (head), shaft, and 2-3 teeth
+   */
+  private drawKey(g: Graphics, size: number, shouldGlow: boolean): void {
+    const cx = size / 2
+    const cy = size / 2
+
+    // Outer glow layers (wider alpha strokes behind)
+    if (shouldGlow) {
+      // Layer 1: widest glow
+      g.circle(cx - size * 0.15, cy - size * 0.15, size * 0.22)
+      g.fill({ color: KEY_GOLD_GLOW, alpha: 0.15 })
+      // Layer 2: medium glow
+      g.circle(cx - size * 0.15, cy - size * 0.15, size * 0.18)
+      g.fill({ color: KEY_GOLD_GLOW, alpha: 0.2 })
+    }
+
+    // Key ring (head) - circle outline with cutout
+    const ringCx = cx - size * 0.15
+    const ringCy = cy - size * 0.15
+    const ringOuter = size * 0.18
+    const ringInner = size * 0.09
+
+    // Outer ring
+    g.circle(ringCx, ringCy, ringOuter)
+    g.fill({ color: KEY_GOLD })
+
+    // Inner cutout (ring hole)
+    g.circle(ringCx, ringCy, ringInner)
+    g.fill({ color: VIP_PURPLE_DARK })
+
+    // Ring highlight (top-left)
+    g.circle(ringCx - 4, ringCy - 4, 5)
+    g.fill({ color: 0xffffff, alpha: 0.4 })
+
+    // Shaft (rounded rect extending diagonally down-right)
+    const shaftStartX = ringCx + ringOuter * 0.6
+    const shaftStartY = ringCy + ringOuter * 0.6
+    const shaftLength = size * 0.45
+    const shaftWidth = size * 0.08
+
+    // Draw shaft as rotated rectangle
+    g.moveTo(shaftStartX, shaftStartY - shaftWidth / 2)
+    g.lineTo(shaftStartX + shaftLength * 0.71, shaftStartY + shaftLength * 0.71 - shaftWidth / 2)
+    g.lineTo(shaftStartX + shaftLength * 0.71, shaftStartY + shaftLength * 0.71 + shaftWidth / 2)
+    g.lineTo(shaftStartX, shaftStartY + shaftWidth / 2)
+    g.closePath()
+    g.fill({ color: KEY_GOLD })
+
+    // Teeth at the end of the shaft (3 rectangular teeth)
+    const teethBaseX = shaftStartX + shaftLength * 0.5
+    const teethBaseY = shaftStartY + shaftLength * 0.5
+    const toothLen = size * 0.06
+    const toothWidth = size * 0.035
+
+    // Tooth 1 (bottom)
+    g.rect(teethBaseX + toothLen * 0.3, teethBaseY + shaftWidth / 2, toothLen, toothWidth)
+    g.fill({ color: KEY_GOLD })
+
+    // Tooth 2 (middle)
+    g.rect(teethBaseX + toothLen * 1.8, teethBaseY + shaftWidth * 0.3 + toothLen * 0.7, toothLen * 0.8, toothWidth)
+    g.fill({ color: KEY_GOLD })
+
+    // Tooth 3 (smallest, near end)
+    g.rect(teethBaseX + toothLen * 2.8, teethBaseY + shaftWidth * 0.1 + toothLen * 1.2, toothLen * 0.6, toothWidth * 0.8)
+    g.fill({ color: KEY_GOLD })
+
+    // Gold outline strokes for definition
+    g.circle(ringCx, ringCy, ringOuter)
+    g.stroke({ width: 2.5, color: VIP_GOLD_DARK })
+
+    g.circle(ringCx, ringCy, ringInner)
+    g.stroke({ width: 1.5, color: VIP_GOLD_DARK })
+
+    // Shaft outline
+    g.moveTo(shaftStartX, shaftStartY - shaftWidth / 2)
+    g.lineTo(shaftStartX + shaftLength * 0.71, shaftStartY + shaftLength * 0.71 - shaftWidth / 2)
+    g.lineTo(shaftStartX + shaftLength * 0.71, shaftStartY + shaftLength * 0.71 + shaftWidth / 2)
+    g.lineTo(shaftStartX, shaftStartY + shaftWidth / 2)
+    g.closePath()
+    g.stroke({ width: 2, color: VIP_GOLD_DARK })
+  }
+
+  /**
+   * Draw a bonus chip (VIP special symbol) - casino chip with BONUS text
+   * Components: Outer circle, inner ring, edge tick marks, center label
+   */
+  private drawBonusChip(g: Graphics, size: number, shouldGlow: boolean): void {
+    const cx = size / 2
+    const cy = size / 2
+    const chipRadius = size * 0.38
+
+    // Outer glow
+    if (shouldGlow) {
+      g.circle(cx, cy, chipRadius + 8)
+      g.fill({ color: BONUS_PURPLE, alpha: 0.25 })
+      g.circle(cx, cy, chipRadius + 4)
+      g.fill({ color: BONUS_GOLD_EDGE, alpha: 0.15 })
+    }
+
+    // Main chip body
+    g.circle(cx, cy, chipRadius)
+    g.fill({ color: BONUS_PURPLE })
+
+    // Inner ring
+    const innerRingRadius = chipRadius * 0.7
+    g.circle(cx, cy, innerRingRadius)
+    g.stroke({ width: 3, color: BONUS_GOLD_EDGE })
+
+    // Center circle for text background
+    g.circle(cx, cy, innerRingRadius * 0.75)
+    g.fill({ color: VIP_PURPLE_DARK })
+
+    // Edge tick marks (12 marks around the chip)
+    const tickCount = 12
+    const tickOuterR = chipRadius - 2
+    const tickInnerR = chipRadius - size * 0.06
+    for (let i = 0; i < tickCount; i++) {
+      const angle = (i / tickCount) * Math.PI * 2 - Math.PI / 2
+      const x1 = cx + Math.cos(angle) * tickInnerR
+      const y1 = cy + Math.sin(angle) * tickInnerR
+      const x2 = cx + Math.cos(angle) * tickOuterR
+      const y2 = cy + Math.sin(angle) * tickOuterR
+      g.moveTo(x1, y1)
+      g.lineTo(x2, y2)
+      g.stroke({ width: 3, color: BONUS_GOLD_EDGE })
+    }
+
+    // Outer gold edge
+    g.circle(cx, cy, chipRadius)
+    g.stroke({ width: 3, color: BONUS_GOLD_EDGE })
+
+    // Top highlight (subtle)
+    g.ellipse(cx, cy - chipRadius * 0.3, chipRadius * 0.4, chipRadius * 0.15)
+    g.fill({ color: 0xffffff, alpha: 0.2 })
+
+    // Small star sparkle at top-right (if glow enabled)
+    if (shouldGlow) {
+      g.star(cx + chipRadius * 0.5, cy - chipRadius * 0.5, 4, 6, 3)
+      g.fill({ color: 0xffffff, alpha: 0.8 })
+    }
+  }
+
+  // ==========================================================================
   // Symbol Generation Methods
   // ==========================================================================
 
@@ -405,8 +565,44 @@ class SymbolRendererImpl {
 
     container.addChild(g)
 
-    // "FREE" text (scatter triggers free spins)
-    const text = this.createLabel('FREE', size, 0xffffff, true, 22)
+    // Scatter label text (uses unified constant)
+    const text = this.createLabel(SCATTER_LABEL, size, 0xffffff, true, 22)
+    container.addChild(text)
+
+    return this.renderToTexture(container, size)
+  }
+
+  /**
+   * Generate Key symbol (VIP Symbol Pack v1.1) - mid-tier symbol
+   * ID 10 - neon gold key with distinct silhouette
+   */
+  private generateKey(opts: SymbolRenderOptions): Texture {
+    const size = ATLAS_CONFIG.frameSize
+    const container = new Container()
+    const shouldGlow = !opts.turbo && !opts.reduceMotion
+
+    const g = new Graphics()
+    this.drawKey(g, size, shouldGlow)
+    container.addChild(g)
+
+    return this.renderToTexture(container, size)
+  }
+
+  /**
+   * Generate Bonus chip symbol (VIP Symbol Pack v1.1) - special symbol
+   * ID 11 - casino chip with "BONUS" text
+   */
+  private generateBonus(opts: SymbolRenderOptions): Texture {
+    const size = ATLAS_CONFIG.frameSize
+    const container = new Container()
+    const shouldGlow = !opts.turbo && !opts.reduceMotion
+
+    const g = new Graphics()
+    this.drawBonusChip(g, size, shouldGlow)
+    container.addChild(g)
+
+    // "BONUS" text in center
+    const text = this.createLabel('BONUS', size, BONUS_GOLD_EDGE, true, 16)
     container.addChild(text)
 
     return this.renderToTexture(container, size)
