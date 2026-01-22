@@ -4,7 +4,7 @@
  */
 
 import { Graphics, Container, Text, TextStyle, RenderTexture, Texture, type Application } from 'pixi.js'
-import { type SymbolKey, SYMBOL_FALLBACK_COLORS, ATLAS_CONFIG } from '../assets/AssetManifest'
+import { type SymbolKey, ATLAS_CONFIG } from '../assets/AssetManifest'
 import { MotionPrefs } from '../../ux/MotionPrefs'
 
 export interface SymbolRenderOptions {
@@ -18,24 +18,13 @@ type CacheKey = `${string}|${boolean}|${boolean}`
 const VIP_GOLD = 0xf6c85f
 const VIP_GOLD_DARK = 0xd4a84b
 const VIP_PURPLE_DARK = 0x2a0b3f
-const VIP_PURPLE_LIGHT = 0x4a1b5f
 const VIP_MAGENTA = 0xff2daa
 
-// Low symbol color palette (purple/teal family)
-const LOW_SYMBOL_COLORS: Record<number, { primary: number; secondary: number }> = {
-  0: { primary: 0x6b3fa0, secondary: 0x8b5fc0 }, // L1 deep purple
-  1: { primary: 0x4a90a4, secondary: 0x6ab0c4 }, // L2 teal
-  2: { primary: 0x5c6bc0, secondary: 0x7c8be0 }, // L3 indigo
-  3: { primary: 0x7e57c2, secondary: 0x9e77e2 }, // L4 violet
-  4: { primary: 0x26a69a, secondary: 0x46c6ba }, // L5 cyan-teal
-}
-
-// High symbol color palette (warmer tones)
-const HIGH_SYMBOL_COLORS: Record<number, { primary: number; secondary: number }> = {
-  5: { primary: 0xf6c85f, secondary: 0xffe89f }, // H1 gold
-  6: { primary: 0xffe6b0, secondary: 0xfff6d0 }, // H2 champagne
-  7: { primary: 0xff2daa, secondary: 0xff6dca }, // H3 neon magenta
-}
+// Additional colors for VIP Symbol Pack v1
+const NEON_BLUE = 0x00d4ff      // Card ranks accent
+const NEON_GREEN = 0x00ff88     // Card ranks accent
+const DIAMOND_CYAN = 0x00e5ff   // Diamond gem
+const CHAMPAGNE_GOLD = 0xffe89f // Champagne bubbles
 
 class SymbolRendererImpl {
   private textureCache: Map<CacheKey, Texture> = new Map()
@@ -87,90 +76,242 @@ class SymbolRendererImpl {
     return this.generateScatter(opts)
   }
 
-  /**
-   * Generate L1-L5 low symbols (VIP chip style, purple family)
-   */
-  private generateLowSymbol(id: number, key: SymbolKey, opts: SymbolRenderOptions): Texture {
-    const size = ATLAS_CONFIG.frameSize
-    const container = new Container()
+  // ==========================================================================
+  // VIP Symbol Pack v1 - Helper Drawing Functions
+  // ==========================================================================
 
-    const colors = LOW_SYMBOL_COLORS[id] ?? { primary: SYMBOL_FALLBACK_COLORS[key], secondary: 0xaaaaaa }
-    const shouldGlow = !opts.turbo && !opts.reduceMotion
+  /** Draw a crown silhouette (VIP premium symbol) */
+  private drawCrown(g: Graphics, size: number, shouldGlow: boolean): void {
+    const cx = size / 2
+    const baseY = size * 0.7      // Crown bottom
+    const topY = size * 0.2       // Crown top (spikes)
+    const bandH = size * 0.15     // Base band height
 
-    const g = new Graphics()
-
-    // Outer glow (only if motion allowed)
+    // Glow
     if (shouldGlow) {
-      g.roundRect(4, 4, size - 8, size - 8, 16)
-      g.fill({ color: colors.primary, alpha: 0.3 })
+      g.roundRect(8, 8, size - 16, size - 16, 16)
+      g.fill({ color: VIP_GOLD, alpha: 0.25 })
     }
 
-    // Main chip body - rounded rect with gradient effect
-    g.roundRect(8, 8, size - 16, size - 16, 12)
+    // Base band (rounded rect)
+    g.roundRect(size * 0.15, baseY, size * 0.7, bandH, 4)
+    g.fill({ color: VIP_GOLD })
+
+    // Three spikes
+    const spikeW = size * 0.15
+    const spikePositions = [0.25, 0.5, 0.75] // Left, center, right
+    for (const xPos of spikePositions) {
+      const sx = size * xPos
+      g.moveTo(sx - spikeW / 2, baseY)
+      g.lineTo(sx, topY + (xPos === 0.5 ? 0 : size * 0.05))
+      g.lineTo(sx + spikeW / 2, baseY)
+      g.closePath()
+      g.fill({ color: VIP_GOLD })
+
+      // Tip circle
+      g.circle(sx, topY + (xPos === 0.5 ? 0 : size * 0.05), 5)
+      g.fill({ color: 0xffffff })
+    }
+
+    // Center gem
+    const gemY = baseY - size * 0.08
+    g.moveTo(cx, gemY - 12)
+    g.lineTo(cx + 10, gemY)
+    g.lineTo(cx, gemY + 8)
+    g.lineTo(cx - 10, gemY)
+    g.closePath()
+    g.fill({ color: VIP_MAGENTA })
+
+    // Gold stroke outline on base band
+    g.roundRect(size * 0.15, baseY, size * 0.7, bandH, 4)
+    g.stroke({ width: 2, color: VIP_GOLD_DARK })
+  }
+
+  /** Draw a diamond gem silhouette */
+  private drawDiamond(g: Graphics, size: number, shouldGlow: boolean): void {
+    const cx = size / 2, cy = size / 2
+    const w = size * 0.55, h = size * 0.7
+
+    // Glow
+    if (shouldGlow) {
+      g.roundRect(8, 8, size - 16, size - 16, 16)
+      g.fill({ color: DIAMOND_CYAN, alpha: 0.2 })
+    }
+
+    // Main diamond shape (hexagonal gem)
+    g.moveTo(cx, cy - h / 2)           // Top
+    g.lineTo(cx + w / 2, cy - h / 4)   // Top-right
+    g.lineTo(cx + w / 2, cy + h / 4)   // Bottom-right
+    g.lineTo(cx, cy + h / 2)           // Bottom
+    g.lineTo(cx - w / 2, cy + h / 4)   // Bottom-left
+    g.lineTo(cx - w / 2, cy - h / 4)   // Top-left
+    g.closePath()
+    g.fill({ color: DIAMOND_CYAN })
+
+    // Facet lines
+    g.moveTo(cx - w / 2, cy - h / 4)
+    g.lineTo(cx, cy)
+    g.lineTo(cx + w / 2, cy - h / 4)
+    g.stroke({ width: 1.5, color: 0xffffff, alpha: 0.5 })
+
+    // Top highlight facet
+    g.moveTo(cx, cy - h / 2)
+    g.lineTo(cx + w / 4, cy - h / 4)
+    g.lineTo(cx, cy - h / 6)
+    g.lineTo(cx - w / 4, cy - h / 4)
+    g.closePath()
+    g.fill({ color: 0xffffff, alpha: 0.4 })
+
+    // Cyan stroke outline
+    g.moveTo(cx, cy - h / 2)
+    g.lineTo(cx + w / 2, cy - h / 4)
+    g.lineTo(cx + w / 2, cy + h / 4)
+    g.lineTo(cx, cy + h / 2)
+    g.lineTo(cx - w / 2, cy + h / 4)
+    g.lineTo(cx - w / 2, cy - h / 4)
+    g.closePath()
+    g.stroke({ width: 2, color: DIAMOND_CYAN })
+  }
+
+  /** Draw a champagne glass */
+  private drawChampagne(g: Graphics, size: number, shouldGlow: boolean): void {
+    const cx = size / 2
+
+    // Glow
+    if (shouldGlow) {
+      g.roundRect(8, 8, size - 16, size - 16, 16)
+      g.fill({ color: CHAMPAGNE_GOLD, alpha: 0.2 })
+    }
+
+    // Glass bowl (ellipse top)
+    g.ellipse(cx, size * 0.35, size * 0.25, size * 0.18)
+    g.fill({ color: CHAMPAGNE_GOLD })
+
+    // Stem
+    g.rect(cx - 4, size * 0.5, 8, size * 0.25)
+    g.fill({ color: CHAMPAGNE_GOLD })
+
+    // Base
+    g.ellipse(cx, size * 0.78, size * 0.18, size * 0.06)
+    g.fill({ color: CHAMPAGNE_GOLD })
+
+    // Highlight on bowl
+    g.ellipse(cx - 8, size * 0.32, 6, 10)
+    g.fill({ color: 0xffffff, alpha: 0.5 })
+
+    // Bubbles (if motion allowed)
+    if (shouldGlow) {
+      const bubbles: [number, number][] = [[cx - 6, 0.28], [cx + 4, 0.25], [cx, 0.32]]
+      for (const [bx, by] of bubbles) {
+        g.circle(bx, size * by, 3)
+        g.fill({ color: 0xffffff, alpha: 0.7 })
+      }
+    }
+
+    // Gold stroke on bowl
+    g.ellipse(cx, size * 0.35, size * 0.25, size * 0.18)
+    g.stroke({ width: 2, color: VIP_GOLD })
+  }
+
+  /** Draw a neon card rank (A, K, Q, J, 10) */
+  private drawRankCard(
+    g: Graphics,
+    size: number,
+    colors: { primary: number; accent: number },
+    shouldGlow: boolean
+  ): void {
+    const padding = 10
+
+    // Glow
+    if (shouldGlow) {
+      g.roundRect(4, 4, size - 8, size - 8, 14)
+      g.fill({ color: colors.accent, alpha: 0.2 })
+    }
+
+    // Card panel
+    g.roundRect(padding, padding, size - padding * 2, size - padding * 2, 10)
     g.fill({ color: colors.primary })
 
-    // Inner highlight (top half for 3D effect)
-    g.roundRect(12, 12, size - 24, (size - 24) / 2, 8)
-    g.fill({ color: colors.secondary, alpha: 0.4 })
+    // Inner highlight (top half)
+    g.roundRect(padding + 4, padding + 4, size - padding * 2 - 8, (size - padding * 2) / 2 - 4, 6)
+    g.fill({ color: 0xffffff, alpha: 0.15 })
 
-    // Thin neon border (purple family)
-    g.roundRect(8, 8, size - 16, size - 16, 12)
-    g.stroke({ width: 2, color: VIP_PURPLE_LIGHT })
+    // Neon border
+    g.roundRect(padding, padding, size - padding * 2, size - padding * 2, 10)
+    g.stroke({ width: 3, color: colors.accent })
 
+    // Corner sparkles (small stars)
+    const sparkleOffset = 22
+    const sparklePositions: [number, number][] = [
+      [padding + sparkleOffset, padding + sparkleOffset],
+      [size - padding - sparkleOffset, size - padding - sparkleOffset]
+    ]
+    for (const [sx, sy] of sparklePositions) {
+      g.star(sx, sy, 4, 5, 2.5)
+      g.fill({ color: colors.accent, alpha: 0.8 })
+    }
+  }
+
+  // ==========================================================================
+  // Symbol Generation Methods
+  // ==========================================================================
+
+  /**
+   * Generate card rank symbols (A, K, Q, J, 10) - neon card style
+   */
+  private generateLowSymbol(id: number, _key: SymbolKey, opts: SymbolRenderOptions): Texture {
+    const size = ATLAS_CONFIG.frameSize
+    const container = new Container()
+    const shouldGlow = !opts.turbo && !opts.reduceMotion
+    const g = new Graphics()
+
+    // Card rank mapping
+    const RANKS = ['A', 'K', 'Q', 'J', '10']
+    const RANK_COLORS: { primary: number; accent: number }[] = [
+      { primary: 0x1a1a2e, accent: NEON_BLUE },     // A - cyan
+      { primary: 0x1a1a2e, accent: VIP_MAGENTA },   // K - magenta
+      { primary: 0x1a1a2e, accent: NEON_GREEN },    // Q - green
+      { primary: 0x1a1a2e, accent: VIP_GOLD },      // J - gold
+      { primary: 0x1a1a2e, accent: 0xff6b6b },      // 10 - coral
+    ]
+
+    const rank = RANKS[id] ?? 'X'
+    const colors = RANK_COLORS[id] ?? RANK_COLORS[0]
+
+    this.drawRankCard(g, size, colors, shouldGlow)
     container.addChild(g)
 
-    // Label
-    const label = `L${id + 1}`
-    const text = this.createLabel(label, size, 0xffffff)
+    // Large rank letter
+    const text = this.createLabel(rank, size, colors.accent, true, 36)
     container.addChild(text)
 
     return this.renderToTexture(container, size)
   }
 
   /**
-   * Generate H1-H3 high symbols (warmer fill, gold stroke)
+   * Generate VIP high symbols: Crown (H1=5), Diamond (H2=6), Champagne (H3=7)
    */
-  private generateHighSymbol(id: number, key: SymbolKey, opts: SymbolRenderOptions): Texture {
+  private generateHighSymbol(id: number, _key: SymbolKey, opts: SymbolRenderOptions): Texture {
     const size = ATLAS_CONFIG.frameSize
     const container = new Container()
-
-    const colors = HIGH_SYMBOL_COLORS[id] ?? { primary: SYMBOL_FALLBACK_COLORS[key], secondary: 0xffffff }
     const shouldGlow = !opts.turbo && !opts.reduceMotion
-
     const g = new Graphics()
 
-    // Outer glow (only if motion allowed)
-    if (shouldGlow) {
-      g.roundRect(2, 2, size - 4, size - 4, 18)
-      g.fill({ color: VIP_GOLD, alpha: 0.2 })
+    // H1=5: Crown, H2=6: Diamond, H3=7: Champagne
+    if (id === 5) {
+      this.drawCrown(g, size, shouldGlow)
+    } else if (id === 6) {
+      this.drawDiamond(g, size, shouldGlow)
+    } else {
+      this.drawChampagne(g, size, shouldGlow)
     }
 
-    // Main chip body
-    g.roundRect(8, 8, size - 16, size - 16, 12)
-    g.fill({ color: colors.primary })
-
-    // Brighter center highlight
-    g.ellipse(size / 2, size / 2 - 8, (size - 32) / 2, (size - 48) / 3)
-    g.fill({ color: colors.secondary, alpha: 0.5 })
-
-    // Gold stroke (3px as per spec)
-    g.roundRect(8, 8, size - 16, size - 16, 12)
-    g.stroke({ width: 3, color: VIP_GOLD })
-
     container.addChild(g)
-
-    // Label
-    const labelNum = id - 4 // H1=5 -> 1, H2=6 -> 2, H3=7 -> 3
-    const label = `H${labelNum}`
-    const textColor = id === 7 ? 0xffffff : VIP_PURPLE_DARK // White on magenta, dark on gold/champagne
-    const text = this.createLabel(label, size, textColor)
-    container.addChild(text)
-
     return this.renderToTexture(container, size)
   }
 
   /**
-   * Generate Wild symbol (gold ticket/badge shape with "WD" label)
+   * Generate Wild symbol - enhanced gold ticket with "WILD" text
    */
   private generateWild(opts: SymbolRenderOptions): Texture {
     const size = ATLAS_CONFIG.frameSize
@@ -182,103 +323,116 @@ class SymbolRendererImpl {
     // Outer glow
     if (shouldGlow) {
       g.roundRect(2, 2, size - 4, size - 4, 18)
-      g.fill({ color: VIP_GOLD, alpha: 0.3 })
+      g.fill({ color: VIP_GOLD, alpha: 0.35 })
     }
 
-    // Ticket/badge shape - main body
-    g.roundRect(6, 10, size - 12, size - 20, 8)
+    // Ticket shape with notched sides
+    g.roundRect(8, 12, size - 16, size - 24, 10)
     g.fill({ color: VIP_GOLD })
 
     // Inner gradient highlight
-    g.roundRect(10, 14, size - 20, (size - 28) / 2, 6)
-    g.fill({ color: 0xffe89f, alpha: 0.6 })
+    g.roundRect(12, 16, size - 24, (size - 32) / 2, 6)
+    g.fill({ color: 0xffeebb, alpha: 0.6 })
 
-    // Gold border with slight bevel effect
-    g.roundRect(6, 10, size - 12, size - 20, 8)
+    // Side notches (ticket style)
+    g.circle(8, size / 2, 6)
+    g.fill({ color: VIP_PURPLE_DARK })
+    g.circle(size - 8, size / 2, 6)
+    g.fill({ color: VIP_PURPLE_DARK })
+
+    // Gold border
+    g.roundRect(8, 12, size - 16, size - 24, 10)
     g.stroke({ width: 3, color: VIP_GOLD_DARK })
 
-    // Decorative notches on sides (ticket style)
-    const notchY = size / 2
-    g.circle(6, notchY, 4)
-    g.fill({ color: VIP_PURPLE_DARK })
-    g.circle(size - 6, notchY, 4)
-    g.fill({ color: VIP_PURPLE_DARK })
+    // Sparkle dots at corners (if motion allowed)
+    if (shouldGlow) {
+      g.star(24, 28, 4, 5, 2.5)
+      g.fill({ color: 0xffffff })
+      g.star(size - 24, 28, 4, 5, 2.5)
+      g.fill({ color: 0xffffff })
+      g.star(24, size - 28, 4, 5, 2.5)
+      g.fill({ color: 0xffffff })
+      g.star(size - 24, size - 28, 4, 5, 2.5)
+      g.fill({ color: 0xffffff })
+    }
 
     container.addChild(g)
 
-    // "WD" label
-    const text = this.createLabel('WD', size, VIP_PURPLE_DARK, true)
+    // "WILD" text
+    const text = this.createLabel('WILD', size, VIP_PURPLE_DARK, true, 26)
     container.addChild(text)
 
     return this.renderToTexture(container, size)
   }
 
   /**
-   * Generate Scatter symbol (magenta/pink with sparkles, "SC" label)
+   * Generate Scatter symbol - enhanced starburst with "FREE" text
    */
   private generateScatter(opts: SymbolRenderOptions): Texture {
     const size = ATLAS_CONFIG.frameSize
     const container = new Container()
     const shouldSparkle = !opts.turbo && !opts.reduceMotion
-
     const g = new Graphics()
+
+    const cx = size / 2, cy = size / 2
 
     // Outer glow
     if (shouldSparkle) {
       g.roundRect(2, 2, size - 4, size - 4, 18)
-      g.fill({ color: VIP_MAGENTA, alpha: 0.3 })
+      g.fill({ color: VIP_MAGENTA, alpha: 0.35 })
     }
 
-    // Main body - star/gem shape approximation with rounded rect
-    g.roundRect(8, 8, size - 16, size - 16, 14)
+    // Starburst background (8-pointed star)
+    g.star(cx, cy, 8, size * 0.42, size * 0.25)
     g.fill({ color: VIP_MAGENTA })
 
-    // Inner highlight
-    g.ellipse(size / 2, size / 2 - 6, (size - 32) / 2, (size - 44) / 3)
+    // Inner highlight (smaller 8-pointed star)
+    g.star(cx, cy - 4, 8, size * 0.28, size * 0.16)
     g.fill({ color: 0xff6dca, alpha: 0.5 })
 
     // White sparkle border
-    g.roundRect(8, 8, size - 16, size - 16, 14)
-    g.stroke({ width: 2, color: 0xffffff, alpha: 0.8 })
+    g.star(cx, cy, 8, size * 0.42, size * 0.25)
+    g.stroke({ width: 2, color: 0xffffff, alpha: 0.9 })
 
-    // Sparkle decorations (only if motion allowed)
+    // Corner sparkles (if motion allowed)
     if (shouldSparkle) {
-      const sparklePositions = [
-        { x: 20, y: 20 },
-        { x: size - 20, y: 20 },
-        { x: 20, y: size - 20 },
-        { x: size - 20, y: size - 20 },
-      ]
-      for (const pos of sparklePositions) {
-        // Small diamond/star sparkle
-        g.star(pos.x, pos.y, 4, 5, 2.5)
+      const sparkles: [number, number][] = [[20, 20], [size - 20, 20], [20, size - 20], [size - 20, size - 20]]
+      for (const [sx, sy] of sparkles) {
+        g.star(sx, sy, 4, 6, 3)
         g.fill({ color: 0xffffff, alpha: 0.9 })
       }
     }
 
     container.addChild(g)
 
-    // "SC" label
-    const text = this.createLabel('SC', size, 0xffffff, true)
+    // "FREE" text (scatter triggers free spins)
+    const text = this.createLabel('FREE', size, 0xffffff, true, 22)
     container.addChild(text)
 
     return this.renderToTexture(container, size)
   }
 
   /**
-   * Create centered label text
+   * Create centered label text with customizable font size
    */
-  private createLabel(label: string, size: number, color: number, bold = false): Text {
+  private createLabel(
+    label: string,
+    size: number,
+    color: number,
+    bold = false,
+    fontSize = 24
+  ): Text {
     const style = new TextStyle({
       fontFamily: 'Arial, sans-serif',
-      fontSize: bold ? 28 : 24,
+      fontSize: fontSize,
       fontWeight: bold ? 'bold' : 'normal',
       fill: color,
+      stroke: { color: 0x000000, width: 3 },
       dropShadow: {
         color: 0x000000,
-        blur: 3,
-        distance: 1,
-        alpha: 0.5,
+        blur: 4,
+        distance: 2,
+        alpha: 0.6,
       },
     })
 
