@@ -6,6 +6,7 @@
 
 import { audioEngine } from './AudioEngine'
 import { winTierToSound } from './AudioTypes'
+import { coinRollSynth } from './CoinRollSynth'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import type { TelemetryClient } from '../telemetry/TelemetryClient'
 import type { WinTier } from '../types/events'
@@ -20,7 +21,12 @@ export class AudioService {
    * Initialize the audio service
    */
   async init(telemetry?: TelemetryClient): Promise<void> {
-    if (this.initialized) return
+    if (this.initialized) {
+      console.log('[AudioService] Already initialized')
+      return
+    }
+
+    console.log('[AudioService] init() starting...')
 
     this.telemetry = telemetry || null
 
@@ -65,7 +71,7 @@ export class AudioService {
     await audioEngine.init()
 
     this.initialized = true
-    console.debug('[AudioService] Initialized')
+    console.log('[AudioService] Initialized successfully')
   }
 
   /**
@@ -210,6 +216,35 @@ export class AudioService {
     audioEngine.playSfx('win_small')
   }
 
+  // --- Coin Roll (Big Win Count-up) ---
+
+  /**
+   * Start coin roll loop for big win count-up
+   * Uses WebAudio synth for reliability (no external file dependency)
+   * Only plays in normal mode (not turbo/reduceMotion)
+   */
+  startCoinRoll(): void {
+    // Skip in turbo or reduce motion
+    if (MotionPrefs.turboEnabled || MotionPrefs.reduceMotion) {
+      return
+    }
+
+    // Try pixi/sound first, fall back to synth
+    const instance = audioEngine.startLoop('coin_roll_loop')
+    if (!instance) {
+      // Fallback to WebAudio synth
+      coinRollSynth.start({ volume: 0.35 })
+    }
+  }
+
+  /**
+   * Stop coin roll loop
+   */
+  stopCoinRoll(): void {
+    audioEngine.stopLoop('coin_roll_loop')
+    coinRollSynth.stop()
+  }
+
   // --- Utility ---
 
   /**
@@ -232,6 +267,7 @@ export class AudioService {
    * Destroy service
    */
   destroy(): void {
+    coinRollSynth.destroy()
     audioEngine.destroy()
     this.initialized = false
   }

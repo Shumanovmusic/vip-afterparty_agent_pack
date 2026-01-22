@@ -111,6 +111,9 @@ export class PixiReelsRenderer {
   private celebrationActive = false
   private betAmount = 0
 
+  // Presentation lock - waiting resolvers
+  private presentationUnlockResolvers: Array<() => void> = []
+
   constructor(parentContainer: Container) {
     // Create main container for reels
     this.container = new Container()
@@ -578,6 +581,32 @@ export class PixiReelsRenderer {
   }
 
   /**
+   * Wait until presentation lock is released
+   * Returns immediately if not locked
+   */
+  waitPresentationUnlocked(): Promise<void> {
+    if (!this.celebrationActive) {
+      return Promise.resolve()
+    }
+
+    return new Promise<void>((resolve) => {
+      this.presentationUnlockResolvers.push(resolve)
+    })
+  }
+
+  /**
+   * Release presentation lock and notify all waiters
+   */
+  private releasePresentationLock(): void {
+    this.celebrationActive = false
+
+    // Resolve all waiting promises
+    const resolvers = this.presentationUnlockResolvers
+    this.presentationUnlockResolvers = []
+    resolvers.forEach(resolve => resolve())
+  }
+
+  /**
    * Skip the current celebration (for external calls like Space key)
    */
   requestCelebrationSkip(): void {
@@ -617,11 +646,12 @@ export class PixiReelsRenderer {
       tier,
       currencySymbol,
       onComplete: () => {
-        this.celebrationActive = false
+        this.releasePresentationLock()
       }
     })
 
-    this.celebrationActive = false
+    // Ensure lock is released even if callback wasn't invoked
+    this.releasePresentationLock()
   }
 
   /** Set up event handlers from AnimationLibrary */

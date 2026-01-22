@@ -93,6 +93,14 @@ export const AudioManifest: Record<SoundName, AudioAsset> = {
     priority: SoundPriority.bonus_end,
     category: SoundCategories.bonus_end,
     durationHint: 1200
+  },
+  coin_roll_loop: {
+    url: `${AUDIO_BASE_PATH}coin_roll_loop.mp3`,
+    loop: true,
+    baseVolume: 0.35,
+    priority: SoundPriority.coin_roll_loop,
+    category: SoundCategories.coin_roll_loop,
+    durationHint: 3000  // Loop, hint for policy
   }
 }
 

@@ -14,6 +14,7 @@ export type SoundName =
   | 'win_epic'
   | 'bonus_enter'
   | 'bonus_end'
+  | 'coin_roll_loop'
 
 /** Sound categories for priority and policy */
 export type SoundCategory = 'ui' | 'loop' | 'feedback' | 'stinger'
@@ -23,6 +24,7 @@ export const SoundPriority = {
   ui_click: 1,
   reel_stop_tick: 2,
   reel_spin_loop: 3,  // Loop has mid priority
+  coin_roll_loop: 3,  // Loop has mid priority (same as reel spin)
   win_small: 4,
   win_big: 5,
   win_mega: 6,
@@ -35,6 +37,7 @@ export const SoundPriority = {
 export const SoundCategories: Record<SoundName, SoundCategory> = {
   ui_click: 'ui',
   reel_spin_loop: 'loop',
+  coin_roll_loop: 'loop',
   reel_stop_tick: 'feedback',
   win_small: 'feedback',
   win_big: 'stinger',

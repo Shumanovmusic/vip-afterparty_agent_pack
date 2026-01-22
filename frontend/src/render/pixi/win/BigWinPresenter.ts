@@ -6,6 +6,8 @@
 import { Container, Graphics, Text, Ticker } from 'pixi.js'
 import { MotionPrefs, WIN_TIER_THRESHOLDS } from '../../../ux/MotionPrefs'
 import { DEBUG_FLAGS } from '../DebugFlags'
+import { audioService } from '../../../audio/AudioService'
+import { i18n } from '../../../i18n'
 
 /** Win tier enum for internal use */
 export enum WinTier {
@@ -56,12 +58,20 @@ const TIER_STYLES = {
   }
 } as const
 
-/** Title text for each tier */
-const TIER_TITLES = {
-  [WinTier.BIG]: 'BIG WIN!',
-  [WinTier.MEGA]: 'MEGA WIN!',
-  [WinTier.EPIC]: 'EPIC WIN!'
-} as const
+/** Get translated title for tier */
+function getTierTitle(tier: WinTier): string {
+  switch (tier) {
+    case WinTier.BIG: return i18n.global.t('win.big')
+    case WinTier.MEGA: return i18n.global.t('win.mega')
+    case WinTier.EPIC: return i18n.global.t('win.epic')
+    default: return 'WIN!'
+  }
+}
+
+/** Get translated skip hint text */
+function getSkipHintText(): string {
+  return i18n.global.t('win.tapToSkip')
+}
 
 const RAY_COUNT = 10
 const BACKDROP_ALPHA = 0.6
@@ -190,9 +200,9 @@ export class BigWinPresenter {
     this.amountText.anchor.set(0.5)
     this.container.addChild(this.amountText)
 
-    // Create skip hint text (initially hidden)
+    // Create skip hint text (initially hidden) - use i18n key
     this.skipHint = new Text({
-      text: 'TAP TO SKIP',
+      text: getSkipHintText(),
       style: {
         fontFamily: 'Arial, sans-serif',
         fontSize: 18,
@@ -327,8 +337,8 @@ export class BigWinPresenter {
     // Get tier style (fallback to BIG style if tier not found)
     const style = TIER_STYLES[config.tier] ?? TIER_STYLES[WinTier.BIG]
 
-    // Update title text and shadow
-    const titleContent = TIER_TITLES[config.tier] ?? 'WIN!'
+    // Update title text and shadow using i18n
+    const titleContent = getTierTitle(config.tier)
     this.titleText.text = titleContent
     this.titleShadowText.text = titleContent
     this.titleText.style.fill = style.titleFill
@@ -344,6 +354,8 @@ export class BigWinPresenter {
     // Show skip hint only for Mega/Epic in normal mode
     const showSkipHint = (config.tier === WinTier.MEGA || config.tier === WinTier.EPIC) &&
       !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion
+    // Update hint text in case locale changed
+    this.skipHint.text = getSkipHintText()
     this.skipHint.visible = showSkipHint
 
     // Schedule hint auto-hide after 1200ms
@@ -380,6 +392,11 @@ export class BigWinPresenter {
         this.hide()
       }
       return
+    }
+
+    // Start coin roll audio (only in normal mode with count-up)
+    if (!MotionPrefs.turboEnabled) {
+      audioService.startCoinRoll()
     }
 
     // Start ticker for animations
@@ -503,6 +520,9 @@ export class BigWinPresenter {
 
     this.isSkipped = true
 
+    // Stop coin roll audio immediately
+    audioService.stopCoinRoll()
+
     // Cancel hint timer and hide hint immediately
     this.cancelHintTimer()
     this.skipHint.visible = false
@@ -521,6 +541,10 @@ export class BigWinPresenter {
   hide(): void {
     this.stopAnimationTicker()
     this.cancelHintTimer()
+
+    // Stop coin roll audio (safe to call even if not playing)
+    audioService.stopCoinRoll()
+
     this.container.visible = false
     this.isActive = false
     this.raysContainer.visible = true
