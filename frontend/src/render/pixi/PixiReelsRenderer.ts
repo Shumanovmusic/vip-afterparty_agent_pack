@@ -10,6 +10,7 @@ import { ReelFrame, REEL_FRAME_PADDING } from './ReelFrame'
 import { SymbolRenderer } from './SymbolRenderer'
 import { DEBUG_FLAGS } from './DebugFlags'
 import { SparkleOverlay } from './fx/SparkleOverlay'
+import { SpotlightSweep } from './fx/SpotlightSweep'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
@@ -104,6 +105,11 @@ export class PixiReelsRenderer {
   // Sparkle overlay system
   private sparkleLayer: Container | null = null
   private sparkleOverlays: SparkleOverlay[] = []
+
+  // Spotlight sweep system
+  private spotlightLayer: Container | null = null
+  private spotlight: SpotlightSweep | null = null
+  private lastSpotlightDirection: 'L2R' | 'R2L' = 'L2R'
 
   // Big Win celebration system
   private uiOverlay: Container | null = null
@@ -271,6 +277,9 @@ export class PixiReelsRenderer {
       // Update sparkle positions and refresh visibility
       this.updateSparklePositions()
       this.refreshSparkles()
+
+      // Update spotlight dimensions
+      this.spotlight?.setGridDimensions(reelsWidth, reelsHeight)
     } finally {
       this.layoutInProgress = false
     }
@@ -490,6 +499,35 @@ export class PixiReelsRenderer {
 
     // Position overlays
     this.updateSparklePositions()
+
+    // Initialize spotlight sweep (after sparkles, in same layer order)
+    this.initSpotlight()
+  }
+
+  /**
+   * Initialize spotlight sweep effect
+   */
+  private initSpotlight(): void {
+    if (!this.layoutConfig) return
+
+    // Create spotlight layer inside reelsViewport (reels-local coordinates)
+    this.spotlightLayer = new Container()
+    this.spotlightLayer.label = 'SpotlightLayer'
+    this.spotlightLayer.eventMode = 'none'
+
+    // Insert after sparkle layer (rendered on top)
+    const insertIndex = this.reelsViewport.getChildIndex(this.highlightGraphics)
+    this.reelsViewport.addChildAt(this.spotlightLayer, insertIndex)
+
+    // Create spotlight instance
+    this.spotlight = new SpotlightSweep()
+    this.spotlight.setVerbose(DEBUG_FLAGS.spotlightVerbose)
+    this.spotlightLayer.addChild(this.spotlight.container)
+
+    // Update dimensions
+    const reelsWidth = REEL_COUNT * this.layoutConfig.symbolWidth
+    const reelsHeight = VISIBLE_ROWS * this.layoutConfig.symbolHeight
+    this.spotlight.setGridDimensions(reelsWidth, reelsHeight)
   }
 
   /**
@@ -551,6 +589,62 @@ export class PixiReelsRenderer {
   }
 
   /**
+   * Handle heat threshold crossing - triggers spotlight sweep
+   * Called when heat crosses integer boundaries (3, 6, 9)
+   * @param level - The threshold level crossed
+   */
+  onHeatThreshold(level: number): void {
+    if (!this.juiceEnabled) return
+
+    // Determine intensity based on threshold level
+    let intensity = 0.25
+    if (level === 6) intensity = 0.35
+    if (level === 9) intensity = 0.45
+
+    // Alternate direction each trigger
+    this.lastSpotlightDirection = this.lastSpotlightDirection === 'L2R' ? 'R2L' : 'L2R'
+
+    if (DEBUG_FLAGS.heatVerbose && import.meta.env.DEV) {
+      console.log(`[PixiReelsRenderer] Heat threshold ${level} -> spotlight sweep (intensity: ${intensity}, dir: ${this.lastSpotlightDirection})`)
+    }
+
+    this.triggerSpotlight(intensity, this.lastSpotlightDirection)
+  }
+
+  /**
+   * Trigger spotlight sweep effect
+   * @param intensity - Beam intensity [0..1]
+   * @param direction - Sweep direction
+   */
+  triggerSpotlight(intensity = 0.35, direction?: 'L2R' | 'R2L'): void {
+    if (!this.spotlight || !this.layoutConfig) return
+    if (!this.juiceEnabled) return
+
+    const reelsWidth = REEL_COUNT * this.layoutConfig.symbolWidth
+    const reelsHeight = VISIBLE_ROWS * this.layoutConfig.symbolHeight
+
+    // Use provided direction or alternate
+    const dir = direction ?? (this.lastSpotlightDirection === 'L2R' ? 'R2L' : 'L2R')
+    this.lastSpotlightDirection = dir
+
+    this.spotlight.play({
+      gridW: reelsWidth,
+      gridH: reelsHeight,
+      direction: dir,
+      durationMs: 750,
+      intensity
+    })
+  }
+
+  /**
+   * DEV ONLY: Trigger spotlight for testing
+   */
+  debugTriggerSpotlight(): void {
+    if (!import.meta.env.DEV) return
+    this.triggerSpotlight(0.35)
+  }
+
+  /**
    * Initialize the UI overlay for celebrations
    * Creates uiOverlay container and BigWinPresenter
    */
@@ -583,6 +677,7 @@ export class PixiReelsRenderer {
   /**
    * Wait until presentation lock is released
    * Returns immediately if not locked
+   * Includes timeout fail-safe (7s) to prevent infinite wait
    */
   waitPresentationUnlocked(): Promise<void> {
     if (!this.celebrationActive) {
@@ -590,7 +685,28 @@ export class PixiReelsRenderer {
     }
 
     return new Promise<void>((resolve) => {
-      this.presentationUnlockResolvers.push(resolve)
+      let resolved = false
+
+      // Add to resolvers list
+      const wrappedResolve = () => {
+        if (!resolved) {
+          resolved = true
+          resolve()
+        }
+      }
+      this.presentationUnlockResolvers.push(wrappedResolve)
+
+      // Timeout fail-safe: auto-release after 7s (covers max EPIC duration + buffer)
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true
+          if (import.meta.env.DEV) {
+            console.warn('[PixiReelsRenderer] Presentation lock timeout - force releasing')
+          }
+          // Force release to prevent stuck state
+          this.releasePresentationLock()
+        }
+      }, 7000)
     })
   }
 
@@ -1210,6 +1326,9 @@ export class PixiReelsRenderer {
 
   /** Clean up resources */
   destroy(): void {
+    // Release presentation lock first to unblock any waiters
+    this.releasePresentationLock()
+
     // Unsubscribe from MotionPrefs
     this.motionPrefsUnsubscribe?.()
     this.motionPrefsUnsubscribe = null
@@ -1229,6 +1348,12 @@ export class PixiReelsRenderer {
     this.sparkleOverlays = []
     this.sparkleLayer?.destroy({ children: true })
     this.sparkleLayer = null
+
+    // Destroy spotlight
+    this.spotlight?.destroy()
+    this.spotlight = null
+    this.spotlightLayer?.destroy({ children: true })
+    this.spotlightLayer = null
 
     // Destroy big win presenter and UI overlay
     this.bigWinPresenter?.destroy()

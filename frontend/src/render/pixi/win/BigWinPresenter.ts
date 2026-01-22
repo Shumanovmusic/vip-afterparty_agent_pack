@@ -395,15 +395,23 @@ export class BigWinPresenter {
     }
 
     // Start coin roll audio (only in normal mode with count-up)
-    if (!MotionPrefs.turboEnabled) {
+    const coinRollStarted = !MotionPrefs.turboEnabled
+    if (coinRollStarted) {
       audioService.startCoinRoll()
     }
 
-    // Start ticker for animations
-    this.startAnimationTicker()
+    try {
+      // Start ticker for animations
+      this.startAnimationTicker()
 
-    // Wait for duration unless skipped
-    await this.waitForCompletion(duration)
+      // Wait for duration unless skipped
+      await this.waitForCompletion(duration)
+    } finally {
+      // ALWAYS stop coin roll - guaranteed cleanup
+      if (coinRollStarted) {
+        audioService.stopCoinRoll()
+      }
+    }
   }
 
   /**
@@ -585,8 +593,28 @@ export class BigWinPresenter {
    * Clean up resources
    */
   destroy(): void {
+    // Stop all audio first
+    audioService.stopCoinRoll()
+
     this.stopAnimationTicker()
     this.cancelHintTimer()
+
+    // If active, invoke completion callback to release any waiters
+    if (this.isActive) {
+      this.isActive = false
+      if (this.onCompleteCallback) {
+        const callback = this.onCompleteCallback
+        this.onCompleteCallback = null
+        try {
+          callback()
+        } catch (e) {
+          if (import.meta.env.DEV) {
+            console.warn('[BigWinPresenter] Callback error during destroy:', e)
+          }
+        }
+      }
+    }
+
     this.container.off('pointerdown')
     this.container.destroy({ children: true })
   }
