@@ -218,6 +218,32 @@ function onKeyDown(event: KeyboardEvent): void {
     event.preventDefault()
     event.stopPropagation()
     runSpinTest(100, 50)
+    return
+  }
+
+  // 'W' key triggers debug win presentation (DEV only)
+  if ((event.key === 'w' || event.key === 'W') && DEBUG_FLAGS.winTestEnabled) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const rendererInstance = renderer.value
+    if (!rendererInstance) return
+
+    // Don't interfere with running spin test
+    if (rendererInstance.isSpinTestRunning()) {
+      console.log('[WIN TEST] Ignored: spin test is running')
+      return
+    }
+
+    // Show debug win presentation with zigzag pattern for visual variety
+    const zigzagPositions = [
+      { reel: 0, row: 0 },
+      { reel: 1, row: 1 },
+      { reel: 2, row: 2 },
+      { reel: 3, row: 1 },
+      { reel: 4, row: 0 },
+    ]
+    rendererInstance.debugPresentWin({ amount: 1.23, positions: zigzagPositions })
   }
 }
 
@@ -255,8 +281,8 @@ onMounted(() => {
     renderer.value?.requestQuickStop()
   })
 
-  // DEV: Register hotkey for spin test
-  if (import.meta.env.DEV && DEBUG_FLAGS.spinTestEnabled) {
+  // DEV: Register hotkeys (spin test T, win test W)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled)) {
     window.addEventListener('keydown', onKeyDown)
   }
 })
@@ -265,8 +291,8 @@ onUnmounted(() => {
   if (unsubscribeSpinStart) unsubscribeSpinStart()
   if (unsubscribeQuickStop) unsubscribeQuickStop()
 
-  // DEV: Unregister hotkey for spin test
-  if (import.meta.env.DEV && DEBUG_FLAGS.spinTestEnabled) {
+  // DEV: Unregister hotkeys (spin test T, win test W)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled)) {
     window.removeEventListener('keydown', onKeyDown)
   }
 

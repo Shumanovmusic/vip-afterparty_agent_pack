@@ -588,6 +588,9 @@ export class PixiReelsRenderer {
     this.pendingResult = null
     this.quickStopRequested = false
 
+    // Reset all sprite scales before starting (ensure no symbol remains scaled)
+    this.winPresenter?.resetAllScales()
+
     for (const strip of this.reelStrips) {
       strip.startSpin()
     }
@@ -798,6 +801,21 @@ export class PixiReelsRenderer {
   /** Utility delay function */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  /**
+   * DEV ONLY: Force a win presentation for testing
+   * @param args.amount - Win amount to display
+   * @param args.positions - Optional positions (defaults to middle row)
+   */
+  debugPresentWin(args: { amount: number; positions?: WinPosition[] }): void {
+    if (!import.meta.env.DEV) return
+    if (!this.winPresenter) return
+
+    // Default to middle row if no positions provided
+    const positions = args.positions ?? Array.from({ length: REEL_COUNT }, (_, reel) => ({ reel, row: 1 }))
+
+    this.winPresenter.presentWin(args.amount, positions, '$')
   }
 
   /** Clean up resources */

@@ -7,7 +7,10 @@ import { Container, Graphics, Text, TextStyle, Ticker, Sprite } from 'pixi.js'
 import { MotionPrefs } from '../../../ux/MotionPrefs'
 import { formatCurrency } from '../../../i18n/format'
 import { GameModeStore } from '../../../state/GameModeStore'
+import { DEBUG_FLAGS } from '../DebugFlags'
 import type { ReelStrip } from '../ReelStrip'
+
+const REEL_COUNT = 5
 
 /** Grid position (reel, row) */
 export interface WinPosition {
@@ -64,6 +67,9 @@ export class WinPresenter {
   private isAnimating = false
   private labelTimeoutId: ReturnType<typeof setTimeout> | null = null
 
+  // Monotonic presentId for stale timer protection
+  private presentId = 0
+
   constructor(
     parent: Container,
     config: WinPresenterConfig,
@@ -116,7 +122,7 @@ export class WinPresenter {
   /**
    * Present win with highlights, pop animation, and label
    * @param totalWin - Total win amount
-   * @param positions - Array of winning positions (empty = highlight all)
+   * @param positions - Array of winning positions (empty = highlight middle row)
    * @param currencySymbol - Currency symbol for formatting
    */
   async presentWin(
@@ -124,6 +130,10 @@ export class WinPresenter {
     positions: WinPosition[] = [],
     currencySymbol = '$'
   ): Promise<void> {
+    // Increment presentId for stale timer protection
+    this.presentId++
+    const myPresentId = this.presentId
+
     // Clear any prior presentation
     this.clear()
 
@@ -133,8 +143,11 @@ export class WinPresenter {
     // Determine positions to highlight
     let winPositions = positions
     if (winPositions.length === 0) {
-      // Fallback: highlight ALL 15 cells if no positions provided
-      winPositions = this.getAllPositions()
+      // Fallback: highlight ONLY middle row (row=1) across 5 reels
+      winPositions = this.getMiddleRowPositions()
+      if (DEBUG_FLAGS.winVerbose) {
+        console.log('[WinPresenter] Using middle row fallback positions:', winPositions)
+      }
     }
 
     // Draw highlights
@@ -148,9 +161,9 @@ export class WinPresenter {
     // Show win label
     this.showLabel(totalWin, currencySymbol)
 
-    // Schedule automatic cleanup based on mode
+    // Schedule automatic cleanup based on mode with presentId guard
     const duration = this.getLabelDuration()
-    this.scheduleLabelHide(duration)
+    this.scheduleLabelHide(duration, myPresentId)
   }
 
   /**
@@ -359,14 +372,22 @@ export class WinPresenter {
   }
 
   /**
-   * Schedule label hide after duration
+   * Schedule label hide after duration with presentId guard
+   * Stale timers from older presentations are ignored
    */
-  private scheduleLabelHide(durationMs: number): void {
+  private scheduleLabelHide(durationMs: number, forPresentId: number): void {
     if (this.labelTimeoutId) {
       clearTimeout(this.labelTimeoutId)
     }
 
     this.labelTimeoutId = setTimeout(() => {
+      // Guard: only hide if this is still the current presentation
+      if (this.presentId !== forPresentId) {
+        if (DEBUG_FLAGS.winVerbose) {
+          console.log(`[WinPresenter] Stale timer ignored: ${forPresentId} vs current ${this.presentId}`)
+        }
+        return
+      }
       this.hideLabel()
       this.highlightGraphics.clear()
       this.labelTimeoutId = null
@@ -390,16 +411,11 @@ export class WinPresenter {
   }
 
   /**
-   * Get all 15 grid positions (fallback when no positions provided)
+   * Get middle row positions (fallback when no positions provided)
+   * Highlights only row=1 across all 5 reels
    */
-  private getAllPositions(): WinPosition[] {
-    const positions: WinPosition[] = []
-    for (let reel = 0; reel < 5; reel++) {
-      for (let row = 0; row < 3; row++) {
-        positions.push({ reel, row })
-      }
-    }
-    return positions
+  private getMiddleRowPositions(): WinPosition[] {
+    return Array.from({ length: REEL_COUNT }, (_, reel) => ({ reel, row: 1 }))
   }
 
   /**

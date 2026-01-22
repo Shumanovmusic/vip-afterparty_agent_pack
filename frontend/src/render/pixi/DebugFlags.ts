@@ -8,4 +8,8 @@ export const DEBUG_FLAGS = {
   spinCorrectnessVerbose: false,
   /** Enable spin test mode (DEV only). Press T to run 100 automated spins. */
   spinTestEnabled: import.meta.env.DEV,
+  /** Enable win test mode (DEV only). Press W to show debug win presentation. */
+  winTestEnabled: import.meta.env.DEV,
+  /** Verbose win presentation logs (stale timer guards, fallback positions). Off by default. */
+  winVerbose: false,
 }
