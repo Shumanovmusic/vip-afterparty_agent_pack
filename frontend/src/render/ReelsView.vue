@@ -25,25 +25,40 @@ let layoutLogged = false
 let layoutRaf = 0
 let lastLayout: ReelsLayoutConfig | null = null
 
-// Layout calculations
+// Layout constants (Batch 6: Mobile-first layout with desktop cap)
+const HORIZONTAL_MARGIN = 15  // 15px each side = 30px total
+const TOP_MARGIN = 100        // fixed top margin
+const BOTTOM_HUD_RESERVE = 180  // reserve for control dock
+const MAX_GRID_WIDTH = 560    // desktop cap to prevent "giant" symbols
+
+// Layout calculations - Mobile-first: fill width with margins, capped on desktop
 const layout = computed((): ReelsLayoutConfig => {
   const dims = getGameDimensions?.() || { width: 400, height: 600 }
   const gameWidth = dims.width
   const gameHeight = dims.height
 
-  // Mobile-first: 9:16 aspect ratio target
-  const gridWidth = Math.min(gameWidth * 0.9, 400)
-  const gridHeight = gridWidth * 0.6  // 5x3 grid
+  // Mobile-first: fill width with horizontal margins, capped for desktop
+  const gridWidthRaw = gameWidth - (HORIZONTAL_MARGIN * 2)
+  const gridWidth = Math.min(gridWidthRaw, MAX_GRID_WIDTH)
 
-  const symbolWidth = gridWidth / 5
-  const symbolHeight = gridHeight / 3
+  // Symbol dimensions (square symbols for readability)
+  const symbolWidth = Math.floor(gridWidth / 5)
+  const symbolHeight = symbolWidth  // square symbols
 
-  const offsetX = (gameWidth - gridWidth) / 2
-  const offsetY = (gameHeight - gridHeight) / 2 - 50  // Shift up for HUD space
+  // Grid dimensions
+  const gridHeight = symbolHeight * 3  // 3 visible rows
+
+  // Centering with top bias
+  // minOffsetY ensures grid doesn't overlap header on very small screens
+  const offsetX = Math.floor((gameWidth - (symbolWidth * 5)) / 2)
+  const maxGridBottom = gameHeight - BOTTOM_HUD_RESERVE
+  const minOffsetY = 20  // Minimum safe margin from top
+  const idealOffsetY = TOP_MARGIN
+  const offsetY = Math.max(minOffsetY, Math.min(idealOffsetY, maxGridBottom - gridHeight))
 
   if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !layoutLogged) {
     layoutLogged = true
-    console.log('[ReelsView] layout', {
+    console.log('[ReelsView] layout (mobile-first)', {
       gameWidth,
       gameHeight,
       gridWidth,
@@ -52,6 +67,7 @@ const layout = computed((): ReelsLayoutConfig => {
       symbolHeight,
       offsetX,
       offsetY,
+      maxGridBottom,
     })
   }
 
@@ -349,6 +365,17 @@ function onKeyDown(event: KeyboardEvent): void {
       return
     }
   }
+
+  // Blur test hotkey (DEV only) - V key toggles forceBlurTest
+  if (DEBUG_FLAGS.blurTestEnabled) {
+    if (event.code === 'KeyV') {
+      event.preventDefault()
+      event.stopPropagation()
+      DEBUG_FLAGS.forceBlurTest = !DEBUG_FLAGS.forceBlurTest
+      console.log('[BLUR TEST] forceBlurTest:', DEBUG_FLAGS.forceBlurTest)
+      return
+    }
+  }
 }
 
 onMounted(() => {
@@ -394,8 +421,8 @@ onMounted(() => {
     renderer.value?.onHeatThreshold(level)
   })
 
-  // DEV: Register hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space, heat H, spotlight S)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled || DEBUG_FLAGS.heatTestEnabled || DEBUG_FLAGS.spotlightTestEnabled)) {
+  // DEV: Register hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space, heat H, spotlight S, blur V)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled || DEBUG_FLAGS.heatTestEnabled || DEBUG_FLAGS.spotlightTestEnabled || DEBUG_FLAGS.blurTestEnabled)) {
     window.addEventListener('keydown', onKeyDown)
   }
 })
@@ -405,8 +432,8 @@ onUnmounted(() => {
   if (unsubscribeQuickStop) unsubscribeQuickStop()
   if (unsubscribeHeatThreshold) unsubscribeHeatThreshold()
 
-  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space, heat H, spotlight S)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled || DEBUG_FLAGS.heatTestEnabled || DEBUG_FLAGS.spotlightTestEnabled)) {
+  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space, heat H, spotlight S, blur V)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled || DEBUG_FLAGS.heatTestEnabled || DEBUG_FLAGS.spotlightTestEnabled || DEBUG_FLAGS.blurTestEnabled)) {
     window.removeEventListener('keydown', onKeyDown)
   }
 

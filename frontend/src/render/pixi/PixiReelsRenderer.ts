@@ -4,7 +4,7 @@
  * Integrates with AnimationLibrary event system
  */
 
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, BlurFilter, Ticker } from 'pixi.js'
 import { ReelStrip, type ReelStripConfig } from './ReelStrip'
 import { ReelFrame, REEL_FRAME_PADDING } from './ReelFrame'
 import { SymbolRenderer } from './SymbolRenderer'
@@ -120,6 +120,13 @@ export class PixiReelsRenderer {
   // Presentation lock - waiting resolvers
   private presentationUnlockResolvers: Array<() => void> = []
 
+  // Motion blur system (Batch 5)
+  private spinBlurFilter: BlurFilter | null = null
+  private blurTickerCallback: ((ticker: Ticker) => void) | null = null
+
+  // Win sequence cancel token (Batch 7) - prevents stale async chains on fast spins/skips
+  private winSeqId = 0
+
   constructor(parentContainer: Container) {
     // Create main container for reels
     this.container = new Container()
@@ -197,6 +204,7 @@ export class PixiReelsRenderer {
     this.initCelebrationOverlay()
 
     this.layout(layout)
+    this.initBlurFilter()
 
     // Subscribe to MotionPrefs changes for texture refresh and sparkle gating
     this.motionPrefsUnsubscribe = MotionPrefs.onChange(() => {
@@ -536,6 +544,130 @@ export class PixiReelsRenderer {
   }
 
   /**
+   * Initialize motion blur filter for spin effect (Batch 5)
+   * Blur is applied to reelsContainer during spin
+   *
+   * ROBUST VERSION: Handles PixiJS v8 non-extensible proxy array
+   * - Creates filter once (prevents duplicates on re-layout/hot reload)
+   * - Clones existing filters safely
+   * - Sets new array (no push to non-extensible proxy)
+   */
+  private initBlurFilter(): void {
+    if (!this.reelsContainer) return
+
+    // 1) Create blur filter once (prevent duplicates on re-layout/hot reload)
+    if (!this.spinBlurFilter) {
+      this.spinBlurFilter = new BlurFilter({
+        strengthX: 0,
+        strengthY: 0,
+        quality: 2  // Lower quality for performance
+      })
+    }
+
+    // 2) Clone existing filters safely (handles readonly/proxy arrays)
+    const existing = Array.from((this.reelsContainer.filters ?? []) as BlurFilter[])
+
+    // 3) Avoid duplicates by filtering out any existing blur filter
+    const withoutBlur = existing.filter(f => f !== this.spinBlurFilter)
+
+    // 4) Set new array (no push to non-extensible proxy)
+    this.reelsContainer.filters = [...withoutBlur, this.spinBlurFilter]
+  }
+
+  /**
+   * Remove blur filter from reelsContainer (cleanup)
+   * Called on destroy or when reduceMotion is enabled
+   */
+  private removeBlurFilter(): void {
+    if (!this.reelsContainer || !this.spinBlurFilter) return
+
+    const existing = Array.from((this.reelsContainer.filters ?? []) as BlurFilter[])
+    const next = existing.filter(f => f !== this.spinBlurFilter)
+    this.reelsContainer.filters = next.length ? next : null
+  }
+
+  /**
+   * Start blur animation ticker
+   * Called when spin starts
+   */
+  private startBlurTicker(): void {
+    if (this.blurTickerCallback) return
+
+    this.blurTickerCallback = () => {
+      this.updateBlurFromVelocity()
+    }
+    Ticker.shared.add(this.blurTickerCallback)
+  }
+
+  /**
+   * Stop blur animation ticker and reset blur
+   * Called when spin completes
+   */
+  private stopBlurTicker(): void {
+    if (this.blurTickerCallback) {
+      Ticker.shared.remove(this.blurTickerCallback)
+      this.blurTickerCallback = null
+    }
+
+    // Reset blur to 0
+    if (this.spinBlurFilter) {
+      this.spinBlurFilter.strengthX = 0
+      this.spinBlurFilter.strengthY = 0
+    }
+  }
+
+  /**
+   * Update blur strength based on average reel velocity
+   * Blur strength scales with velocity, capped by mode
+   */
+  private updateBlurFromVelocity(): void {
+    if (!this.spinBlurFilter) return
+
+    // Skip blur in ReduceMotion mode
+    if (MotionPrefs.reduceMotion) {
+      this.spinBlurFilter.strengthX = 0
+      this.spinBlurFilter.strengthY = 0
+      return
+    }
+
+    // DEBUG: Force blur visible for testing (V key toggle)
+    if (import.meta.env.DEV && DEBUG_FLAGS.forceBlurTest) {
+      this.spinBlurFilter.strengthX = 0
+      this.spinBlurFilter.strengthY = 12
+      return
+    }
+
+    // Calculate average velocity from all reels
+    let totalVelocity = 0
+    let activeReels = 0
+    for (const strip of this.reelStrips) {
+      if (strip.isAnimating()) {
+        totalVelocity += strip.getVelocity()
+        activeReels++
+      }
+    }
+
+    if (activeReels === 0) {
+      this.spinBlurFilter.strengthX = 0
+      this.spinBlurFilter.strengthY = 0
+      return
+    }
+
+    const avgVelocity = totalVelocity / activeReels
+
+    // Map velocity to blur strength
+    // Normal mode: blurY = velocity * 0.375, max 15
+    // Turbo mode: blurY = velocity * 0.15, max 6
+    const blurMultiplier = MotionPrefs.turboEnabled ? 0.15 : 0.375
+    const maxBlur = MotionPrefs.turboEnabled ? 6 : 15
+
+    const blurY = Math.min(avgVelocity * blurMultiplier, maxBlur)
+
+    this.spinBlurFilter.strengthX = 0  // No horizontal blur
+    this.spinBlurFilter.strengthY = blurY
+  }
+
+  /**
    * Update sparkle overlay positions based on current layout
    */
   private updateSparklePositions(): void {
@@ -854,9 +986,17 @@ export class PixiReelsRenderer {
     this.drawHighlights()
   }
 
-  /** Handle win result event (final presentation) */
+  /**
+   * Handle win result event (final presentation)
+   * Uses cancel token pattern (winSeqId) to prevent stale async chains
+   * on fast spins/skips from showing old overlays
+   */
   private async onWinResult(totalWin: number, winPositions: GridPosition[], currencySymbol: string): Promise<void> {
     if (!this.winPresenter) return
+
+    // Increment sequence ID to cancel any stale async chains
+    const seq = ++this.winSeqId
+    const startTime = performance.now()
 
     // Store the total win amount and currency for cadence completion
     this.pendingWinAmount = totalWin
@@ -867,17 +1007,23 @@ export class PixiReelsRenderer {
     // Compute tier for celebration decision
     const tier = computeWinTier(totalWin, this.betAmount)
 
+    // Helper to check if this sequence is still current
+    const isCancelled = () => seq !== this.winSeqId
+
     if (tier === WinTier.NONE) {
       // No celebration - run normal cadence + win label
       if (this.winCadence && this.winCadence.lineCount > 0) {
         this.winCadence.setCallbacks({
           presentLine: (cellPositions: CellPosition[], amount: number, lineId: number) => {
+            if (isCancelled()) return
             this.winPresenter?.presentLine(cellPositions, amount, lineId)
           },
           clearLine: () => {
+            if (isCancelled()) return
             this.winPresenter?.clearLine()
           },
           onCadenceComplete: () => {
+            if (isCancelled()) return
             if (this.pendingWinAmount > 0) {
               this.winPresenter?.presentWin(this.pendingWinAmount, positions, currencySymbol)
             }
@@ -885,7 +1031,9 @@ export class PixiReelsRenderer {
         })
         this.winCadence.run()
       } else {
-        this.winPresenter.presentWin(totalWin, positions, currencySymbol)
+        if (!isCancelled()) {
+          this.winPresenter.presentWin(totalWin, positions, currencySymbol)
+        }
       }
       return
     }
@@ -893,17 +1041,23 @@ export class PixiReelsRenderer {
     // For Epic tier: cancel cadence immediately, then celebrate
     if (tier === WinTier.EPIC) {
       this.winCadence?.cancel()
+      if (isCancelled()) return
       await this.presentCelebration(totalWin, currencySymbol)
       return
     }
 
     // For Big/Mega tier: cap cadence at 1200ms, then celebrate
+    // Prelude duration: Epic=500ms, others=800ms
+    const PRELUDE_MIN_MS = 800
+
     if (this.winCadence && this.winCadence.lineCount > 0) {
       this.winCadence.setCallbacks({
         presentLine: (cellPositions: CellPosition[], amount: number, lineId: number) => {
+          if (isCancelled()) return
           this.winPresenter?.presentLine(cellPositions, amount, lineId)
         },
         clearLine: () => {
+          if (isCancelled()) return
           this.winPresenter?.clearLine()
         },
         onCadenceComplete: () => {
@@ -912,6 +1066,16 @@ export class PixiReelsRenderer {
       })
       await this.winCadence.run({ maxDurationMs: 1200 })
     }
+
+    if (isCancelled()) return
+
+    // Wait for minimum prelude time to let player "see the win"
+    const elapsed = performance.now() - startTime
+    if (elapsed < PRELUDE_MIN_MS) {
+      await this.delay(PRELUDE_MIN_MS - elapsed)
+    }
+
+    if (isCancelled()) return
 
     await this.presentCelebration(totalWin, currencySymbol)
   }
@@ -1072,11 +1236,17 @@ export class PixiReelsRenderer {
     this.pendingResult = null
     this.quickStopRequested = false
 
+    // Cancel any pending win sequence (Batch 7 race condition fix)
+    this.winSeqId++
+
     // Reset all sprite scales before starting (ensure no symbol remains scaled)
     this.winPresenter?.resetAllScales()
 
     // Deactivate sparkles during spin
     this.deactivateAllSparkles()
+
+    // Start motion blur ticker (Batch 5)
+    this.startBlurTicker()
 
     for (const strip of this.reelStrips) {
       strip.startSpin()
@@ -1219,6 +1389,9 @@ export class PixiReelsRenderer {
       this.checkSpinCorrectness(finalGrid)
     }
 
+    // Stop motion blur ticker (Batch 5)
+    this.stopBlurTicker()
+
     // Clear spin state
     this._isSpinning = false
     this.pendingResult = null
@@ -1356,6 +1529,11 @@ export class PixiReelsRenderer {
   destroy(): void {
     // Release presentation lock first to unblock any waiters
     this.releasePresentationLock()
+
+    // Stop blur ticker and remove filter (Batch 5)
+    this.stopBlurTicker()
+    this.removeBlurFilter()
+    this.spinBlurFilter = null
 
     // Unsubscribe from MotionPrefs
     this.motionPrefsUnsubscribe?.()
