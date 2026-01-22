@@ -8,6 +8,7 @@ import type { Container, Application } from 'pixi.js'
 import type { WinTier, EventType } from '../../types/events'
 import { MotionPrefs, TIMING } from '../MotionPrefs'
 import { audioService } from '../../audio/AudioService'
+import { getPaylinePositions as getPaylinePositionsFromTable } from '../../game/paylines/PAYLINES_TABLE'
 
 /** Animation options */
 export interface AnimationOptions {
@@ -342,9 +343,9 @@ export function gridToFlat(pos: GridPosition): number {
   return pos.reel * 3 + pos.row
 }
 
-/** Get all positions for a payline (placeholder - would be defined per game) */
-export function getPaylinePositions(_lineId: number): GridPosition[] {
-  // Placeholder - real implementation would have payline definitions
-  // For now return empty array
-  return []
+/** Get all positions for a payline */
+export function getPaylinePositions(lineId: number): GridPosition[] {
+  const positions = getPaylinePositionsFromTable(lineId)
+  // Convert CellPosition to GridPosition (same structure)
+  return positions ?? []
 }

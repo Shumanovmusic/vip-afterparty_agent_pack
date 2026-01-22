@@ -244,6 +244,25 @@ function onKeyDown(event: KeyboardEvent): void {
       { reel: 4, row: 0 },
     ]
     rendererInstance.debugPresentWin({ amount: 1.23, positions: zigzagPositions })
+    return
+  }
+
+  // 'L' key triggers debug cadence test (DEV only)
+  if ((event.key === 'l' || event.key === 'L') && DEBUG_FLAGS.cadenceTestEnabled) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    const rendererInstance = renderer.value
+    if (!rendererInstance) return
+
+    // Don't interfere with running spin test
+    if (rendererInstance.isSpinTestRunning()) {
+      console.log('[CADENCE TEST] Ignored: spin test is running')
+      return
+    }
+
+    console.log('[CADENCE TEST] Running debug cadence with 3 test lines')
+    rendererInstance.debugTestCadence()
   }
 }
 
@@ -281,8 +300,8 @@ onMounted(() => {
     renderer.value?.requestQuickStop()
   })
 
-  // DEV: Register hotkeys (spin test T, win test W)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled)) {
+  // DEV: Register hotkeys (spin test T, win test W, cadence test L)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled)) {
     window.addEventListener('keydown', onKeyDown)
   }
 })
@@ -291,8 +310,8 @@ onUnmounted(() => {
   if (unsubscribeSpinStart) unsubscribeSpinStart()
   if (unsubscribeQuickStop) unsubscribeQuickStop()
 
-  // DEV: Unregister hotkeys (spin test T, win test W)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled)) {
+  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled)) {
     window.removeEventListener('keydown', onKeyDown)
   }
 

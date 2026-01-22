@@ -12,4 +12,10 @@ export const DEBUG_FLAGS = {
   winTestEnabled: import.meta.env.DEV,
   /** Verbose win presentation logs (stale timer guards, fallback positions). Off by default. */
   winVerbose: false,
+  /** Verbose payline logs (mapping lineId -> positions). Off by default. */
+  paylineVerbose: false,
+  /** Verbose win cadence logs (cycling, timing, skip). Off by default. */
+  cadenceVerbose: false,
+  /** Enable win cadence test mode (DEV only). Press L to show test cadence. */
+  cadenceTestEnabled: import.meta.env.DEV,
 }

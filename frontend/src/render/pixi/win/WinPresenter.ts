@@ -203,6 +203,43 @@ export class WinPresenter {
   }
 
   /**
+   * Present a single win line (for cadence cycling)
+   * @param positions - Cell positions for this line
+   * @param amount - Win amount for this line
+   * @param _lineId - Line ID (unused, for optional future labeling)
+   */
+  presentLine(
+    positions: WinPosition[],
+    amount: number,
+    _lineId: number
+  ): void {
+    // Clear previous line
+    this.clearLine()
+
+    // Draw highlights for this line only
+    this.drawHighlights(positions)
+
+    // Start pop animations (unless turbo or reduce motion)
+    if (!MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion) {
+      this.startPopAnimations(positions)
+    }
+
+    // Note: Total win label shown separately after cadence
+    if (DEBUG_FLAGS.winVerbose) {
+      console.log(`[WinPresenter] presentLine: lineId=${_lineId}, amount=${amount}, positions=${positions.length}`)
+    }
+  }
+
+  /**
+   * Clear current line highlight (for cadence transition)
+   */
+  clearLine(): void {
+    this.highlightGraphics.clear()
+    this.stopPopAnimations()
+    // Don't hide label - it shows total win
+  }
+
+  /**
    * Force reset all sprite scales (call on new spin start)
    */
   resetAllScales(): void {

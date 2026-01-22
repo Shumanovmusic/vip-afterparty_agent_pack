@@ -12,6 +12,8 @@ import { DEBUG_FLAGS } from './DebugFlags'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
+import { WinCadenceV2 } from './win/WinCadenceV2'
+import type { CellPosition } from '../../game/paylines/PAYLINES_TABLE'
 
 /** Layout configuration for the reels grid */
 export interface ReelsLayoutConfig {
@@ -62,6 +64,7 @@ export class PixiReelsRenderer {
   private wildGlowGraphics: Graphics
   private debugGrid: Graphics | null = null
   private winPresenter: WinPresenter | null = null
+  private winCadence: WinCadenceV2 | null = null
   private layoutConfig: ReelsLayoutConfig | null = null
   private motionPrefsUnsubscribe: (() => void) | null = null
   private layoutInProgress = false
@@ -397,6 +400,23 @@ export class PixiReelsRenderer {
       },
       this.reelStrips
     )
+
+    // Create cadence controller
+    this.winCadence = new WinCadenceV2()
+    this.winCadence.setCallbacks({
+      presentLine: (positions: CellPosition[], amount: number, lineId: number) => {
+        this.winPresenter?.presentLine(positions, amount, lineId)
+      },
+      clearLine: () => {
+        this.winPresenter?.clearLine()
+      },
+      onCadenceComplete: () => {
+        // Show total win label after cadence
+        if (this.pendingWinAmount > 0) {
+          this.winPresenter?.presentWin(this.pendingWinAmount, this.pendingWinPositions, '$')
+        }
+      }
+    })
   }
 
   /** Set up event handlers from AnimationLibrary */
@@ -434,7 +454,7 @@ export class PixiReelsRenderer {
   }
 
   /** Handle win line highlight event */
-  private onWinLineHighlight(_lineId: number, positions: GridPosition[], amount: number): void {
+  private onWinLineHighlight(lineId: number, positions: GridPosition[], amount: number): void {
     this.dimmedSymbols = true
 
     // Accumulate positions for this win line
@@ -448,19 +468,47 @@ export class PixiReelsRenderer {
     // Accumulate amount
     this.pendingWinAmount += amount
 
+    // Also add to cadence for cycling
+    this.winCadence?.addWinLine(lineId, amount, 0)
+
     this.updateDimming()
     this.drawHighlights()
   }
 
   /** Handle win result event (final presentation) */
-  private onWinResult(totalWin: number, winPositions: GridPosition[], currencySymbol: string): void {
+  private async onWinResult(totalWin: number, winPositions: GridPosition[], currencySymbol: string): Promise<void> {
     if (!this.winPresenter) return
+
+    // Store the total win amount and currency for cadence completion
+    this.pendingWinAmount = totalWin
 
     // Use provided positions or fall back to accumulated positions
     const positions = winPositions.length > 0 ? winPositions : this.pendingWinPositions
 
-    // Present the win
-    this.winPresenter.presentWin(totalWin, positions, currencySymbol)
+    // If we have cadence lines, run the cadence first
+    if (this.winCadence && this.winCadence.lineCount > 0) {
+      // Update the cadence complete callback with the correct currency
+      this.winCadence.setCallbacks({
+        presentLine: (cellPositions: CellPosition[], amount: number, lineId: number) => {
+          this.winPresenter?.presentLine(cellPositions, amount, lineId)
+        },
+        clearLine: () => {
+          this.winPresenter?.clearLine()
+        },
+        onCadenceComplete: () => {
+          // Show total win label after cadence
+          if (this.pendingWinAmount > 0) {
+            this.winPresenter?.presentWin(this.pendingWinAmount, positions, currencySymbol)
+          }
+        }
+      })
+
+      // Run the cadence (async, don't block)
+      this.winCadence.run()
+    } else {
+      // No cadence - present the win directly
+      this.winPresenter.presentWin(totalWin, positions, currencySymbol)
+    }
   }
 
   /** Handle spotlight wilds event */
@@ -564,6 +612,34 @@ export class PixiReelsRenderer {
     this.winPresenter?.resetAllScales()
     this.pendingWinPositions = []
     this.pendingWinAmount = 0
+
+    // Cancel and clear cadence
+    this.winCadence?.cancel()
+    this.winCadence?.clear()
+  }
+
+  /**
+   * Run the win cadence cycle
+   * Call after all winLine events have been processed
+   * @returns Promise that resolves when cadence completes
+   */
+  async runWinCadence(): Promise<void> {
+    if (!this.winCadence || this.winCadence.lineCount === 0) {
+      // No lines - show total win directly
+      if (this.pendingWinAmount > 0) {
+        this.winPresenter?.presentWin(this.pendingWinAmount, this.pendingWinPositions, '$')
+      }
+      return
+    }
+
+    await this.winCadence.run()
+  }
+
+  /**
+   * Request skip on current cadence
+   */
+  requestCadenceSkip(): void {
+    this.winCadence?.requestSkip()
   }
 
   /**
@@ -816,6 +892,26 @@ export class PixiReelsRenderer {
     const positions = args.positions ?? Array.from({ length: REEL_COUNT }, (_, reel) => ({ reel, row: 1 }))
 
     this.winPresenter.presentWin(args.amount, positions, '$')
+  }
+
+  /**
+   * DEV ONLY: Test win cadence with simulated lines
+   * Simulates 3 win lines cycling through different patterns
+   */
+  debugTestCadence(): void {
+    if (!import.meta.env.DEV) return
+    if (!this.winCadence) return
+
+    // Clear any existing state
+    this.resetHighlights()
+
+    // Simulate 3 win lines
+    this.winCadence.addWinLine(0, 0.20, 2)   // middle row
+    this.winCadence.addWinLine(3, 0.40, 4)   // V shape
+    this.winCadence.addWinLine(7, 1.00, 10)  // top curve
+
+    this.pendingWinAmount = 1.60
+    this.runWinCadence()
   }
 
   /** Clean up resources */
