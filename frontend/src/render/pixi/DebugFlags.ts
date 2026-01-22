@@ -34,6 +34,14 @@ export const DEBUG_FLAGS = {
   spotlightVerbose: true,  // TEMP: enabled for testing
   /** Enable spotlight test mode (DEV only). Press S to trigger spotlight. */
   spotlightTestEnabled: import.meta.env.DEV,
+  /** Verbose spotlight event logs (play/skip events). Off by default. */
+  spotlightEventVerbose: false,
+  /** Enable spotlight event test mode (DEV only). Press E to trigger spotlight event. */
+  spotlightEventTestEnabled: import.meta.env.DEV,
   /** Force juice effects (sparkles, spotlight) even in Turbo/ReduceMotion (DEV only). */
   forceJuiceFx: false,
+  /** Force blur visible for testing (DEV only). Press V to toggle. */
+  forceBlurTest: false,
+  /** Enable blur test mode (DEV only). Press V to toggle forceBlurTest. */
+  blurTestEnabled: import.meta.env.DEV,
 }

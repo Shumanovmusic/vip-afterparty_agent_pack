@@ -11,6 +11,7 @@ import { SymbolRenderer } from './SymbolRenderer'
 import { DEBUG_FLAGS } from './DebugFlags'
 import { SparkleOverlay } from './fx/SparkleOverlay'
 import { SpotlightSweep } from './fx/SpotlightSweep'
+import { SpotlightEvent, type SpotlightEventResult, type SpotlightGridPosition } from './fx/SpotlightEvent'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
@@ -110,6 +111,9 @@ export class PixiReelsRenderer {
   private spotlightLayer: Container | null = null
   private spotlight: SpotlightSweep | null = null
   private lastSpotlightDirection: 'L2R' | 'R2L' = 'L2R'
+
+  // Spotlight event system (Task 9.4)
+  private spotlightEvent: SpotlightEvent | null = null
 
   // Big Win celebration system
   private uiOverlay: Container | null = null
@@ -541,6 +545,11 @@ export class PixiReelsRenderer {
     this.spotlight.setVerbose(DEBUG_FLAGS.spotlightVerbose)
     this.spotlightLayer.addChild(this.spotlight.container)
 
+    // Create spotlight event instance (Task 9.4)
+    this.spotlightEvent = new SpotlightEvent()
+    this.spotlightEvent.setVerbose(DEBUG_FLAGS.spotlightEventVerbose)
+    this.spotlightLayer.addChild(this.spotlightEvent.container)
+
     // Update dimensions
     const reelsWidth = REEL_COUNT * this.layoutConfig.symbolWidth
     const reelsHeight = VISIBLE_ROWS * this.layoutConfig.symbolHeight
@@ -856,6 +865,97 @@ export class PixiReelsRenderer {
   debugTriggerSpotlight(): void {
     if (!import.meta.env.DEV) return
     this.triggerSpotlight(0.35)
+  }
+
+  /**
+   * Check and potentially trigger spotlight event based on heat level (Task 9.4)
+   * Called after reel stop, before win display
+   * @param heatLevel - Current heat level [0..10]
+   */
+  async checkSpotlightEvent(heatLevel: number): Promise<void> {
+    // Gate: disabled in Turbo or ReduceMotion
+    if (MotionPrefs.turboEnabled || MotionPrefs.reduceMotion) return
+
+    // Check trigger probability based on heat
+    if (!SpotlightEvent.shouldTrigger(heatLevel)) return
+
+    // Guard: need spotlightEvent and layout
+    if (!this.spotlightEvent || !this.layoutConfig) return
+
+    // Determine cell count based on heat
+    const cellCount = heatLevel >= 9 ? 3 : heatLevel >= 7 ? 2 : 1
+
+    // Select random cells
+    const targetCells = this.selectRandomCells(cellCount)
+
+    // Generate random results (v1: visual-only, no backend)
+    const results: SpotlightEventResult[] = targetCells.map(() => ({
+      type: Math.random() > 0.5 ? 'wild' : 'multiplier' as const,
+      value: Math.random() > 0.5 ? 2 : 3
+    }))
+
+    if (DEBUG_FLAGS.spotlightEventVerbose && import.meta.env.DEV) {
+      console.log('[PixiReelsRenderer] checkSpotlightEvent triggering', {
+        heatLevel,
+        cellCount,
+        targetCells,
+        results
+      })
+    }
+
+    await this.spotlightEvent.play(
+      targetCells,
+      results,
+      this.layoutConfig.symbolWidth,
+      this.layoutConfig.symbolHeight
+    )
+  }
+
+  /**
+   * Select random unique cells from the grid
+   * @param count - Number of cells to select
+   */
+  private selectRandomCells(count: number): SpotlightGridPosition[] {
+    const positions: SpotlightGridPosition[] = []
+    const used = new Set<string>()
+
+    while (positions.length < count) {
+      const reel = Math.floor(Math.random() * REEL_COUNT)
+      const row = Math.floor(Math.random() * VISIBLE_ROWS)
+      const key = `${reel},${row}`
+
+      if (!used.has(key)) {
+        used.add(key)
+        positions.push({ reel, row })
+      }
+    }
+    return positions
+  }
+
+  /**
+   * DEV ONLY: Trigger spotlight event for testing (E key)
+   */
+  debugTriggerSpotlightEvent(): void {
+    if (!import.meta.env.DEV) return
+    if (!this.spotlightEvent || !this.layoutConfig) return
+
+    const targetCells: SpotlightGridPosition[] = [
+      { reel: 1, row: 1 },
+      { reel: 3, row: 1 }
+    ]
+    const results: SpotlightEventResult[] = [
+      { type: 'wild' },
+      { type: 'multiplier', value: 3 }
+    ]
+
+    console.log('[PixiReelsRenderer] DEBUG: Triggering spotlight event')
+
+    this.spotlightEvent.play(
+      targetCells,
+      results,
+      this.layoutConfig.symbolWidth,
+      this.layoutConfig.symbolHeight
+    )
   }
 
   /**
@@ -1650,6 +1750,8 @@ export class PixiReelsRenderer {
     // Destroy spotlight
     this.spotlight?.destroy()
     this.spotlight = null
+    this.spotlightEvent?.destroy()
+    this.spotlightEvent = null
     this.spotlightLayer?.destroy({ children: true })
     this.spotlightLayer = null
 
