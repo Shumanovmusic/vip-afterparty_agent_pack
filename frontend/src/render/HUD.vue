@@ -632,37 +632,110 @@ watch(() => props.controller.stateMachine.state, (state) => {
   animation: pulse-hype 1s ease-in-out infinite;
 }
 
-/* FREE_SPINS mode indicator */
+/* FREE_SPINS mode indicator - Neon Marquee style */
 .free-spins-indicator {
   position: absolute;
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
   padding: 12px 32px;
-  background: linear-gradient(135deg, #9b59b6, #8e44ad);
-  border-radius: 24px;
+
+  /* Glass background */
+  background: rgba(20, 10, 30, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+
+  /* Neon glow effect */
+  box-shadow:
+    0 0 20px rgba(155, 89, 182, 0.6),
+    inset 0 0 15px rgba(155, 89, 182, 0.1);
+
+  /* Text */
   color: white;
   text-align: center;
-  box-shadow: 0 4px 20px rgba(155, 89, 182, 0.4);
-  animation: pulse-bonus 1.5s ease-in-out infinite;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+
+  /* Neon flicker animation on appear */
+  animation: neon-flicker-in 0.3s ease-out;
+}
+
+/* Neon border via pseudo-element */
+.free-spins-indicator::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #9b59b6, #e056fd, #9b59b6);
+  z-index: -1;
+  opacity: 0.8;
+}
+
+/* Inner dark background overlay */
+.free-spins-indicator::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(20, 10, 30, 0.85);
+  z-index: -1;
 }
 
 .free-spins-indicator .fs-label {
   display: block;
   font-size: 0.875rem;
   font-weight: bold;
-  color: #ffd700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(155, 89, 182, 0.6);
+  letter-spacing: 0.1em;
 }
 
 .free-spins-indicator .fs-remaining {
   display: block;
   font-size: 0.75rem;
   margin-top: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 8px rgba(224, 86, 253, 0.5);
 }
 
-@keyframes pulse-bonus {
-  0%, 100% { box-shadow: 0 4px 20px rgba(155, 89, 182, 0.4); }
-  50% { box-shadow: 0 4px 40px rgba(155, 89, 182, 0.7); }
+/* Neon flicker-in animation */
+@keyframes neon-flicker-in {
+  0% {
+    opacity: 0;
+    box-shadow:
+      0 0 5px rgba(155, 89, 182, 0.2),
+      inset 0 0 5px rgba(155, 89, 182, 0.05);
+  }
+  30% {
+    opacity: 1;
+    box-shadow:
+      0 0 30px rgba(155, 89, 182, 0.9),
+      0 0 60px rgba(224, 86, 253, 0.5),
+      inset 0 0 20px rgba(155, 89, 182, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(155, 89, 182, 0.4),
+      inset 0 0 8px rgba(155, 89, 182, 0.05);
+  }
+  70% {
+    box-shadow:
+      0 0 25px rgba(155, 89, 182, 0.7),
+      0 0 40px rgba(224, 86, 253, 0.3),
+      inset 0 0 15px rgba(155, 89, 182, 0.15);
+  }
+  100% {
+    box-shadow:
+      0 0 20px rgba(155, 89, 182, 0.6),
+      inset 0 0 15px rgba(155, 89, 182, 0.1);
+  }
+}
+
+/* Reduced motion: disable animation */
+@media (prefers-reduced-motion: reduce) {
+  .free-spins-indicator {
+    animation: none;
+  }
 }
 </style>
