@@ -30,11 +30,30 @@ const DURATION = {
   EPIC: { normal: 2200, turbo: 700, reduced: 350 }
 } as const
 
-/** Colors for each tier */
-const TIER_COLORS = {
-  [WinTier.BIG]: 0xffd700,    // VIP Gold
-  [WinTier.MEGA]: 0xff6b35,   // Orange
-  [WinTier.EPIC]: 0xff1493    // Deep Pink / Magenta
+/** VIP Palette colors */
+const VIP_PURPLE = 0x2a0b3f
+const VIP_GOLD = 0xffd36e
+const VIP_CYAN = 0x47e6ff
+const VIP_MAGENTA = 0xff4bd8
+const TEXT_DARK = 0x12061c
+
+/** Style configuration for each tier */
+const TIER_STYLES = {
+  [WinTier.BIG]: {
+    titleFill: VIP_GOLD, titleShadow: VIP_PURPLE,
+    amountFill: VIP_GOLD, amountShadow: VIP_PURPLE,
+    raysColor: VIP_PURPLE, raysAlpha: 0.18
+  },
+  [WinTier.MEGA]: {
+    titleFill: VIP_CYAN, titleShadow: TEXT_DARK,
+    amountFill: VIP_GOLD, amountShadow: TEXT_DARK,
+    raysColor: VIP_CYAN, raysAlpha: 0.15
+  },
+  [WinTier.EPIC]: {
+    titleFill: VIP_MAGENTA, titleShadow: TEXT_DARK,
+    amountFill: VIP_GOLD, amountShadow: TEXT_DARK,
+    raysColor: VIP_MAGENTA, raysAlpha: 0.18
+  }
 } as const
 
 /** Title text for each tier */
@@ -46,7 +65,9 @@ const TIER_TITLES = {
 
 const RAY_COUNT = 10
 const BACKDROP_ALPHA = 0.6
-const VIP_GOLD = 0xffd700
+const HINT_AUTO_HIDE_MS = 1200
+const HUD_DIM_HEIGHT_RATIO = 0.25
+const HUD_DIM_ALPHA = 0.30
 
 /**
  * BigWinPresenter - Handles tier-based win celebrations
@@ -55,9 +76,12 @@ export class BigWinPresenter {
   public readonly container: Container
 
   private backdrop: Graphics
+  private hudDimOverlay: Graphics
   private raysContainer: Container
   private rays: Graphics[] = []
+  private titleShadowText: Text
   private titleText: Text
+  private amountShadowText: Text
   private amountText: Text
   private skipHint: Text
 
@@ -78,6 +102,10 @@ export class BigWinPresenter {
   // Ticker callbacks stored for cleanup
   private tickerCallback: ((ticker: Ticker) => void) | null = null
 
+  // Hint auto-hide timer
+  private hintTimerId: number | null = null
+  private presentId = 0
+
   constructor() {
     this.container = new Container()
     this.container.label = 'BigWinPresenter'
@@ -89,6 +117,11 @@ export class BigWinPresenter {
     this.backdrop.label = 'Backdrop'
     this.container.addChild(this.backdrop)
 
+    // Create HUD dim overlay (bottom portion)
+    this.hudDimOverlay = new Graphics()
+    this.hudDimOverlay.label = 'HudDimOverlay'
+    this.container.addChild(this.hudDimOverlay)
+
     // Create rays container (for rotation animation)
     this.raysContainer = new Container()
     this.raysContainer.label = 'RaysContainer'
@@ -97,6 +130,21 @@ export class BigWinPresenter {
     // Create rays
     this.createRays()
 
+    // Create title shadow text
+    this.titleShadowText = new Text({
+      text: 'BIG WIN!',
+      style: {
+        fontFamily: 'Arial Black, Arial Bold, sans-serif',
+        fontSize: 64,
+        fill: VIP_PURPLE,
+        align: 'center'
+      }
+    })
+    this.titleShadowText.label = 'TitleShadowText'
+    this.titleShadowText.anchor.set(0.5)
+    this.titleShadowText.alpha = 0.35
+    this.container.addChild(this.titleShadowText)
+
     // Create title text
     this.titleText = new Text({
       text: 'BIG WIN!',
@@ -104,19 +152,28 @@ export class BigWinPresenter {
         fontFamily: 'Arial Black, Arial Bold, sans-serif',
         fontSize: 64,
         fill: VIP_GOLD,
-        stroke: { color: 0x000000, width: 6 },
-        dropShadow: {
-          color: 0x000000,
-          blur: 8,
-          distance: 4,
-          angle: Math.PI / 4
-        },
+        stroke: { color: 0x000000, width: 2 },
         align: 'center'
       }
     })
     this.titleText.label = 'TitleText'
     this.titleText.anchor.set(0.5)
     this.container.addChild(this.titleText)
+
+    // Create amount shadow text
+    this.amountShadowText = new Text({
+      text: '$0.00',
+      style: {
+        fontFamily: 'Arial Black, Arial Bold, sans-serif',
+        fontSize: 80,
+        fill: VIP_PURPLE,
+        align: 'center'
+      }
+    })
+    this.amountShadowText.label = 'AmountShadowText'
+    this.amountShadowText.anchor.set(0.5)
+    this.amountShadowText.alpha = 0.45
+    this.container.addChild(this.amountShadowText)
 
     // Create amount text
     this.amountText = new Text({
@@ -125,13 +182,7 @@ export class BigWinPresenter {
         fontFamily: 'Arial Black, Arial Bold, sans-serif',
         fontSize: 80,
         fill: VIP_GOLD,
-        stroke: { color: 0x000000, width: 6 },
-        dropShadow: {
-          color: 0x000000,
-          blur: 8,
-          distance: 4,
-          angle: Math.PI / 4
-        },
+        stroke: { color: 0x000000, width: 2 },
         align: 'center'
       }
     })
@@ -176,7 +227,7 @@ export class BigWinPresenter {
   /**
    * Draw rays at current viewport size
    */
-  private drawRays(color: number): void {
+  private drawRays(color: number, alpha: number): void {
     const centerX = 0
     const centerY = 0
     const maxRadius = Math.max(this.viewportWidth, this.viewportHeight) * 1.5
@@ -200,7 +251,7 @@ export class BigWinPresenter {
         centerY + Math.sin(angle + halfAngle) * maxRadius
       )
       ray.closePath()
-      ray.fill({ color, alpha: 0.15 })
+      ray.fill({ color, alpha })
     }
   }
 
@@ -225,11 +276,23 @@ export class BigWinPresenter {
     this.backdrop.rect(0, 0, this.viewportWidth, this.viewportHeight)
     this.backdrop.fill({ color: 0x000000, alpha: BACKDROP_ALPHA })
 
+    // Update HUD dim overlay (bottom portion)
+    const hudDimY = this.viewportHeight * (1 - HUD_DIM_HEIGHT_RATIO)
+    this.hudDimOverlay.clear()
+    this.hudDimOverlay.rect(0, hudDimY, this.viewportWidth, this.viewportHeight * HUD_DIM_HEIGHT_RATIO)
+    this.hudDimOverlay.fill({ color: 0x000000, alpha: HUD_DIM_ALPHA })
+
     // Position rays container at center
     this.raysContainer.position.set(centerX, centerY)
 
+    // Position title shadow (offset 3,3)
+    this.titleShadowText.position.set(centerX + 3, centerY - 80 + 3)
+
     // Position title above center
     this.titleText.position.set(centerX, centerY - 80)
+
+    // Position amount shadow (offset 3,4)
+    this.amountShadowText.position.set(centerX + 3, centerY + 30 + 4)
 
     // Position amount below title
     this.amountText.position.set(centerX, centerY + 30)
@@ -247,6 +310,13 @@ export class BigWinPresenter {
       return
     }
 
+    // Increment presentId for stale timer guard
+    this.presentId++
+    const currentPresentId = this.presentId
+
+    // Cancel any existing hint timer
+    this.cancelHintTimer()
+
     this.isActive = true
     this.isSkipped = false
     this.currentAmount = 0
@@ -254,19 +324,40 @@ export class BigWinPresenter {
     this.currencySymbol = config.currencySymbol
     this.onCompleteCallback = config.onComplete
 
-    // Update visuals for tier
-    const tierColor = TIER_COLORS[config.tier] ?? VIP_GOLD
-    this.titleText.text = TIER_TITLES[config.tier] ?? 'WIN!'
-    this.titleText.style.fill = tierColor
-    this.amountText.style.fill = tierColor
+    // Get tier style (fallback to BIG style if tier not found)
+    const style = TIER_STYLES[config.tier] ?? TIER_STYLES[WinTier.BIG]
 
-    // Draw rays with tier color
-    this.drawRays(tierColor)
+    // Update title text and shadow
+    const titleContent = TIER_TITLES[config.tier] ?? 'WIN!'
+    this.titleText.text = titleContent
+    this.titleShadowText.text = titleContent
+    this.titleText.style.fill = style.titleFill
+    this.titleShadowText.style.fill = style.titleShadow
+
+    // Update amount text and shadow colors
+    this.amountText.style.fill = style.amountFill
+    this.amountShadowText.style.fill = style.amountShadow
+
+    // Draw rays with tier color and alpha
+    this.drawRays(style.raysColor, style.raysAlpha)
 
     // Show skip hint only for Mega/Epic in normal mode
     const showSkipHint = (config.tier === WinTier.MEGA || config.tier === WinTier.EPIC) &&
       !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion
     this.skipHint.visible = showSkipHint
+
+    // Schedule hint auto-hide after 1200ms
+    if (showSkipHint) {
+      this.hintTimerId = window.setTimeout(() => {
+        // Guard against stale timer
+        if (this.presentId === currentPresentId && this.isActive) {
+          this.skipHint.visible = false
+          if (DEBUG_FLAGS.bigWinVerbose) {
+            console.log('[BigWinPresenter] Hint auto-hidden')
+          }
+        }
+      }, HINT_AUTO_HIDE_MS)
+    }
 
     // Get duration based on tier and motion prefs
     const duration = this.getDuration(config.tier)
@@ -358,7 +449,9 @@ export class BigWinPresenter {
    */
   private updateAmountDisplay(): void {
     const formatted = this.formatAmount(this.currentAmount)
-    this.amountText.text = `${this.currencySymbol}${formatted}`
+    const displayText = `${this.currencySymbol}${formatted}`
+    this.amountText.text = displayText
+    this.amountShadowText.text = displayText
   }
 
   /**
@@ -410,6 +503,10 @@ export class BigWinPresenter {
 
     this.isSkipped = true
 
+    // Cancel hint timer and hide hint immediately
+    this.cancelHintTimer()
+    this.skipHint.visible = false
+
     // Show final amount instantly
     this.currentAmount = this.targetAmount
     this.updateAmountDisplay()
@@ -423,6 +520,7 @@ export class BigWinPresenter {
    */
   hide(): void {
     this.stopAnimationTicker()
+    this.cancelHintTimer()
     this.container.visible = false
     this.isActive = false
     this.raysContainer.visible = true
@@ -432,6 +530,16 @@ export class BigWinPresenter {
       const callback = this.onCompleteCallback
       this.onCompleteCallback = null
       callback()
+    }
+  }
+
+  /**
+   * Cancel hint auto-hide timer
+   */
+  private cancelHintTimer(): void {
+    if (this.hintTimerId !== null) {
+      window.clearTimeout(this.hintTimerId)
+      this.hintTimerId = null
     }
   }
 
@@ -454,6 +562,7 @@ export class BigWinPresenter {
    */
   destroy(): void {
     this.stopAnimationTicker()
+    this.cancelHintTimer()
     this.container.off('pointerdown')
     this.container.destroy({ children: true })
   }

@@ -24,4 +24,6 @@ export const DEBUG_FLAGS = {
   bigWinVerbose: false,
   /** Enable big win test mode (DEV only). Press B/M/E for Big/Mega/Epic. */
   bigWinTestEnabled: import.meta.env.DEV,
+  /** Verbose big win polish logs (tier styles, hint timer). Off by default. */
+  bigWinPolishVerbose: false,
 }
