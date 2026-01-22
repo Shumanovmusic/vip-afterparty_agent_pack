@@ -20,4 +20,8 @@ export const DEBUG_FLAGS = {
   cadenceTestEnabled: import.meta.env.DEV,
   /** Enable sparkle overlays on WILD/DIAMOND (DEV toggle with P key). */
   sparklesEnabled: import.meta.env.DEV,
+  /** Verbose big win celebration logs. Off by default. */
+  bigWinVerbose: false,
+  /** Enable big win test mode (DEV only). Press B/M/E for Big/Mega/Epic. */
+  bigWinTestEnabled: import.meta.env.DEV,
 }

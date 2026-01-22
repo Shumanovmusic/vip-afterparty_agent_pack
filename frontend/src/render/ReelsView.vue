@@ -264,6 +264,47 @@ function onKeyDown(event: KeyboardEvent): void {
     console.log('[CADENCE TEST] Running debug cadence with 3 test lines')
     rendererInstance.debugTestCadence()
   }
+
+  // Big win celebration test hotkeys (DEV only)
+  if (DEBUG_FLAGS.bigWinTestEnabled) {
+    const rendererInstance = renderer.value
+    if (!rendererInstance) return
+
+    // Don't interfere with running spin test
+    if (rendererInstance.isSpinTestRunning()) return
+
+    // 'B' key triggers Big Win celebration (25x)
+    if (event.key === 'b' || event.key === 'B') {
+      event.preventDefault()
+      event.stopPropagation()
+      rendererInstance.debugTriggerCelebration('big', 25)
+      return
+    }
+
+    // 'M' key triggers Mega Win celebration (250x)
+    if (event.key === 'm' || event.key === 'M') {
+      event.preventDefault()
+      event.stopPropagation()
+      rendererInstance.debugTriggerCelebration('mega', 250)
+      return
+    }
+
+    // 'E' key triggers Epic Win celebration (1200x)
+    if (event.key === 'e' || event.key === 'E') {
+      event.preventDefault()
+      event.stopPropagation()
+      rendererInstance.debugTriggerCelebration('epic', 1200)
+      return
+    }
+
+    // Space key skips celebration
+    if (event.key === ' ' && rendererInstance.isCelebrationActive()) {
+      event.preventDefault()
+      event.stopPropagation()
+      rendererInstance.requestCelebrationSkip()
+      return
+    }
+  }
 }
 
 onMounted(() => {
@@ -300,8 +341,8 @@ onMounted(() => {
     renderer.value?.requestQuickStop()
   })
 
-  // DEV: Register hotkeys (spin test T, win test W, cadence test L)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled)) {
+  // DEV: Register hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled)) {
     window.addEventListener('keydown', onKeyDown)
   }
 })
@@ -310,8 +351,8 @@ onUnmounted(() => {
   if (unsubscribeSpinStart) unsubscribeSpinStart()
   if (unsubscribeQuickStop) unsubscribeQuickStop()
 
-  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled)) {
+  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled)) {
     window.removeEventListener('keydown', onKeyDown)
   }
 

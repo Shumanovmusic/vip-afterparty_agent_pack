@@ -24,7 +24,8 @@
     "mega": "MEGA WIN!",
     "epic": "EPIC WIN!",
     "total": "Total Win",
-    "label": "WIN"
+    "label": "WIN",
+    "tapToSkip": "TAP TO SKIP"
   },
   "bonus": {
     "freeSpins": "FREE SPINS!",

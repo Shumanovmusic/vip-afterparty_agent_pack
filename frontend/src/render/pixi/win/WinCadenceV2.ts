@@ -50,6 +50,15 @@ export interface CadenceCallbacks {
   onCadenceComplete?: () => void
 }
 
+/** Options for run() method */
+export interface CadenceRunOptions {
+  /** Cap total cadence time (ms). If exceeded, breaks loop early. */
+  maxDurationMs?: number
+}
+
+/** Result of cadence run */
+export type CadenceRunResult = 'completed' | 'capped' | 'cancelled'
+
 /**
  * WinCadenceV2 class - manages cycling through win lines
  */
@@ -92,21 +101,22 @@ export class WinCadenceV2 {
 
   /**
    * Run the cadence cycle
-   * @returns Promise that resolves when cadence completes
+   * @param options - Optional configuration (e.g., maxDurationMs cap)
+   * @returns Promise with result: 'completed', 'capped', or 'cancelled'
    */
-  async run(): Promise<void> {
+  async run(options?: CadenceRunOptions): Promise<CadenceRunResult> {
     if (this.isRunning) {
       if (DEBUG_FLAGS.cadenceVerbose) {
         console.log('[WinCadenceV2] Already running, skip')
       }
-      return
+      return 'cancelled'
     }
 
     if (this.winLines.length === 0) {
       if (DEBUG_FLAGS.cadenceVerbose) {
         console.log('[WinCadenceV2] No win lines to cycle')
       }
-      return
+      return 'completed'
     }
 
     this.runId++
@@ -116,10 +126,15 @@ export class WinCadenceV2 {
 
     const timing = this.getTiming()
     const linesToShow = this.winLines.slice(0, timing.maxLines)
+    const maxDurationMs = options?.maxDurationMs
+    const startTime = performance.now()
 
     if (DEBUG_FLAGS.cadenceVerbose) {
-      console.log(`[WinCadenceV2] Starting cadence: ${linesToShow.length} lines, timing:`, timing)
+      console.log(`[WinCadenceV2] Starting cadence: ${linesToShow.length} lines, timing:`, timing,
+        maxDurationMs ? `maxDurationMs: ${maxDurationMs}` : '')
     }
+
+    let result: CadenceRunResult = 'completed'
 
     try {
       for (let i = 0; i < linesToShow.length; i++) {
@@ -128,7 +143,20 @@ export class WinCadenceV2 {
           if (DEBUG_FLAGS.cadenceVerbose) {
             console.log(`[WinCadenceV2] Cancelled at line ${i}`)
           }
+          result = 'cancelled'
           break
+        }
+
+        // Check for duration cap
+        if (maxDurationMs !== undefined) {
+          const elapsed = performance.now() - startTime
+          if (elapsed >= maxDurationMs) {
+            if (DEBUG_FLAGS.cadenceVerbose) {
+              console.log(`[WinCadenceV2] Duration cap reached at line ${i} (${elapsed.toFixed(0)}ms >= ${maxDurationMs}ms)`)
+            }
+            result = 'capped'
+            break
+          }
         }
 
         const winLine = linesToShow[i]
@@ -150,7 +178,20 @@ export class WinCadenceV2 {
 
         // Check cancellation before clearing
         if (this.runId !== myRunId || this.skipRequested) {
+          result = 'cancelled'
           break
+        }
+
+        // Check duration cap after highlight
+        if (maxDurationMs !== undefined) {
+          const elapsed = performance.now() - startTime
+          if (elapsed >= maxDurationMs) {
+            if (DEBUG_FLAGS.cadenceVerbose) {
+              console.log(`[WinCadenceV2] Duration cap reached after line ${i} (${elapsed.toFixed(0)}ms >= ${maxDurationMs}ms)`)
+            }
+            result = 'capped'
+            break
+          }
         }
 
         // Clear if not last line (or if there's fade time)
@@ -165,6 +206,8 @@ export class WinCadenceV2 {
       this.isRunning = false
       this.callbacks?.onCadenceComplete?.()
     }
+
+    return result
   }
 
   /** Cancel current cadence */

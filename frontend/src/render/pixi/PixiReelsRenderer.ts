@@ -14,7 +14,9 @@ import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/A
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
 import { WinCadenceV2 } from './win/WinCadenceV2'
+import { BigWinPresenter, WinTier, computeWinTier } from './win/BigWinPresenter'
 import type { CellPosition } from '../../game/paylines/PAYLINES_TABLE'
+import { audioService } from '../../audio/AudioService'
 
 /** Layout configuration for the reels grid */
 export interface ReelsLayoutConfig {
@@ -103,6 +105,12 @@ export class PixiReelsRenderer {
   private sparkleLayer: Container | null = null
   private sparkleOverlays: SparkleOverlay[] = []
 
+  // Big Win celebration system
+  private uiOverlay: Container | null = null
+  private bigWinPresenter: BigWinPresenter | null = null
+  private celebrationActive = false
+  private betAmount = 0
+
   constructor(parentContainer: Container) {
     // Create main container for reels
     this.container = new Container()
@@ -177,6 +185,7 @@ export class PixiReelsRenderer {
     this.createWinPresenter(layout)
     this.initSparklePool()
     this.setupEventHandlers()
+    this.initCelebrationOverlay()
 
     this.layout(layout)
 
@@ -538,6 +547,83 @@ export class PixiReelsRenderer {
     }
   }
 
+  /**
+   * Initialize the UI overlay for celebrations
+   * Creates uiOverlay container and BigWinPresenter
+   */
+  private initCelebrationOverlay(): void {
+    // Create UI overlay container (renders above reelsRoot)
+    this.uiOverlay = new Container()
+    this.uiOverlay.label = 'uiOverlay'
+    this.uiOverlay.eventMode = 'auto'
+    this.container.addChild(this.uiOverlay)
+
+    // Create BigWinPresenter inside the overlay
+    this.bigWinPresenter = new BigWinPresenter()
+    this.uiOverlay.addChild(this.bigWinPresenter.container)
+  }
+
+  /**
+   * Set bet amount for tier calculation
+   */
+  setBetAmount(bet: number): void {
+    this.betAmount = bet
+  }
+
+  /**
+   * Check if celebration is currently active
+   */
+  isCelebrationActive(): boolean {
+    return this.celebrationActive
+  }
+
+  /**
+   * Skip the current celebration (for external calls like Space key)
+   */
+  requestCelebrationSkip(): void {
+    if (this.celebrationActive && this.bigWinPresenter?.active) {
+      this.bigWinPresenter.skip()
+    }
+  }
+
+  /**
+   * Trigger celebration (called after cadence/win)
+   */
+  private async presentCelebration(totalWin: number, currencySymbol: string): Promise<void> {
+    const tier = computeWinTier(totalWin, this.betAmount)
+
+    if (tier === WinTier.NONE || !this.bigWinPresenter) {
+      return
+    }
+
+    this.celebrationActive = true
+
+    // Update viewport for BigWinPresenter
+    if (this.layoutConfig) {
+      const viewportWidth = this.layoutConfig.gridWidth + this.layoutConfig.offsetX * 2
+      const viewportHeight = this.layoutConfig.gridHeight + this.layoutConfig.offsetY * 2
+      this.bigWinPresenter.setViewport(viewportWidth, viewportHeight)
+    }
+
+    // Play audio sting for tier
+    audioService.onWinTier(tier as 'big' | 'mega' | 'epic')
+
+    if (DEBUG_FLAGS.bigWinVerbose) {
+      console.log(`[PixiReelsRenderer] Presenting ${tier} celebration for ${totalWin} (${totalWin / this.betAmount}x)`)
+    }
+
+    await this.bigWinPresenter.present({
+      totalWin,
+      tier,
+      currencySymbol,
+      onComplete: () => {
+        this.celebrationActive = false
+      }
+    })
+
+    this.celebrationActive = false
+  }
+
   /** Set up event handlers from AnimationLibrary */
   private setupEventHandlers(): void {
     Animations.setEvents({
@@ -604,9 +690,41 @@ export class PixiReelsRenderer {
     // Use provided positions or fall back to accumulated positions
     const positions = winPositions.length > 0 ? winPositions : this.pendingWinPositions
 
-    // If we have cadence lines, run the cadence first
+    // Compute tier for celebration decision
+    const tier = computeWinTier(totalWin, this.betAmount)
+
+    if (tier === WinTier.NONE) {
+      // No celebration - run normal cadence + win label
+      if (this.winCadence && this.winCadence.lineCount > 0) {
+        this.winCadence.setCallbacks({
+          presentLine: (cellPositions: CellPosition[], amount: number, lineId: number) => {
+            this.winPresenter?.presentLine(cellPositions, amount, lineId)
+          },
+          clearLine: () => {
+            this.winPresenter?.clearLine()
+          },
+          onCadenceComplete: () => {
+            if (this.pendingWinAmount > 0) {
+              this.winPresenter?.presentWin(this.pendingWinAmount, positions, currencySymbol)
+            }
+          }
+        })
+        this.winCadence.run()
+      } else {
+        this.winPresenter.presentWin(totalWin, positions, currencySymbol)
+      }
+      return
+    }
+
+    // For Epic tier: cancel cadence immediately, then celebrate
+    if (tier === WinTier.EPIC) {
+      this.winCadence?.cancel()
+      await this.presentCelebration(totalWin, currencySymbol)
+      return
+    }
+
+    // For Big/Mega tier: cap cadence at 1200ms, then celebrate
     if (this.winCadence && this.winCadence.lineCount > 0) {
-      // Update the cadence complete callback with the correct currency
       this.winCadence.setCallbacks({
         presentLine: (cellPositions: CellPosition[], amount: number, lineId: number) => {
           this.winPresenter?.presentLine(cellPositions, amount, lineId)
@@ -615,19 +733,13 @@ export class PixiReelsRenderer {
           this.winPresenter?.clearLine()
         },
         onCadenceComplete: () => {
-          // Show total win label after cadence
-          if (this.pendingWinAmount > 0) {
-            this.winPresenter?.presentWin(this.pendingWinAmount, positions, currencySymbol)
-          }
+          // Don't show win label - celebration will handle it
         }
       })
-
-      // Run the cadence (async, don't block)
-      this.winCadence.run()
-    } else {
-      // No cadence - present the win directly
-      this.winPresenter.presentWin(totalWin, positions, currencySymbol)
+      await this.winCadence.run({ maxDurationMs: 1200 })
     }
+
+    await this.presentCelebration(totalWin, currencySymbol)
   }
 
   /** Handle spotlight wilds event */
@@ -1042,6 +1154,30 @@ export class PixiReelsRenderer {
     this.runWinCadence()
   }
 
+  /**
+   * DEV ONLY: Trigger celebration for testing
+   * @param tier - 'big', 'mega', or 'epic'
+   * @param winX - Multiplier (e.g., 25 for 25x)
+   */
+  debugTriggerCelebration(tier: 'big' | 'mega' | 'epic', winX: number): void {
+    if (!import.meta.env.DEV) return
+
+    // Use a base bet of 1.0 for testing
+    const baseBet = 1.0
+    const totalWin = baseBet * winX
+
+    // Temporarily set bet amount for tier calculation
+    const originalBet = this.betAmount
+    this.betAmount = baseBet
+
+    console.log(`[PixiReelsRenderer] DEBUG: Triggering ${tier} celebration at ${winX}x (totalWin: ${totalWin})`)
+
+    this.presentCelebration(totalWin, '$').finally(() => {
+      // Restore original bet
+      this.betAmount = originalBet
+    })
+  }
+
   /** Clean up resources */
   destroy(): void {
     // Unsubscribe from MotionPrefs
@@ -1063,6 +1199,12 @@ export class PixiReelsRenderer {
     this.sparkleOverlays = []
     this.sparkleLayer?.destroy({ children: true })
     this.sparkleLayer = null
+
+    // Destroy big win presenter and UI overlay
+    this.bigWinPresenter?.destroy()
+    this.bigWinPresenter = null
+    this.uiOverlay?.destroy({ children: true })
+    this.uiOverlay = null
 
     for (const strip of this.reelStrips) {
       strip.destroy()
