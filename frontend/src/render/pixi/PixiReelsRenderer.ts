@@ -123,6 +123,7 @@ export class PixiReelsRenderer {
   // Motion blur system (Batch 5)
   private spinBlurFilter: BlurFilter | null = null
   private blurTickerCallback: ((ticker: Ticker) => void) | null = null
+  private _blurLogT = 0  // Throttle blur debug logs
 
   // Win sequence cancel token (Batch 7) - prevents stale async chains on fast spins/skips
   private winSeqId = 0
@@ -560,7 +561,7 @@ export class PixiReelsRenderer {
       this.spinBlurFilter = new BlurFilter({
         strengthX: 0,
         strengthY: 0,
-        quality: 2  // Lower quality for performance
+        quality: 1  // Low quality for performance; readability matters more than smoothness
       })
     }
 
@@ -593,8 +594,8 @@ export class PixiReelsRenderer {
   private startBlurTicker(): void {
     if (this.blurTickerCallback) return
 
-    this.blurTickerCallback = () => {
-      this.updateBlurFromVelocity()
+    this.blurTickerCallback = (ticker: Ticker) => {
+      this.updateBlurFromVelocity(ticker.deltaMS)
     }
     Ticker.shared.add(this.blurTickerCallback)
   }
@@ -617,54 +618,104 @@ export class PixiReelsRenderer {
   }
 
   /**
-   * Update blur strength based on average reel velocity
-   * Blur strength scales with velocity, capped by mode
+   * Debug log for blur values (throttled to ~5/sec)
    */
-  private updateBlurFromVelocity(): void {
+  private logBlur(vPxPerFrame: number, blurY: number, deltaMS: number): void {
+    if (!import.meta.env.DEV || !DEBUG_FLAGS.forceBlurTest) return
+
+    this._blurLogT += deltaMS
+    if (this._blurLogT < 200) return
+    this._blurLogT = 0
+    console.log('[blur]', {
+      vPxPerFrame: Number(vPxPerFrame.toFixed(2)),
+      blurY: Number(blurY.toFixed(2)),
+      deltaMS: Number(deltaMS.toFixed(2)),
+      turbo: MotionPrefs.turboEnabled,
+    })
+  }
+
+  /**
+   * Check if any reel is currently spinning or stopping
+   */
+  private isAnyReelAnimating(): boolean {
+    for (const strip of this.reelStrips) {
+      if (strip.isAnimating()) return true
+    }
+    return false
+  }
+
+  /**
+   * Get average velocity across all animating reels (px/frame)
+   */
+  private getAverageVelocityPxPerFrame(): number {
+    let sum = 0
+    let n = 0
+    for (const strip of this.reelStrips) {
+      if (strip.isAnimating()) {
+        const v = Math.abs(strip.getVelocity())
+        sum += v
+        n++
+      }
+    }
+    return n > 0 ? sum / n : 0
+  }
+
+  /**
+   * Update blur strength based on average reel velocity
+   *
+   * FIXED FORMULA (Batch 5.1):
+   * - Velocity is already px/frame, no need to multiply by deltaMS
+   * - Threshold: only blur when movement > threshold px/frame
+   * - Small coefficients (0.06-0.08) for readable symbols
+   * - Capped max values (3.5-6) for readable blur
+   * - Smoothed transitions to prevent jumping
+   */
+  private updateBlurFromVelocity(deltaMS: number): void {
     if (!this.spinBlurFilter) return
 
-    // Skip blur in ReduceMotion mode
+    // ReduceMotion always wins - disable blur completely
     if (MotionPrefs.reduceMotion) {
       this.spinBlurFilter.strengthX = 0
       this.spinBlurFilter.strengthY = 0
+      this.spinBlurFilter.enabled = false
       return
     }
 
     // DEBUG: Force blur visible for testing (V key toggle)
     if (import.meta.env.DEV && DEBUG_FLAGS.forceBlurTest) {
       this.spinBlurFilter.strengthX = 0
-      this.spinBlurFilter.strengthY = 12
+      this.spinBlurFilter.strengthY = 3  // Reduced from 12 for sanity check
+      this.spinBlurFilter.enabled = true
       return
     }
 
-    // Calculate average velocity from all reels
-    let totalVelocity = 0
-    let activeReels = 0
-    for (const strip of this.reelStrips) {
-      if (strip.isAnimating()) {
-        totalVelocity += strip.getVelocity()
-        activeReels++
-      }
+    const isSpinning = this.isAnyReelAnimating()
+    const vPxPerFrame = this.getAverageVelocityPxPerFrame()
+
+    // Threshold: below this, blur looks like "мыло" (mud) rather than motion
+    // Higher threshold in turbo since we want crispness
+    const THRESH_PX_PER_FRAME = MotionPrefs.turboEnabled ? 8.0 : 6.0
+
+    let targetBlurY = 0
+    if (isSpinning && vPxPerFrame > THRESH_PX_PER_FRAME) {
+      // Coefficients tuned for readability:
+      // - Normal mode: gentle blur, max 5
+      // - Turbo mode: minimal blur, max 3
+      const k = MotionPrefs.turboEnabled ? 0.05 : 0.08
+      const maxBlur = MotionPrefs.turboEnabled ? 3.0 : 5.0
+      targetBlurY = Math.min((vPxPerFrame - THRESH_PX_PER_FRAME) * k, maxBlur)
     }
 
-    if (activeReels === 0) {
-      this.spinBlurFilter.strengthX = 0
-      this.spinBlurFilter.strengthY = 0
-      return
-    }
+    // Smooth transition to prevent jarring changes
+    const prev = this.spinBlurFilter.strengthY
+    const SMOOTH_FACTOR = 0.18  // Lower = smoother, higher = more responsive
+    const next = prev + (targetBlurY - prev) * SMOOTH_FACTOR
 
-    const avgVelocity = totalVelocity / activeReels
+    this.spinBlurFilter.strengthX = 0
+    this.spinBlurFilter.strengthY = next
+    this.spinBlurFilter.enabled = next > 0.05
 
-    // Map velocity to blur strength
-    // Normal mode: blurY = velocity * 0.375, max 15
-    // Turbo mode: blurY = velocity * 0.15, max 6
-    const blurMultiplier = MotionPrefs.turboEnabled ? 0.15 : 0.375
-    const maxBlur = MotionPrefs.turboEnabled ? 6 : 15
-
-    const blurY = Math.min(avgVelocity * blurMultiplier, maxBlur)
-
-    this.spinBlurFilter.strengthX = 0  // No horizontal blur
-    this.spinBlurFilter.strengthY = blurY
+    this.logBlur(vPxPerFrame, next, deltaMS)
   }
 
   /**
