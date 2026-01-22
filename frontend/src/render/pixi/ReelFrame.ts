@@ -140,9 +140,10 @@ export class ReelFrame {
    * Pulse the frame glow
    * @param intensity - Peak alpha (0-1), default 0.6
    * @param durationMs - Total duration, default 400ms
+   * @param force - If true, bypasses turbo/reduceMotion check (for minimal feedback)
    */
-  pulse(intensity = 0.6, durationMs = 400): void {
-    if (MotionPrefs.turboEnabled || MotionPrefs.reduceMotion) return
+  pulse(intensity = 0.6, durationMs = 400, force = false): void {
+    if (!force && (MotionPrefs.turboEnabled || MotionPrefs.reduceMotion)) return
     this.cancelPulse()
 
     const startTime = performance.now()

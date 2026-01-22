@@ -460,8 +460,13 @@ export class PixiReelsRenderer {
   /**
    * Unified juice/effects enabled check
    * OFF if turbo, reduceMotion, or sparklesEnabled debug flag is false
+   * DEV bypass: if forceJuiceFx is true (DEV only), ignores turbo/reduceMotion
    */
   get juiceEnabled(): boolean {
+    // DEV bypass: forceJuiceFx overrides turbo/reduceMotion checks
+    if (import.meta.env.DEV && DEBUG_FLAGS.forceJuiceFx) {
+      return DEBUG_FLAGS.sparklesEnabled
+    }
     return !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion && DEBUG_FLAGS.sparklesEnabled
   }
 
@@ -607,7 +612,17 @@ export class PixiReelsRenderer {
       })
     }
 
-    if (!this.juiceEnabled) return
+    if (!this.juiceEnabled) {
+      // Minimal feedback in Turbo/ReduceMotion: subtle frame pulse
+      if (this.reelFrame) {
+        // Small pulse: intensity 0.08, duration 140ms, force bypass MotionPrefs
+        this.reelFrame.pulse(0.08, 140, true)
+        if (DEBUG_FLAGS.heatVerbose && import.meta.env.DEV) {
+          console.log(`[PixiReelsRenderer] Heat threshold ${level} -> minimal frame pulse (juice disabled)`)
+        }
+      }
+      return
+    }
 
     // Determine intensity based on threshold level
     let intensity = 0.25

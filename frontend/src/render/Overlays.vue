@@ -164,8 +164,8 @@ onMounted(() => {
     heatValue.value = value
     heatLevel.value = level
 
-    // Trigger pulse if crossed threshold and effects are enabled
-    if (crossedThreshold !== null && !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion) {
+    // Trigger pulse if crossed threshold (always triggers - minimal CSS feedback for all modes)
+    if (crossedThreshold !== null) {
       heatPulsing.value = true
       // Auto-clear pulse after animation duration
       setTimeout(() => {

@@ -34,4 +34,6 @@ export const DEBUG_FLAGS = {
   spotlightVerbose: true,  // TEMP: enabled for testing
   /** Enable spotlight test mode (DEV only). Press S to trigger spotlight. */
   spotlightTestEnabled: import.meta.env.DEV,
+  /** Force juice effects (sparkles, spotlight) even in Turbo/ReduceMotion (DEV only). */
+  forceJuiceFx: false,
 }
