@@ -115,6 +115,22 @@ export class CoinRollSynth {
   }
 
   /**
+   * Set tempo dynamically (Task 9.2: rising pitch during count-up)
+   * @param bpm - New tempo in beats per minute (clamped 60-300)
+   */
+  setTempo(bpm: number): void {
+    if (!this.isPlaying || this.intervalId === null) return
+
+    // Clamp BPM to reasonable range
+    const clampedBpm = Math.max(60, Math.min(300, bpm))
+
+    // Clear existing interval and restart with new tempo
+    window.clearInterval(this.intervalId)
+    const interval = 60000 / clampedBpm / 2  // 16th notes
+    this.intervalId = window.setInterval(() => this.playNote(), interval)
+  }
+
+  /**
    * Check if currently playing
    */
   get playing(): boolean {

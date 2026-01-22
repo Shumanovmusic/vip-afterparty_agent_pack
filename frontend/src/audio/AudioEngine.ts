@@ -15,6 +15,7 @@ let audioContextUnlocked = false
 function unlockAudioContext(): void {
   if (audioContextUnlocked) return
   const unlock = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- pixi/sound internal API access
     const ctx = (sound as any).context?.audioContext
     if (ctx && ctx.state === 'suspended') {
       ctx.resume().catch(() => {})
@@ -386,6 +387,18 @@ export class AudioEngine {
    */
   isLoopPlaying(name: SoundName): boolean {
     return this.activeLoops.has(name)
+  }
+
+  /**
+   * Set playback speed for a loop (pitch control)
+   * @param name - Sound name to modify
+   * @param speed - Speed multiplier (0.5 to 2.0, clamped)
+   */
+  setLoopSpeed(name: SoundName, speed: number): void {
+    const instance = this.activeLoops.get(name)
+    if (instance) {
+      instance.speed = Math.max(0.5, Math.min(2.0, speed))
+    }
   }
 
   /**

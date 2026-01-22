@@ -245,6 +245,29 @@ export class AudioService {
     coinRollSynth.stop()
   }
 
+  /**
+   * Set coin roll pitch based on count-up progress (Task 9.2)
+   * Creates rising pitch effect during win count-up
+   * @param progress - Animation progress (0 to 1)
+   * @param turbo - If true, uses reduced pitch range (0.10 vs 0.20)
+   */
+  setCoinRollPitch(progress: number, turbo: boolean = false): void {
+    // Skip pitch adjustment in turbo or reduce motion mode
+    if (MotionPrefs.turboEnabled || MotionPrefs.reduceMotion) return
+
+    // Range: turbo uses smaller pitch increase for shorter animation
+    const range = turbo ? 0.10 : 0.20
+
+    // Clamp progress to 0-1 and calculate speed multiplier
+    // Speed ramps from 1.0 to 1.0 + range (1.0 to 1.2 in normal mode)
+    const clampedProgress = Math.min(1, Math.max(0, progress))
+    const speed = 1.0 + range * clampedProgress
+
+    // Apply to both pixi/sound loop and synth fallback
+    audioEngine.setLoopSpeed('coin_roll_loop', speed)
+    coinRollSynth.setTempo(180 + 60 * clampedProgress)  // 180 BPM -> 240 BPM
+  }
+
   // --- Utility ---
 
   /**

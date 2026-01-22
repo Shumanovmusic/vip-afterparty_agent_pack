@@ -10,6 +10,7 @@ import type { WinTier, EventType } from '../types/events'
 import { Animations } from '../ux/animations/AnimationLibrary'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { formatWinAmount, formatHeatLevel } from '../i18n/format'
+import { audioService } from '../audio/AudioService'
 
 const { t } = useI18n()
 
@@ -39,6 +40,15 @@ const showHeatMeter = ref(true)
 const heatValue = ref(0)  // Continuous value 0..10 for smooth bar
 const heatLevel = ref(0)  // Integer level 0..10 for display
 const heatPulsing = ref(false)  // Pulse animation state
+
+// Win counter state (Batch 7: HUD count-up, Task 9.2: audio sync)
+const showWinCounter = ref(false)
+const winCounterAmount = ref(0)
+const winCounterTarget = ref(0)
+const winCounterAnimating = ref(false)
+let winCounterRaf = 0
+let winCounterStartTime = 0
+let counterSeqId = 0  // Race protection for animation cancellation
 
 // Event banner text
 const eventBannerText = computed(() => {
@@ -137,9 +147,129 @@ function hideEventBanner() {
   eventBannerType.value = null
 }
 
-// Skip current celebration
+// Win counter count-up duration by tier (Batch 7, Task 9.2)
+const COUNT_UP_DURATION: Record<WinTier | 'turbo', number> = {
+  none: 700,    // 0.7s for normal wins
+  big: 1500,    // 1.5s (>= 1.2s per acceptance criteria)
+  mega: 3000,   // 3.0s
+  epic: 4000,   // 4.0s (capped)
+  turbo: 350    // 350ms for turbo mode
+}
+
+/**
+ * Start win counter count-up animation (Batch 7, Task 9.2: audio sync)
+ * Called from controller when win presentation starts
+ */
+function startWinCountUp(target: number, tier: WinTier = 'none') {
+  // Increment sequence ID to cancel any running animation
+  counterSeqId++
+  const thisSeqId = counterSeqId
+
+  // Cancel any running animation
+  if (winCounterRaf) {
+    cancelAnimationFrame(winCounterRaf)
+    winCounterRaf = 0
+  }
+
+  // Stop any existing coin roll audio
+  audioService.stopCoinRoll()
+
+  // Handle ReduceMotion: instant display, no audio
+  if (MotionPrefs.reduceMotion) {
+    winCounterAmount.value = target
+    winCounterTarget.value = target
+    showWinCounter.value = true
+    winCounterAnimating.value = false
+    return
+  }
+
+  // Handle Turbo: short 350ms count-up with reduced pitch range
+  const isTurbo = MotionPrefs.turboEnabled
+  const duration = isTurbo ? COUNT_UP_DURATION.turbo : (COUNT_UP_DURATION[tier] ?? COUNT_UP_DURATION.none)
+
+  // Start count-up animation
+  winCounterAmount.value = 0
+  winCounterTarget.value = target
+  showWinCounter.value = true
+  winCounterAnimating.value = true
+  winCounterStartTime = performance.now()
+
+  // Start coin roll audio for tiers other than 'none' (Task 9.2)
+  if (tier !== 'none') {
+    audioService.startCoinRoll()
+  }
+
+  const animate = () => {
+    // Race protection: abort if sequence changed
+    if (thisSeqId !== counterSeqId) return
+
+    const elapsed = performance.now() - winCounterStartTime
+    const t = Math.min(elapsed / duration, 1)
+
+    // easeOutCubic
+    const eased = 1 - Math.pow(1 - t, 3)
+    winCounterAmount.value = target * eased
+
+    // Update audio pitch based on progress (Task 9.2)
+    if (tier !== 'none') {
+      audioService.setCoinRollPitch(t, isTurbo)
+    }
+
+    if (t < 1 && winCounterAnimating.value) {
+      winCounterRaf = requestAnimationFrame(animate)
+    } else {
+      // Animation complete
+      winCounterAmount.value = target
+      winCounterAnimating.value = false
+      winCounterRaf = 0
+      // Stop coin roll audio on completion
+      audioService.stopCoinRoll()
+    }
+  }
+
+  winCounterRaf = requestAnimationFrame(animate)
+}
+
+/**
+ * Hide win counter (called after celebration completes or on spin start)
+ */
+function hideWinCounter() {
+  counterSeqId++  // Cancel any running animation
+  if (winCounterRaf) {
+    cancelAnimationFrame(winCounterRaf)
+    winCounterRaf = 0
+  }
+  audioService.stopCoinRoll()
+  showWinCounter.value = false
+  winCounterAmount.value = 0
+  winCounterTarget.value = 0
+  winCounterAnimating.value = false
+}
+
+/**
+ * Finish win counter instantly (Task 9.2: skip functionality)
+ * Immediately shows final amount and stops audio
+ * @param totalWin - Final win amount to display
+ */
+function finishWinCounterInstant(totalWin: number) {
+  counterSeqId++  // Cancel any running animation
+  if (winCounterRaf) {
+    cancelAnimationFrame(winCounterRaf)
+    winCounterRaf = 0
+  }
+  audioService.stopCoinRoll()
+  winCounterAmount.value = totalWin
+  winCounterAnimating.value = false
+}
+
+// Skip current celebration (Task 9.2: also finishes counter instantly)
 function skipCelebration() {
   if (!MotionPrefs.allowSkip) return
+
+  // Finish win counter instantly if animating
+  if (winCounterAnimating.value && winCounterTarget.value > 0) {
+    finishWinCounterInstant(winCounterTarget.value)
+  }
 
   showCelebration.value = false
   showBoom.value = false
@@ -157,6 +287,7 @@ onMounted(() => {
     showWinPopup.value = false
     showCelebration.value = false
     showBoom.value = false
+    hideWinCounter()  // Batch 7: hide win counter on new spin
   })
 
   // Subscribe to heat changes from controller's HeatModel
@@ -185,7 +316,10 @@ onUnmounted(() => {
 })
 
 defineExpose({
-  hideEventBanner
+  hideEventBanner,
+  startWinCountUp,         // Batch 7
+  hideWinCounter,          // Batch 7
+  finishWinCounterInstant  // Task 9.2: skip functionality
 })
 </script>
 
@@ -253,6 +387,18 @@ defineExpose({
         {{ formatHeatLevel(heatLevel) }}
       </div>
     </div>
+
+    <!-- Win Counter (Batch 7) -->
+    <Transition name="win-counter">
+      <div
+        v-if="showWinCounter"
+        class="win-counter"
+        :class="{ 'animating': winCounterAnimating }"
+      >
+        <span class="currency">$</span>
+        <span class="amount">{{ formatWinAmount(winCounterAmount) }}</span>
+      </div>
+    </Transition>
 
     <!-- BOOM Overlay -->
     <Transition name="boom">
@@ -499,6 +645,73 @@ defineExpose({
   }
   100% {
     transform: scale(1);
+  }
+}
+
+/* Win Counter (Batch 7) */
+.win-counter {
+  position: absolute;
+  bottom: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: 'Arial Black', Arial Bold, sans-serif;
+  color: #ffd700;
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(255, 215, 0, 0.4);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.win-counter .currency {
+  font-size: 1.5rem;
+  opacity: 0.8;
+}
+
+.win-counter .amount {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+.win-counter.animating .amount {
+  animation: counter-pulse 0.3s ease-in-out infinite;
+}
+
+@keyframes counter-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.win-counter-enter-active {
+  animation: win-counter-in 0.3s ease-out;
+}
+
+.win-counter-leave-active {
+  animation: win-counter-out 0.2s ease-in;
+}
+
+@keyframes win-counter-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes win-counter-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
   }
 }
 
