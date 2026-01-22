@@ -92,6 +92,7 @@ onBeforeUnmount(() => {
 // Subscribe to controller events
 let unsubscribeSpinStart: (() => void) | null = null
 let unsubscribeQuickStop: (() => void) | null = null
+let unsubscribeHeatThreshold: (() => void) | null = null
 
 // DEV spin test state
 interface SpinTestResult {
@@ -305,6 +306,49 @@ function onKeyDown(event: KeyboardEvent): void {
       return
     }
   }
+
+  // Heat test hotkeys (DEV only)
+  // Use event.code for physical key position (works with any keyboard layout)
+  if (DEBUG_FLAGS.heatTestEnabled) {
+    const rendererInstance = renderer.value
+    if (!rendererInstance) return
+
+    // Don't interfere with running spin test
+    if (rendererInstance.isSpinTestRunning()) return
+
+    // Physical 'H' key adds +1 heat, Shift+H removes -1 heat
+    if (event.code === 'KeyH') {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.shiftKey) {
+        props.controller.removeHeat(1)
+        console.log('[HEAT TEST] -1 heat, level:', props.controller.heatLevel)
+      } else {
+        props.controller.addHeat(1)
+        console.log('[HEAT TEST] +1 heat, level:', props.controller.heatLevel)
+      }
+      return
+    }
+  }
+
+  // Spotlight test hotkey (DEV only)
+  // Use event.code for physical key position (works with any keyboard layout)
+  if (DEBUG_FLAGS.spotlightTestEnabled) {
+    const rendererInstance = renderer.value
+    if (!rendererInstance) return
+
+    // Don't interfere with running spin test
+    if (rendererInstance.isSpinTestRunning()) return
+
+    // Physical 'S' key triggers spotlight sweep
+    if (event.code === 'KeyS') {
+      event.preventDefault()
+      event.stopPropagation()
+      console.log('[SPOTLIGHT TEST] Triggering spotlight sweep')
+      rendererInstance.debugTriggerSpotlight()
+      return
+    }
+  }
 }
 
 onMounted(() => {
@@ -341,8 +385,17 @@ onMounted(() => {
     renderer.value?.requestQuickStop()
   })
 
-  // DEV: Register hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled)) {
+  // Listen for heat threshold crossings to trigger spotlight
+  unsubscribeHeatThreshold = props.controller.onHeatThreshold((level) => {
+    // Trigger spotlight sweep on threshold levels 3, 6, 9
+    if (import.meta.env.DEV) {
+      console.log('[ReelsView] Heat threshold crossed:', level, 'renderer:', !!renderer.value)
+    }
+    renderer.value?.onHeatThreshold(level)
+  })
+
+  // DEV: Register hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space, heat H, spotlight S)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled || DEBUG_FLAGS.heatTestEnabled || DEBUG_FLAGS.spotlightTestEnabled)) {
     window.addEventListener('keydown', onKeyDown)
   }
 })
@@ -350,9 +403,10 @@ onMounted(() => {
 onUnmounted(() => {
   if (unsubscribeSpinStart) unsubscribeSpinStart()
   if (unsubscribeQuickStop) unsubscribeQuickStop()
+  if (unsubscribeHeatThreshold) unsubscribeHeatThreshold()
 
-  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space)
-  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled)) {
+  // DEV: Unregister hotkeys (spin test T, win test W, cadence test L, big win test B/M/E/Space, heat H, spotlight S)
+  if (import.meta.env.DEV && (DEBUG_FLAGS.spinTestEnabled || DEBUG_FLAGS.winTestEnabled || DEBUG_FLAGS.cadenceTestEnabled || DEBUG_FLAGS.bigWinTestEnabled || DEBUG_FLAGS.heatTestEnabled || DEBUG_FLAGS.spotlightTestEnabled)) {
     window.removeEventListener('keydown', onKeyDown)
   }
 

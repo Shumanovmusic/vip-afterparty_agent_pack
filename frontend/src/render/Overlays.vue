@@ -7,7 +7,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { GameController } from '../GameController'
 import type { WinTier, EventType } from '../types/events'
-import { GameModeStore } from '../state/GameModeStore'
 import { Animations } from '../ux/animations/AnimationLibrary'
 import { MotionPrefs } from '../ux/MotionPrefs'
 import { formatWinAmount, formatHeatLevel } from '../i18n/format'
@@ -36,8 +35,10 @@ const showFreeSpinsEntry = ref(false)
 const freeSpinsCount = ref(0)
 
 const showHeatMeter = ref(true)
-// Initialize from store (may have restored state from unfinished bonus)
-const heatLevel = ref(GameModeStore.heatLevel)
+// Heat meter state - driven by controller's HeatModel
+const heatValue = ref(0)  // Continuous value 0..10 for smooth bar
+const heatLevel = ref(0)  // Integer level 0..10 for display
+const heatPulsing = ref(false)  // Pulse animation state
 
 // Event banner text
 const eventBannerText = computed(() => {
@@ -145,21 +146,42 @@ function skipCelebration() {
   props.controller.skip()
 }
 
-let unsubscribe: (() => void) | null = null
+let unsubscribeSpinStart: (() => void) | null = null
+let unsubscribeHeatChange: (() => void) | null = null
 
 onMounted(() => {
   setupAnimationHandlers()
 
   // Reset on spin start
-  unsubscribe = props.controller.onSpinStart(() => {
+  unsubscribeSpinStart = props.controller.onSpinStart(() => {
     showWinPopup.value = false
     showCelebration.value = false
     showBoom.value = false
   })
+
+  // Subscribe to heat changes from controller's HeatModel
+  unsubscribeHeatChange = props.controller.onHeatChange((value, level, crossedThreshold) => {
+    heatValue.value = value
+    heatLevel.value = level
+
+    // Trigger pulse if crossed threshold and effects are enabled
+    if (crossedThreshold !== null && !MotionPrefs.turboEnabled && !MotionPrefs.reduceMotion) {
+      heatPulsing.value = true
+      // Auto-clear pulse after animation duration
+      setTimeout(() => {
+        heatPulsing.value = false
+      }, 300)
+    }
+  })
+
+  // Initialize heat value from controller
+  heatValue.value = props.controller.heatValue
+  heatLevel.value = props.controller.heatLevel
 })
 
 onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
+  if (unsubscribeSpinStart) unsubscribeSpinStart()
+  if (unsubscribeHeatChange) unsubscribeHeatChange()
 })
 
 defineExpose({
@@ -216,6 +238,7 @@ defineExpose({
     <div
       v-if="showHeatMeter"
       class="heat-meter"
+      :class="{ 'heat-pulsing': heatPulsing }"
     >
       <div class="heat-label">
         {{ t('events.heat') }}
@@ -223,7 +246,7 @@ defineExpose({
       <div class="heat-bar">
         <div
           class="heat-fill"
-          :style="{ width: `${heatLevel * 10}%` }"
+          :style="{ width: `${heatValue * 10}%` }"
         />
       </div>
       <div class="heat-level">
@@ -456,6 +479,27 @@ defineExpose({
 .heat-level {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.7);
+}
+
+/* Heat meter pulse animation on threshold crossing */
+.heat-pulsing {
+  animation: heat-pulse 0.3s ease-out;
+}
+
+.heat-pulsing .heat-fill {
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+}
+
+@keyframes heat-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* BOOM Overlay */

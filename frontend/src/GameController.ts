@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import type { Configuration } from './types/protocol'
+import type { Configuration, SpinResponse } from './types/protocol'
 import { NetworkClient, NetworkErrorEvent } from './net/NetworkClient'
 import { GameStateMachine, GameState } from './state/GameStateMachine'
 import { GameModeStore } from './state/GameModeStore'
@@ -12,6 +12,8 @@ import { ScenarioRunner } from './ux/ScenarioRunner'
 import { TelemetryClient } from './telemetry/TelemetryClient'
 import { MotionPrefs } from './ux/MotionPrefs'
 import { audioService } from './audio/AudioService'
+import { HeatModel, type HeatChangeListener, type HeatThresholdListener } from './ux/heat/HeatModel'
+import { DEBUG_FLAGS } from './render/pixi/DebugFlags'
 
 type SpinStartListener = () => void
 type QuickStopListener = () => void
@@ -35,6 +37,12 @@ export class GameController {
   private quickStopListeners: Set<QuickStopListener> = new Set()
   private errorListeners: Set<ErrorListener> = new Set()
 
+  // Heat model (frontend-only juice progression)
+  private _heatModel: HeatModel
+
+  // Heat tick interval handle
+  private _heatTickInterval: number | null = null
+
   constructor(playerId: string = 'dev-player') {
     this._playerId = playerId
 
@@ -44,10 +52,21 @@ export class GameController {
     this.telemetry = new TelemetryClient()
     this.scenarioRunner = new ScenarioRunner(this.telemetry, playerId)
 
+    // Initialize heat model
+    this._heatModel = new HeatModel()
+    this._heatModel.setVerbose(DEBUG_FLAGS.heatVerbose)
+    this._heatModel.setMotionPrefs({
+      turbo: MotionPrefs.turboEnabled,
+      reduceMotion: MotionPrefs.reduceMotion
+    })
+
     // Wire up error handling
     this.network.onError((error) => {
       this.handleNetworkError(error)
     })
+
+    // Start heat decay tick
+    this.startHeatTick()
   }
 
   // --- Getters ---
@@ -66,6 +85,60 @@ export class GameController {
 
   get playerId(): string {
     return this._playerId
+  }
+
+  // --- Heat Model ---
+
+  /**
+   * Get current heat value (continuous 0..10)
+   */
+  get heatValue(): number {
+    return this._heatModel.getValue()
+  }
+
+  /**
+   * Get current heat level (integer 0..10)
+   */
+  get heatLevel(): number {
+    return this._heatModel.getLevel()
+  }
+
+  /**
+   * Get the heat model instance for direct access
+   */
+  get heatModel(): HeatModel {
+    return this._heatModel
+  }
+
+  /**
+   * Subscribe to heat value changes
+   * @returns Unsubscribe function
+   */
+  onHeatChange(listener: HeatChangeListener): () => void {
+    return this._heatModel.onChange(listener)
+  }
+
+  /**
+   * Subscribe to heat threshold crossings (for spotlight triggers)
+   * Called when heat crosses 3, 6, or 9
+   * @returns Unsubscribe function
+   */
+  onHeatThreshold(listener: HeatThresholdListener): () => void {
+    return this._heatModel.onThreshold(listener)
+  }
+
+  /**
+   * Add heat manually (for DEV testing)
+   */
+  addHeat(delta: number): void {
+    this._heatModel.addHeat(delta, 'manual')
+  }
+
+  /**
+   * Remove heat manually (for DEV testing)
+   */
+  removeHeat(delta: number): void {
+    this._heatModel.removeHeat(delta, 'manual')
   }
 
   // --- Boot Sequence ---
@@ -164,6 +237,9 @@ export class GameController {
       // Run scenario (animations)
       await this.scenarioRunner.runSpinScenario(response, betAmount)
 
+      // Feed heat model with spin result
+      this.feedHeatFromSpinResult(response, betAmount)
+
       // Update game mode state from server response
       GameModeStore.applyNextState(response.nextState)
 
@@ -235,6 +311,9 @@ export class GameController {
       // Run scenario (animations)
       await this.scenarioRunner.runSpinScenario(response, betAmount)
 
+      // Feed heat model with spin result
+      this.feedHeatFromSpinResult(response, betAmount)
+
       // Update game mode state from server response
       GameModeStore.applyNextState(response.nextState)
 
@@ -302,6 +381,8 @@ export class GameController {
 
   private notifySpinStart(): void {
     this.spinStartListeners.forEach(l => l())
+    // Feed heat model
+    this._heatModel.onSpinStart()
   }
 
   private notifyQuickStop(): void {
@@ -311,5 +392,88 @@ export class GameController {
   private handleNetworkError(error: NetworkErrorEvent): void {
     console.error('[GameController] Network error:', error)
     this.errorListeners.forEach(l => l(error))
+  }
+
+  /**
+   * Feed spin result to heat model
+   * Extracts relevant features from response and updates heat
+   */
+  private feedHeatFromSpinResult(response: SpinResponse, betAmount: number): void {
+    const { outcome, events } = response
+
+    // Calculate winX if we have totalWin and bet
+    const winX = betAmount > 0 ? outcome.totalWin / betAmount : 0
+
+    // Count wilds in revealed grid (symbol id 8)
+    let wildCount = 0
+    const revealEvent = events.find(e => e.type === 'reveal')
+    if (revealEvent && 'grid' in revealEvent) {
+      const grid = (revealEvent as { grid: number[][] }).grid
+      for (const col of grid) {
+        for (const sym of col) {
+          if (sym === 8) wildCount++
+        }
+      }
+    }
+
+    // Check for scatter (symbol id 7) presence
+    let hasScatter = false
+    if (revealEvent && 'grid' in revealEvent) {
+      const grid = (revealEvent as { grid: number[][] }).grid
+      for (const col of grid) {
+        for (const sym of col) {
+          if (sym === 7) hasScatter = true
+        }
+      }
+    }
+
+    // Feed to heat model
+    this._heatModel.onSpinResult({
+      totalWin: outcome.totalWin,
+      winX,
+      hasScatter,
+      wildCount
+    })
+
+    // Check for free spins entry
+    const enterFreeSpinsEvent = events.find(e => e.type === 'enterFreeSpins')
+    if (enterFreeSpinsEvent) {
+      this._heatModel.onFreeSpinsEnter()
+    }
+
+    // Check for win tier
+    const winTierEvent = events.find(e => e.type === 'winTier')
+    if (winTierEvent && 'tier' in winTierEvent) {
+      const tier = (winTierEvent as { tier: string }).tier
+      if (tier === 'big' || tier === 'mega' || tier === 'epic') {
+        this._heatModel.onWinTier(tier)
+      }
+    }
+  }
+
+  /**
+   * Start heat decay tick interval
+   */
+  private startHeatTick(): void {
+    if (this._heatTickInterval !== null) return
+
+    // Tick every ~100ms for smooth decay
+    // Pass dtSec in SECONDS (100ms = 0.1 seconds)
+    const TICK_INTERVAL_MS = 100
+    const TICK_INTERVAL_SEC = TICK_INTERVAL_MS / 1000
+
+    this._heatTickInterval = window.setInterval(() => {
+      this._heatModel.tick(TICK_INTERVAL_SEC)
+    }, TICK_INTERVAL_MS)
+  }
+
+  /**
+   * Stop heat decay tick interval
+   */
+  stopHeatTick(): void {
+    if (this._heatTickInterval !== null) {
+      window.clearInterval(this._heatTickInterval)
+      this._heatTickInterval = null
+    }
   }
 }

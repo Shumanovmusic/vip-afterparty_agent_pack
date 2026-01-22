@@ -2,7 +2,15 @@
  * HeatModel - Frontend-only heat state for juice progression
  * No Vue deps - pure TypeScript class
  * Heat is a scalar [0..10] that drives visual intensity
+ *
+ * Uses dual-value approach:
+ * - rawValue: source of truth, decays over time
+ * - displayValue: smoothed UI value that approaches rawValue
  */
+
+import { DEBUG_FLAGS } from '../../render/pixi/DebugFlags'
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 /** Heat delta constants (tuneable) */
 export const HEAT_DELTAS = {
@@ -49,21 +57,28 @@ export interface HeatSpinResult {
   wildCount?: number
 }
 
-/** Listener for heat value changes */
+/** Listener for heat value changes - (value, level, crossedThreshold) */
 export type HeatChangeListener = (value: number, level: number, crossedThreshold: number | null) => void
 
 /** Threshold crossing listener */
 export type HeatThresholdListener = (level: number) => void
 
+/** Spotlight threshold levels */
+export type HeatThreshold = 3 | 6 | 9
+
 /**
  * HeatModel - manages heat state and update rules
+ * Uses dual-value approach: rawValue (truth) + displayValue (smoothed UI)
  */
 export class HeatModel {
-  /** Current heat value [0..10] */
-  private _value = 0
+  /** Source of truth heat value [0..10] */
+  private rawValue = 0
+
+  /** Smoothed display value for UI [0..10] */
+  private displayValue = 0
 
   /** Previous integer level for threshold detection */
-  private _prevLevel = 0
+  private lastLevel = 0
 
   /** Motion preferences */
   private _motionPrefs: HeatMotionPrefs = { turbo: false, reduceMotion: false }
@@ -77,25 +92,37 @@ export class HeatModel {
   /** Verbose logging (DEV) */
   private _verbose = false
 
-  /** Last update timestamp for decay calculation */
-  private _lastTickTime = 0
+  // Constants
+  private readonly MAX = 10
+  private readonly PASSIVE_DECAY_PER_SEC = HEAT_DECAY.PASSIVE_PER_SEC
+  private readonly PER_SPIN_DECAY = HEAT_DECAY.PER_SPIN
+  private readonly DISPLAY_APPROACH_SPEED = 10 // per second - how fast display catches up
 
   constructor() {
-    this._lastTickTime = performance.now()
+    // No-op - no time tracking needed, tick receives dtSec directly
   }
 
   /**
-   * Get current heat value (continuous [0..10])
+   * Get current heat value for display (continuous [0..10])
+   * PURE GETTER - no side effects
    */
   getValue(): number {
-    return this._value
+    return this.displayValue
   }
 
   /**
    * Get current heat level (integer 0..10)
+   * PURE GETTER - no side effects
    */
   getLevel(): number {
-    return Math.floor(this._value)
+    return Math.floor(this.displayValue + 1e-6)
+  }
+
+  /**
+   * Get raw heat value (for debugging)
+   */
+  getRawValue(): number {
+    return this.rawValue
   }
 
   /**
@@ -109,11 +136,15 @@ export class HeatModel {
 
   /**
    * Subscribe to threshold crossings (for spotlight triggers)
-   * Called when heat crosses integer boundaries
+   * Called when heat crosses integer boundaries (3, 6, 9)
    * @returns Unsubscribe function
    */
   onThreshold(listener: HeatThresholdListener): () => void {
     this._thresholdListeners.add(listener)
+    // DEBUG: Log when listener is registered
+    if (import.meta.env.DEV) {
+      console.log('[HEAT] Threshold listener registered, count:', this._thresholdListeners.size)
+    }
     return () => this._thresholdListeners.delete(listener)
   }
 
@@ -139,13 +170,71 @@ export class HeatModel {
   }
 
   /**
+   * Tick for passive decay and display smoothing
+   * Call this periodically (e.g., every 100ms from setInterval)
+   * @param dtSec - Delta time in SECONDS (NOT milliseconds!)
+   */
+  tick(dtSec: number): void {
+    if (!Number.isFinite(dtSec)) return
+
+    // Clamp dt to avoid huge jumps (e.g., after tab backgrounding)
+    const dt = clamp(dtSec, 0, 0.25)
+
+    const beforeRaw = this.rawValue
+    const beforeDisplay = this.displayValue
+
+    // Apply passive decay to rawValue ONLY
+    if (this.rawValue > 0) {
+      this.rawValue = clamp(this.rawValue - this.PASSIVE_DECAY_PER_SEC * dt, 0, this.MAX)
+    }
+
+    // Smooth displayValue toward rawValue using exponential decay
+    // k = 1 - e^(-speed * dt) gives stable smoothing regardless of frame rate
+    const k = 1 - Math.exp(-this.DISPLAY_APPROACH_SPEED * dt)
+    this.displayValue = clamp(
+      this.displayValue + (this.rawValue - this.displayValue) * k,
+      0,
+      this.MAX
+    )
+
+    // Emit changes and check thresholds
+    this.emitIfChanged(beforeRaw, beforeDisplay, dt)
+    this.checkThresholdCrossing()
+  }
+
+  /**
    * Add heat (positive delta)
    * @param delta - Amount to add
    * @param reason - Debug reason string
    */
   addHeat(delta: number, reason: string): void {
-    if (delta <= 0) return
-    this.updateValue(this._value + delta, reason)
+    if (!Number.isFinite(delta) || delta === 0) return
+
+    const beforeRaw = this.rawValue
+    const beforeDisplay = this.displayValue
+
+    this.rawValue = clamp(this.rawValue + delta, 0, this.MAX)
+
+    // IMPORTANT: For positive impulses, ensure UI shows it IMMEDIATELY
+    // This prevents the "flash then vanish" bug where decay eats the value
+    // before the display can catch up
+    if (delta > 0) {
+      this.displayValue = clamp(Math.max(this.displayValue, this.rawValue), 0, this.MAX)
+    }
+
+    if (import.meta.env.DEV && (this._verbose || DEBUG_FLAGS.heatVerbose)) {
+      console.log('[HEAT addHeat]', {
+        delta: delta.toFixed(2),
+        reason,
+        beforeRaw: beforeRaw.toFixed(2),
+        afterRaw: this.rawValue.toFixed(2),
+        beforeDisplay: beforeDisplay.toFixed(2),
+        afterDisplay: this.displayValue.toFixed(2)
+      })
+    }
+
+    this.emitIfChanged(beforeRaw, beforeDisplay, 0)
+    this.checkThresholdCrossing()
   }
 
   /**
@@ -154,8 +243,8 @@ export class HeatModel {
    * @param reason - Debug reason string
    */
   removeHeat(delta: number, reason: string): void {
-    if (delta <= 0) return
-    this.updateValue(this._value - delta, reason)
+    if (!Number.isFinite(delta) || delta <= 0) return
+    this.addHeat(-delta, reason)
   }
 
   /**
@@ -163,6 +252,27 @@ export class HeatModel {
    */
   onSpinStart(): void {
     this.addHeat(HEAT_DELTAS.SPIN_START, 'spinStart')
+  }
+
+  /**
+   * Apply per-spin decay (called once per spin, NOT in tick)
+   */
+  onSpinDecay(): void {
+    const beforeRaw = this.rawValue
+    const beforeDisplay = this.displayValue
+
+    this.rawValue = clamp(this.rawValue - this.PER_SPIN_DECAY, 0, this.MAX)
+
+    if (import.meta.env.DEV && (this._verbose || DEBUG_FLAGS.heatVerbose)) {
+      console.log('[HEAT onSpinDecay]', {
+        decay: this.PER_SPIN_DECAY,
+        beforeRaw: beforeRaw.toFixed(2),
+        afterRaw: this.rawValue.toFixed(2)
+      })
+    }
+
+    this.emitIfChanged(beforeRaw, beforeDisplay, 0)
+    this.checkThresholdCrossing()
   }
 
   /**
@@ -206,13 +316,13 @@ export class HeatModel {
       reasons.push(`wilds:${payload.wildCount}->+${wildDelta.toFixed(2)}`)
     }
 
-    // Apply spin decay
-    delta -= HEAT_DECAY.PER_SPIN
-    reasons.push(`spinDecay:-${HEAT_DECAY.PER_SPIN}`)
-
-    if (delta !== 0) {
-      this.updateValue(this._value + delta, reasons.join(', '))
+    // Apply gains first
+    if (delta > 0) {
+      this.addHeat(delta, reasons.join(', '))
     }
+
+    // Apply per-spin decay separately
+    this.onSpinDecay()
   }
 
   /**
@@ -240,86 +350,98 @@ export class HeatModel {
   }
 
   /**
-   * Tick for passive decay
-   * Call this in a rAF loop or periodically
-   * @param dtMs - Delta time in milliseconds
-   */
-  tick(dtMs: number): void {
-    if (this._value <= 0) return
-
-    const decayAmount = (HEAT_DECAY.PASSIVE_PER_SEC * dtMs) / 1000
-    if (decayAmount > 0) {
-      this.updateValue(this._value - decayAmount, 'passiveDecay')
-    }
-  }
-
-  /**
-   * Auto-tick using performance.now() delta
-   * Convenience method for frame-based updates
-   */
-  autoTick(): void {
-    const now = performance.now()
-    const dt = now - this._lastTickTime
-    this._lastTickTime = now
-
-    if (dt > 0 && dt < 1000) { // Skip if paused/backgrounded
-      this.tick(dt)
-    }
-  }
-
-  /**
    * Reset heat to zero
    */
   reset(): void {
-    this.updateValue(0, 'reset')
+    this.rawValue = 0
+    this.displayValue = 0
+    this.lastLevel = 0
+    this._listeners.forEach(l => l(0, 0, null))
   }
 
   /**
    * Force set heat value (for DEV/testing)
    */
   forceSet(value: number): void {
-    this.updateValue(value, 'forceSet')
+    const clamped = clamp(value, 0, this.MAX)
+    this.rawValue = clamped
+    this.displayValue = clamped
+    this.emitIfChanged(0, 0, 0)
+    this.checkThresholdCrossing()
   }
 
   /**
-   * Update value with clamping, threshold detection, and notifications
+   * Emit change event if values changed
    */
-  private updateValue(newValue: number, reason: string): void {
-    const clamped = Math.max(0, Math.min(10, newValue))
-    const prevValue = this._value
-    const prevLevel = this._prevLevel
-    const newLevel = Math.floor(clamped)
+  private emitIfChanged(beforeRaw: number, beforeDisplay: number, dt: number): void {
+    const rawChanged = Math.abs(this.rawValue - beforeRaw) > 1e-6
+    const displayChanged = Math.abs(this.displayValue - beforeDisplay) > 1e-6
 
-    // Check for threshold crossing
-    let crossedThreshold: number | null = null
-    if (newLevel > prevLevel) {
-      // Crossed upward - check if we hit a spotlight threshold (3, 6, 9)
-      for (let t = prevLevel + 1; t <= newLevel; t++) {
-        if (t === 3 || t === 6 || t === 9) {
-          crossedThreshold = t
-          break // Take first crossing
-        }
+    if (!rawChanged && !displayChanged) return
+
+    const level = this.getLevel()
+
+    if (import.meta.env.DEV && (this._verbose || DEBUG_FLAGS.heatVerbose) && dt > 0) {
+      console.log('[HEAT tick]', {
+        dtSec: dt.toFixed(3),
+        raw: this.rawValue.toFixed(2),
+        display: this.displayValue.toFixed(2),
+        level
+      })
+    }
+
+    // Notify change listeners with display value (what UI should show)
+    // crossedThreshold is handled separately via checkThresholdCrossing
+    this._listeners.forEach(l => l(this.displayValue, level, null))
+  }
+
+  /**
+   * Check for threshold crossings and notify listeners
+   */
+  private checkThresholdCrossing(): void {
+    const level = this.getLevel()
+
+    // DEBUG: Log only on level changes to reduce noise
+    if (import.meta.env.DEV && level !== this.lastLevel) {
+      console.log('[HEAT LEVEL CHANGE!]', {
+        from: this.lastLevel,
+        to: level,
+        displayValue: this.displayValue.toFixed(2),
+        rawValue: this.rawValue.toFixed(2),
+        listenerCount: this._thresholdListeners.size
+      })
+    }
+
+    if (level === this.lastLevel) return
+
+    // Detect upward crossings only (3, 6, 9)
+    const crossed: HeatThreshold[] = []
+    if (this.lastLevel < 3 && level >= 3) crossed.push(3)
+    if (this.lastLevel < 6 && level >= 6) crossed.push(6)
+    if (this.lastLevel < 9 && level >= 9) crossed.push(9)
+
+    const prevLevel = this.lastLevel
+    this.lastLevel = level
+
+    // Notify threshold listeners for spotlight triggers
+    if (crossed.length > 0) {
+      // DEBUG: Unconditional trace logging
+      if (import.meta.env.DEV) {
+        console.log('[HEAT THRESHOLD CROSSED!]', { crossed, prevLevel, newLevel: level, listenerCount: this._thresholdListeners.size })
       }
-    }
-
-    // Update state
-    this._value = clamped
-    this._prevLevel = newLevel
-
-    // Skip notifications if no change
-    if (Math.abs(clamped - prevValue) < 0.001) return
-
-    // Log if verbose
-    if (this._verbose && import.meta.env.DEV) {
-      console.log(`[HeatModel] ${reason}: ${prevValue.toFixed(2)} -> ${clamped.toFixed(2)} (level ${newLevel})${crossedThreshold ? ` [THRESHOLD ${crossedThreshold}]` : ''}`)
-    }
-
-    // Notify change listeners
-    this._listeners.forEach(l => l(clamped, newLevel, crossedThreshold))
-
-    // Notify threshold listeners
-    if (crossedThreshold !== null) {
-      this._thresholdListeners.forEach(l => l(crossedThreshold))
+      crossed.forEach(t => {
+        if (import.meta.env.DEV) {
+          console.log('[HEAT] Notifying', this._thresholdListeners.size, 'listeners for threshold', t)
+        }
+        this._thresholdListeners.forEach(cb => {
+          if (import.meta.env.DEV) {
+            console.log('[HEAT] Calling threshold callback for level', t)
+          }
+          cb(t)
+        })
+      })
+      // Also notify change listeners with threshold info for UI pulse
+      this._listeners.forEach(l => l(this.displayValue, level, crossed[0]))
     }
   }
 }

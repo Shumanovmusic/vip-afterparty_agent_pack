@@ -594,6 +594,19 @@ export class PixiReelsRenderer {
    * @param level - The threshold level crossed
    */
   onHeatThreshold(level: number): void {
+    // DEBUG: Unconditional trace logging to find spotlight issue
+    if (import.meta.env.DEV) {
+      console.log('[PixiReelsRenderer] onHeatThreshold called', {
+        level,
+        juiceEnabled: this.juiceEnabled,
+        turboEnabled: MotionPrefs.turboEnabled,
+        reduceMotion: MotionPrefs.reduceMotion,
+        sparklesEnabled: DEBUG_FLAGS.sparklesEnabled,
+        spotlightExists: !!this.spotlight,
+        layoutExists: !!this.layoutConfig
+      })
+    }
+
     if (!this.juiceEnabled) return
 
     // Determine intensity based on threshold level

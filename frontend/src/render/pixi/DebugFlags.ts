@@ -26,4 +26,12 @@ export const DEBUG_FLAGS = {
   bigWinTestEnabled: import.meta.env.DEV,
   /** Verbose big win polish logs (tier styles, hint timer). Off by default. */
   bigWinPolishVerbose: false,
+  /** Verbose heat model logs (delta calculations, threshold crossings). Off by default. */
+  heatVerbose: true,  // TEMP: enabled for testing
+  /** Enable heat test mode (DEV only). Press H/Shift+H to add/remove heat. */
+  heatTestEnabled: import.meta.env.DEV,
+  /** Verbose spotlight sweep logs (play/cancel events). Off by default. */
+  spotlightVerbose: true,  // TEMP: enabled for testing
+  /** Enable spotlight test mode (DEV only). Press S to trigger spotlight. */
+  spotlightTestEnabled: import.meta.env.DEV,
 }
