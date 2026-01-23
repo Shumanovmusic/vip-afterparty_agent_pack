@@ -161,6 +161,81 @@ Backend MUST emit events:
 - `rage_deferred_due_to_bonus` boolean
 
 
+## RETENTION MECHANICS: HEAT METER & SPOTLIGHT (CONTRACT)
+
+### Overview
+
+The Heat Meter is a **frontend-only** visual progression system that increases perceived excitement without affecting game math. It drives the Spotlight Wilds visual effect gating.
+
+**Important**: This documents the EXISTING implementation. Do not change the math.
+
+### Frontend Heat Model
+
+**File**: `frontend/src/ux/heat/HeatModel.ts`
+
+**Architecture**: Dual-value system for smooth UI:
+- `rawValue`: Source of truth, decays over time
+- `displayValue`: Smoothed UI value that approaches rawValue
+- Both values range from 0 to 10
+
+### Heat Deltas (Gain Rules)
+
+| Event | Delta | Constant |
+|-------|-------|----------|
+| Spin start | +0.05 | HEAT_DELTAS.SPIN_START |
+| Any win (base) | +0.25 | HEAT_DELTAS.ANY_WIN_BASE |
+| Win based on winX | +min(0.8, 0.15 + winX*0.08) | HEAT_DELTAS.WIN_X_* |
+| Scatter present | +0.35 | HEAT_DELTAS.SCATTER_PRESENT |
+| Free spins enter | +1.0 | HEAT_DELTAS.FREE_SPINS_ENTER |
+| Wild count | +min(0.6, wildCount*0.08) | HEAT_DELTAS.WILD_COUNT_* |
+| Tier: Big | +1.2 | HEAT_DELTAS.TIER_BIG |
+| Tier: Mega | +2.0 | HEAT_DELTAS.TIER_MEGA |
+| Tier: Epic | +3.0 | HEAT_DELTAS.TIER_EPIC |
+
+### Heat Decay Rules
+
+| Decay Type | Rate | Constant |
+|------------|------|----------|
+| Passive (per second) | -0.30 | HEAT_DECAY.PASSIVE_PER_SEC |
+| Per completed spin | -0.10 | HEAT_DECAY.PER_SPIN |
+
+### Threshold Levels
+
+The heat system has three significant thresholds that trigger visual feedback:
+- Level 3: Minor threshold crossing (pulse animation)
+- Level 6: Medium threshold (Spotlight 15% chance)
+- Level 9: High threshold (Spotlight 100% at level 10)
+
+### Spotlight Wilds Gating (from Heat)
+
+Spotlight Wilds visual effect is gated by heat level:
+
+| Heat Level | Spotlight Trigger Chance |
+|------------|-------------------------|
+| heat ≥ 10 | 100% |
+| heat ≥ 6 | 15% |
+| heat < 6 | 0% |
+
+**Gating disabled in**: Turbo mode, ReduceMotion mode
+
+### Backend vs Frontend Heat
+
+| Aspect | Frontend | Backend |
+|--------|----------|---------|
+| Purpose | Visual juice/progression | Simple tracking for events |
+| Storage | In-memory HeatModel | Session state |
+| Decay | Complex (passive + per-spin) | Simple |
+| Used for | Spotlight gating, UI intensity | Event emission only |
+
+### Telemetry
+
+Heat-related telemetry logged per spin:
+- `heat_level`: Current integer level (0-10)
+- `heat_threshold_crossed`: Threshold crossed this spin (null/3/6/9)
+- `spotlight_triggered`: Boolean if spotlight activated
+
+---
+
 ## VARIETY & CLIMAX (CONTRACT)
 Цель: уйти от однотипности и дать “развязки” без обмана.
 

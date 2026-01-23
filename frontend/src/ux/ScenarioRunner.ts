@@ -12,6 +12,7 @@ import { MotionPrefs, TIMING } from './MotionPrefs'
 import { Timeline } from './timeline/Timeline'
 import type { TelemetryClient } from '../telemetry/TelemetryClient'
 import { audioService } from '../audio/AudioService'
+import { getWinSequenceV2, type WinSequenceV2 } from './WinSequenceV2'
 
 /** Scenario runner callbacks for UI updates */
 export interface ScenarioCallbacks {
@@ -20,6 +21,12 @@ export interface ScenarioCallbacks {
   onReelsStopped?: () => void
   onEventsComplete?: () => void
   onCycleComplete?: () => void
+  /** Called when highlight phase starts (for HUD count-up) */
+  onHighlightStart?: (totalWin: number, tier: WinTier) => void
+  /** Called when celebration phase starts */
+  onCelebrationStart?: (tier: WinTier) => void
+  /** Called when win sequence completes */
+  onWinSequenceComplete?: () => void
 }
 
 /**
@@ -34,11 +41,34 @@ export class ScenarioRunner {
   private timeline: Timeline | null = null
   /** 2-stage skip: 0=none, 1=accelerate, 2=complete */
   private skipCount: 0 | 1 | 2 = 0
+  /** Win sequence presenter (v2) */
+  private winSequence: WinSequenceV2
 
   constructor(telemetry: TelemetryClient, playerId: string) {
     this.eventRouter = new EventRouter()
     this.telemetry = telemetry
     this.playerId = playerId
+    this.winSequence = getWinSequenceV2()
+
+    // Wire up WinSequenceV2 callbacks
+    this.winSequence.setCallbacks({
+      onHighlightStart: (totalWin, tier) => {
+        this.callbacks.onHighlightStart?.(totalWin, tier)
+      },
+      onCelebrationStart: (tier) => {
+        this.callbacks.onCelebrationStart?.(tier)
+      },
+      onComplete: () => {
+        this.callbacks.onWinSequenceComplete?.()
+      }
+    })
+  }
+
+  /**
+   * Get WinSequenceV2 instance for component injection
+   */
+  getWinSequence(): WinSequenceV2 {
+    return this.winSequence
   }
 
   /** Set scenario callbacks */
@@ -49,6 +79,11 @@ export class ScenarioRunner {
   /** Check if scenario is running */
   get running(): boolean {
     return this.isRunning
+  }
+
+  /** Check if win sequence presentation is active */
+  get winSequenceBusy(): boolean {
+    return this.winSequence.isBusy()
   }
 
   /**
@@ -64,6 +99,9 @@ export class ScenarioRunner {
       if (this.timeline) {
         this.timeline.setTimeScale(4)
       }
+
+      // WinSequenceV2: stage 1 skip (accelerate)
+      this.winSequence.skip(1)
 
       // Audio: first skip just accelerates, loop can continue
       audioService.onSkipAccelerate()
@@ -81,6 +119,9 @@ export class ScenarioRunner {
         this.timeline.skip()
       }
       this.eventRouter.requestSkip()
+
+      // WinSequenceV2: stage 2 skip (complete)
+      this.winSequence.skip(2)
 
       // Audio: second skip stops all loops immediately
       audioService.onSkipComplete()
@@ -109,6 +150,9 @@ export class ScenarioRunner {
       console.warn('[ScenarioRunner] Already running')
       return
     }
+
+    // Cancel any running win sequence from previous spin
+    this.winSequence.cancel()
 
     this.isRunning = true
     this.skipCount = 0  // Reset 2-stage skip
@@ -146,8 +190,11 @@ export class ScenarioRunner {
       audioService.onReelsComplete()
       this.callbacks.onReelsStopped?.()
 
-      // === Check for celebrations ===
-      await this.checkCelebrations(response)
+      // === Run WinSequenceV2 (HIGHLIGHT → CELEBRATION → RESET) ===
+      // This replaces the old checkCelebrations() flow
+      if (response.outcome.totalWin > 0) {
+        await this.winSequence.run(response, betAmount)
+      }
 
       // === Events complete ===
       this.callbacks.onEventsComplete?.()
@@ -207,31 +254,6 @@ export class ScenarioRunner {
    */
   private async processEvents(events: GameEvent[]): Promise<void> {
     await this.eventRouter.processEvents(events)
-  }
-
-  /**
-   * Check and run celebrations based on win tier
-   */
-  private async checkCelebrations(response: SpinResponse): Promise<void> {
-    const winX = response.outcome.totalWinX
-    const tier = MotionPrefs.getWinTier(winX)
-
-    if (tier !== 'none') {
-      await this.runCelebration(tier, winX)
-    }
-  }
-
-  /**
-   * Run celebration for win tier
-   * Per UX_ANIMATION_SPEC.md celebration tiers
-   */
-  private async runCelebration(tier: WinTier, winX: number): Promise<void> {
-    // Log win tier
-    this.telemetry.logWinTier('', tier, winX)
-
-    // Celebration is already handled by winTier event
-    // This is for additional UI effects if needed
-    await Animations.celebration(tier)
   }
 
   /**

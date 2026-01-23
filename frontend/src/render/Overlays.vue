@@ -2,6 +2,16 @@
 /**
  * Overlays - Win texts, BOOM, celebration layers, event banners
  * Source of truth: UX_ANIMATION_SPEC.md
+ *
+ * NOTE: Win presentation (HIGHLIGHT → CELEBRATION → RESET) is now handled by
+ * WinSequenceV2.ts which uses the Pixi-based BigWinPresenter.
+ * The Vue-based celebration overlay here is kept for backwards compatibility
+ * but is no longer the primary celebration display.
+ *
+ * Key exposed methods for WinSequenceV2 integration:
+ * - startWinCountUp(target, tier) - Start HUD count-up during HIGHLIGHT phase
+ * - hideWinCounter() - Hide counter (on reset/new spin)
+ * - finishWinCounterInstant(totalWin) - Skip to final amount (on skip stage 2)
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -594,8 +604,9 @@ defineExpose({
 /* Heat Meter */
 .heat-meter {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  /* Mobile safe-area support for notch/cutout devices */
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
   display: flex;
   flex-direction: column;
   align-items: center;
