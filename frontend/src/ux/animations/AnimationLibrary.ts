@@ -57,9 +57,14 @@ export class AnimationLibrary {
     // Will be used for overlay management
   }
 
-  /** Set event handlers */
+  /** Set event handlers (merges with existing handlers) */
   setEvents(events: AnimationEvents): void {
-    this.events = events
+    this.events = { ...this.events, ...events }
+  }
+
+  /** Clear all event handlers */
+  clearEvents(): void {
+    this.events = {}
   }
 
   // --- Reel Animations ---
