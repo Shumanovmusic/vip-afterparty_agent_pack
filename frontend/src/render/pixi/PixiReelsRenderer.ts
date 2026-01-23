@@ -14,6 +14,7 @@ import { SpotlightSweep } from './fx/SpotlightSweep'
 import { SpotlightEvent, type SpotlightEventResult, type SpotlightGridPosition } from './fx/SpotlightEvent'
 import { Animations, type GridPosition, flatToGrid } from '../../ux/animations/AnimationLibrary'
 import { MotionPrefs, TIMING } from '../../ux/MotionPrefs'
+import { TeaserOrchestrator, type ScatterPosition } from '../../ux/teaser/TeaserOrchestrator'
 import { WinPresenter, type WinPosition } from './win/WinPresenter'
 import { WinCadenceV2 } from './win/WinCadenceV2'
 import { BigWinPresenter, WinTier, computeWinTier, PRELUDE_MIN_MS } from './win/BigWinPresenter'
@@ -36,6 +37,11 @@ const HIGHLIGHT_COLOR = 0xffd700
 const HIGHLIGHT_BORDER_WIDTH = 3
 const WILD_GLOW_COLOR = 0xffd700
 const WILD_GLOW_ALPHA = 0.5
+
+const SPIN_BLUR_Y = 25
+const SPIN_BLUR_SMOOTH_IN = 0.3
+const SPIN_BLUR_SMOOTH_OUT = 0.45
+const SPIN_BLUR_START_HOLD_MS = 120
 
 const REEL_COUNT = 5
 const VISIBLE_ROWS = 3
@@ -128,12 +134,16 @@ export class PixiReelsRenderer {
   private spinBlurFilter: BlurFilter | null = null
   private blurTickerCallback: ((ticker: Ticker) => void) | null = null
   private _blurLogT = 0  // Throttle blur debug logs
+  private spinBlurHoldUntil = 0
 
   // Win sequence cancel token (Batch 7) - prevents stale async chains on fast spins/skips
   private winSeqId = 0
 
   // Win sequence prelude skip flag (Batch 9) - allows skipping prelude phase with Space
   private winSeqSkipRequested = false
+
+  // Teaser orchestrator for 2+ scatter anticipation (Game Feel Fix)
+  private teaser: TeaserOrchestrator | null = null
 
   constructor(parentContainer: Container) {
     // Create main container for reels
@@ -210,6 +220,7 @@ export class PixiReelsRenderer {
     this.initSparklePool()
     this.setupEventHandlers()
     this.initCelebrationOverlay()
+    this.initTeaser()
 
     this.layout(layout)
     this.initBlurFilter()
@@ -255,6 +266,9 @@ export class PixiReelsRenderer {
 
       this.reelsRoot.position.set(layout.offsetX, layout.offsetY)
       this.reelsViewport.position.set(REEL_FRAME_PADDING, REEL_FRAME_PADDING)
+
+      // reelsContainer at origin - no offset needed
+      // (BlurFilter handles its own edge rendering internally)
       this.reelsContainer.position.set(0, 0)
 
       this.reelFrame?.resize({
@@ -264,6 +278,7 @@ export class PixiReelsRenderer {
         offsetY: REEL_FRAME_PADDING
       })
 
+      // Mask at origin, standard size (no expansion needed)
       this.reelsMask.clear()
       this.reelsMask.rect(0, 0, reelsWidth, reelsHeight)
       this.reelsMask.fill({ color: 0xffffff, alpha: 1 })
@@ -357,6 +372,7 @@ export class PixiReelsRenderer {
       failures.push('reelsViewport')
     }
 
+    // reelsContainer should be at (0, 0) - no blur padding offset
     if (this.reelsContainer.position.x !== 0 || this.reelsContainer.position.y !== 0) {
       failures.push('reelsContainer')
     }
@@ -404,6 +420,12 @@ export class PixiReelsRenderer {
       }
       const strip = new ReelStrip(config, this.reelsContainer)
       strip.setSymbols(this.currentGrid[i])
+
+      // Wire up impact callback for audio coordination (Game Feel Fix)
+      strip.onImpactCallback = () => {
+        audioService.onReelImpact()
+      }
+
       this.reelStrips.push(strip)
 
       if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !reelsRootDebugLogged) {
@@ -573,7 +595,8 @@ export class PixiReelsRenderer {
       this.spinBlurFilter = new BlurFilter({
         strengthX: 0,
         strengthY: 0,
-        quality: 1  // Low quality for performance; readability matters more than smoothness
+        quality: 1,  // Low quality for performance; readability matters more than smoothness
+        padding: 0   // No padding needed - BlurFilter handles edge rendering internally
       })
     }
 
@@ -626,6 +649,7 @@ export class PixiReelsRenderer {
     if (this.spinBlurFilter) {
       this.spinBlurFilter.strengthX = 0
       this.spinBlurFilter.strengthY = 0
+      this.spinBlurFilter.enabled = false
     }
   }
 
@@ -673,14 +697,13 @@ export class PixiReelsRenderer {
   }
 
   /**
-   * Update blur strength based on average reel velocity
-   *
-   * FIXED FORMULA (Batch 5.1):
-   * - Velocity is already px/frame, no need to multiply by deltaMS
-   * - Threshold: only blur when movement > threshold px/frame
-   * - Small coefficients (0.06-0.08) for readable symbols
-   * - Capped max values (3.5-6) for readable blur
-   * - Smoothed transitions to prevent jumping
+  * Update blur strength based on average reel velocity
+  *
+   * POLISH PHASE:
+   * - Directional blur only (Y axis)
+   * - Strong streaks (blurY ~25) for motion feel
+   * - Smoothed transitions for no flicker
+   * - Brief hold on spin start to avoid black frames
    */
   private updateBlurFromVelocity(deltaMS: number): void {
     if (!this.spinBlurFilter) return
@@ -696,32 +719,20 @@ export class PixiReelsRenderer {
     // DEBUG: Force blur visible for testing (V key toggle)
     if (import.meta.env.DEV && DEBUG_FLAGS.forceBlurTest) {
       this.spinBlurFilter.strengthX = 0
-      this.spinBlurFilter.strengthY = 3  // Reduced from 12 for sanity check
+      this.spinBlurFilter.strengthY = SPIN_BLUR_Y
       this.spinBlurFilter.enabled = true
       return
     }
 
-    const isSpinning = this.isAnyReelAnimating()
+    const now = performance.now()
+    const forceBlur = now < this.spinBlurHoldUntil
+    const isSpinning = forceBlur || this.isAnyReelAnimating()
     const vPxPerFrame = this.getAverageVelocityPxPerFrame()
 
-    // Threshold: below this, blur looks like "мыло" (mud) rather than motion
-    // Higher threshold in turbo since we want crispness
-    const THRESH_PX_PER_FRAME = MotionPrefs.turboEnabled ? 8.0 : 6.0
-
-    let targetBlurY = 0
-    if (isSpinning && vPxPerFrame > THRESH_PX_PER_FRAME) {
-      // Coefficients tuned for readability:
-      // - Normal mode: gentle blur, max 5
-      // - Turbo mode: minimal blur, max 3
-      const k = MotionPrefs.turboEnabled ? 0.05 : 0.08
-      const maxBlur = MotionPrefs.turboEnabled ? 3.0 : 5.0
-      targetBlurY = Math.min((vPxPerFrame - THRESH_PX_PER_FRAME) * k, maxBlur)
-    }
-
-    // Smooth transition to prevent jarring changes
+    const targetBlurY = isSpinning ? SPIN_BLUR_Y : 0
     const prev = this.spinBlurFilter.strengthY
-    const SMOOTH_FACTOR = 0.18  // Lower = smoother, higher = more responsive
-    const next = prev + (targetBlurY - prev) * SMOOTH_FACTOR
+    const smoothFactor = targetBlurY > prev ? SPIN_BLUR_SMOOTH_IN : SPIN_BLUR_SMOOTH_OUT
+    const next = prev + (targetBlurY - prev) * smoothFactor
 
     this.spinBlurFilter.strengthX = 0
     this.spinBlurFilter.strengthY = next
@@ -972,6 +983,52 @@ export class PixiReelsRenderer {
     // Create BigWinPresenter inside the overlay
     this.bigWinPresenter = new BigWinPresenter()
     this.uiOverlay.addChild(this.bigWinPresenter.container)
+  }
+
+  /**
+   * Initialize the teaser orchestrator for 2+ scatter anticipation (Game Feel Fix)
+   */
+  private initTeaser(): void {
+    this.teaser = new TeaserOrchestrator()
+
+    // Wire up callbacks
+    this.teaser.onTeaserStart = (scatterPositions: ScatterPosition[]) => {
+      // Highlight scatter symbols
+      this.highlightScatters(scatterPositions)
+
+      // Play tension audio
+      audioService.onTeaserTension()
+
+      if (import.meta.env.DEV && DEBUG_FLAGS.heatVerbose) {
+        console.log('[PixiReelsRenderer] Teaser started with scatters:', scatterPositions)
+      }
+    }
+
+    this.teaser.onTeaserEnd = () => {
+      // Clear scatter highlights handled by normal highlight reset
+      if (import.meta.env.DEV && DEBUG_FLAGS.heatVerbose) {
+        console.log('[PixiReelsRenderer] Teaser ended')
+      }
+    }
+  }
+
+  /**
+   * Highlight scatter symbols during teaser (Game Feel Fix)
+   */
+  private highlightScatters(positions: ScatterPosition[]): void {
+    if (!this.layoutConfig) return
+
+    for (const pos of positions) {
+      const flatIndex = pos.reel * VISIBLE_ROWS + pos.row
+
+      // Add to highlighted positions for visual effect
+      this.highlightedPositions.add(flatIndex)
+
+      // Set highlight on the reel strip
+      this.reelStrips[pos.reel]?.setHighlight(pos.row, true)
+    }
+
+    this.drawHighlights()
   }
 
   /**
@@ -1437,8 +1494,20 @@ export class PixiReelsRenderer {
     // Deactivate sparkles during spin
     this.deactivateAllSparkles()
 
+    // Ensure current symbols remain visible during spin transition
+    for (let i = 0; i < REEL_COUNT; i++) {
+      this.reelStrips[i].setSymbols(this.currentGrid[i])
+    }
+
     // Start motion blur ticker (Batch 5)
     this.startBlurTicker()
+    this.spinBlurHoldUntil = performance.now() + SPIN_BLUR_START_HOLD_MS
+
+    if (this.spinBlurFilter) {
+      this.spinBlurFilter.strengthX = 0
+      this.spinBlurFilter.strengthY = SPIN_BLUR_Y
+      this.spinBlurFilter.enabled = true
+    }
 
     for (const strip of this.reelStrips) {
       strip.startSpin()
@@ -1552,11 +1621,15 @@ export class PixiReelsRenderer {
 
   /**
    * Stop all reels with stagger L->R
+   * Integrates teaser system for 2+ scatter anticipation (Game Feel Fix)
    * @param finalGrid - Final 5x3 symbol grid (column-major: finalGrid[reel][row])
    */
   async stopAllReels(finalGrid: number[][]): Promise<void> {
     // Store result in case quick stop is requested later
     this.pendingResult = finalGrid
+
+    // Reset teaser for this spin
+    this.teaser?.reset()
 
     // Calculate stagger based on turbo mode and quick stop
     let stagger = TIMING.REEL_STOP_STAGGER_MS
@@ -1567,14 +1640,33 @@ export class PixiReelsRenderer {
       stagger = stagger / 3
     }
 
+    // Track stopped reels for teaser checking
+    const stoppedReels: { reelIndex: number; symbols: number[] }[] = []
+
     for (let i = 0; i < REEL_COUNT; i++) {
       this.currentGrid[i] = [...finalGrid[i]]
       await this.reelStrips[i].stopSpin(finalGrid[i])
+
+      // Track this reel as stopped
+      stoppedReels.push({ reelIndex: i, symbols: [...finalGrid[i]] })
+
+      // Check for teaser condition (2+ scatters with reels remaining)
+      if (this.teaser && i < REEL_COUNT - 1) {
+        const extensionMs = this.teaser.checkScatters(stoppedReels, REEL_COUNT)
+
+        // Add teaser extension delay if triggered
+        if (extensionMs > 0) {
+          await this.delay(extensionMs)
+        }
+      }
 
       if (i < REEL_COUNT - 1) {
         await this.delay(stagger)
       }
     }
+
+    // End teaser if active
+    this.teaser?.endTeaser()
 
     // Run correctness check (DEV only) after all reels have stopped
     if (import.meta.env.DEV) {
@@ -1583,6 +1675,7 @@ export class PixiReelsRenderer {
 
     // Stop motion blur ticker (Batch 5)
     this.stopBlurTicker()
+    this.spinBlurHoldUntil = 0
 
     // Clear spin state
     this._isSpinning = false
@@ -1761,6 +1854,9 @@ export class PixiReelsRenderer {
     this.uiOverlay?.destroy({ children: true })
     this.uiOverlay = null
 
+    // Cleanup teaser
+    this.teaser = null
+
     for (const strip of this.reelStrips) {
       strip.destroy()
     }
@@ -1770,4 +1866,3 @@ export class PixiReelsRenderer {
     this.container.destroy({ children: true })
   }
 }
-

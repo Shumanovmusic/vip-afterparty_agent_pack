@@ -41,16 +41,33 @@ interface SymbolSlot {
 const BUFFER_SYMBOLS = 5  // 1 above + 3 visible + 1 below
 const VISIBLE_ROWS = 3
 
-// Velocity in pixels per frame (~60fps)
-const SPIN_VELOCITY_INITIAL = 20
+// Velocity envelope constants (Batch 5 spin physics overhaul)
 const SPIN_VELOCITY_MAX = 40
-const SPIN_ACCELERATION = 1.5
-const SPIN_DECELERATION = 2
+
+// Acceleration phase (power2In easing)
+const ACCEL_DURATION_MS = 120
+
+// Deceleration uses backOut easing with this overshoot parameter
+const BACK_OUT_S = 1.7
+
+// Minimum velocity before snapping to stop
 const STOP_MIN_VELOCITY = 6
 
-// Bounce animation
-const BOUNCE_DURATION_MS = 150
-const BOUNCE_OVERSHOOT_PX = 8
+// Bounce/settle animation - pronounced landing effect
+const BOUNCE_DURATION_MS = 400       // Target ~400ms landing phase
+const BOUNCE_OVERSHOOT_PX = 50       // Overshoot distance (px) before bounce back
+const BOUNCE_OVERSHOOT_TURBO_PX = 25 // Turbo mode fallback (if enabled later)
+
+/** Easing: power2In (t^2) for acceleration */
+function power2In(t: number): number {
+  return t * t
+}
+
+/** Easing: backOut with configurable overshoot for deceleration */
+function backOut(t: number, s: number = BACK_OUT_S): number {
+  const u = t - 1
+  return 1 + u * u * ((s + 1) * u + s)
+}
 
 // Symbol stream for deterministic spinning (cycles through all symbols)
 const SPIN_SYMBOL_STREAM = [0, 5, 1, 6, 2, 7, 3, 8, 4, 9]
@@ -60,30 +77,51 @@ let textureDebugLogged = false
 
 /**
  * Get texture for a symbol ID
+ *
+ * Priority order (to ensure proper graphics, not debug squares):
+ * 1. Atlas texture (if loaded and available for this key)
+ * 2. SymbolRenderer (procedural VIP graphics: crown, watch, champagne, etc.)
+ * 3. AssetLoader fallback (colored squares - last resort)
  */
 function getTextureForSymbol(symbolId: number): Texture {
   const key = getSymbolKey(symbolId)
 
   if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
-    console.log(`[ReelStrip] getTextureForSymbol called: SymbolRenderer.isReady=${SymbolRenderer.isReady}`)
+    console.log(`[ReelStrip] getTextureForSymbol: symbolId=${symbolId}, key=${key}`)
+    console.log(`[ReelStrip]   AssetLoader.isLoaded=${AssetLoader.isLoaded}, hasTexture=${AssetLoader.hasTexture(key)}`)
+    console.log(`[ReelStrip]   SymbolRenderer.isReady=${SymbolRenderer.isReady}`)
   }
 
-  if (SymbolRenderer.isReady) {
-    const texture = SymbolRenderer.getTexture(key)
+  // 1. Prefer atlas texture if available (best quality)
+  if (AssetLoader.isLoaded && AssetLoader.hasTexture(key)) {
+    const texture = AssetLoader.getTexture(key)
 
     if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
       textureDebugLogged = true
-      console.log(`[ReelStrip] SymbolRenderer texture: key=${key}, size=${texture.width}x${texture.height}`)
+      console.log(`[ReelStrip] Using ATLAS texture: key=${key}, size=${texture.width}x${texture.height}`)
     }
 
     return texture
   }
 
+  // 2. Use SymbolRenderer for procedural VIP graphics (crown, watch, champagne, etc.)
+  if (SymbolRenderer.isReady) {
+    const texture = SymbolRenderer.getTexture(key)
+
+    if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
+      textureDebugLogged = true
+      console.log(`[ReelStrip] Using SymbolRenderer texture: key=${key}, size=${texture.width}x${texture.height}`)
+    }
+
+    return texture
+  }
+
+  // 3. Last resort: AssetLoader fallback (colored squares)
   const texture = AssetLoader.getSymbolTexture(symbolId)
 
   if (import.meta.env.DEV && DEBUG_FLAGS.verboseLayout && !textureDebugLogged) {
     textureDebugLogged = true
-    console.log(`[ReelStrip] AssetLoader FALLBACK texture: key=${key}, size=${texture.width}x${texture.height}`)
+    console.log(`[ReelStrip] Using FALLBACK texture: key=${key}, size=${texture.width}x${texture.height}`)
   }
 
   return texture
@@ -107,12 +145,23 @@ export class ReelStrip {
   private stopResolver: (() => void) | null = null
   private quickStopRequested = false
 
+  // Velocity envelope timing (Batch 5)
+  private spinStartTime = 0       // For acceleration phase timing
+  private stopStartTime = 0       // For deceleration phase timing
+  private decelStartVelocity = 0  // Velocity when stopping began
+
   // Symbol stream state for spinning
   private streamIndex = 0
   private wrapCount = 0  // Number of symbols wrapped during stop
 
   // Dimmed state per row
   private dimmedRows: Set<number> = new Set()
+
+  // Pre-bounce offset captured before setSymbols resets it
+  private preBounceOffset = 0
+
+  /** Callback fired at start of bounce for audio coordination */
+  public onImpactCallback?: () => void
 
   constructor(config: ReelStripConfig, parent: Container) {
     this.config = config
@@ -242,16 +291,20 @@ export class ReelStrip {
 
   /**
    * Start spinning animation
+   * Uses velocity envelope: ACCEL (120ms) → STEADY → DECEL → SETTLE
    */
   startSpin(): void {
     if (this.state !== 'idle') return
 
     this.state = 'spinning'
-    this.velocity = SPIN_VELOCITY_INITIAL
+    this.velocity = 0  // Start from 0, will ramp up during accel phase
     this.scrollOffset = 0
     this.quickStopRequested = false
     this.wrapCount = 0
     this.streamIndex = Math.floor(Math.random() * SPIN_SYMBOL_STREAM.length)
+    this.spinStartTime = performance.now()
+    this.stopStartTime = 0
+    this.decelStartVelocity = 0
     this.clearDimming()
 
     Ticker.shared.add(this.onTick, this)
@@ -280,6 +333,9 @@ export class ReelStrip {
         if (shouldBounce) {
           this.playBounce().then(resolve)
         } else {
+          // No bounce: snap to 0 here since finishStop no longer does it
+          this.scrollOffset = 0
+          this.updateSlotPositions()
           resolve()
         }
       }
@@ -295,6 +351,52 @@ export class ReelStrip {
     }
   }
 
+  /**
+   * Get current velocity based on spin state and elapsed time
+   * Velocity envelope: ACCEL (power2In) → STEADY → DECEL (backOut)
+   */
+  private computeVelocity(): number {
+    const now = performance.now()
+
+    if (this.state === 'spinning') {
+      // Acceleration phase: 0 → SPIN_VELOCITY_MAX over ACCEL_DURATION_MS
+      const elapsed = now - this.spinStartTime
+      if (elapsed < ACCEL_DURATION_MS) {
+        const t = elapsed / ACCEL_DURATION_MS
+        return SPIN_VELOCITY_MAX * power2In(t)
+      }
+      // Steady state: full velocity
+      return SPIN_VELOCITY_MAX
+    }
+
+    if (this.state === 'stopping') {
+      // Initialize deceleration timing on first call
+      if (this.stopStartTime === 0) {
+        this.stopStartTime = now
+        this.decelStartVelocity = this.velocity
+      }
+
+      // Wait for minimum symbol wraps before decelerating
+      // Always require 4 wraps for complete symbol injection (prevents black void)
+      const minWraps = 4
+      if (this.wrapCount < minWraps) {
+        return this.velocity  // Keep current velocity
+      }
+
+      // Deceleration phase: use backOut easing from current velocity to STOP_MIN_VELOCITY
+      const decelDuration = this.quickStopRequested ? 150 : 300
+      const elapsed = now - this.stopStartTime
+      const t = Math.min(elapsed / decelDuration, 1)
+
+      // backOut gives 0→1, we want decelStartVelocity→STOP_MIN_VELOCITY
+      const eased = backOut(t)
+      const velocityRange = this.decelStartVelocity - STOP_MIN_VELOCITY
+      return this.decelStartVelocity - velocityRange * eased
+    }
+
+    return 0
+  }
+
   /** Animation tick handler */
   private onTick = (): void => {
     if (this.state === 'idle' || this.state === 'bouncing') {
@@ -302,20 +404,9 @@ export class ReelStrip {
     }
 
     const { symbolHeight } = this.config
-    const decel = this.quickStopRequested ? SPIN_DECELERATION * 3 : SPIN_DECELERATION
 
-    // Update velocity
-    if (this.state === 'spinning') {
-      if (this.velocity < SPIN_VELOCITY_MAX) {
-        this.velocity = Math.min(this.velocity + SPIN_ACCELERATION, SPIN_VELOCITY_MAX)
-      }
-    } else if (this.state === 'stopping') {
-      // During stopping, ensure we've wrapped enough symbols before slowing down
-      const minWraps = this.quickStopRequested ? 2 : 4
-      if (this.wrapCount >= minWraps) {
-        this.velocity = Math.max(this.velocity - decel, STOP_MIN_VELOCITY)
-      }
-    }
+    // Update velocity using envelope computation
+    this.velocity = Math.max(this.computeVelocity(), 0)
 
     // Move symbols down (positive scroll = symbols move down visually)
     this.scrollOffset += this.velocity
@@ -330,8 +421,10 @@ export class ReelStrip {
 
     // Check for stop condition
     if (this.state === 'stopping' && this.velocity <= STOP_MIN_VELOCITY) {
-      // Check if we're close enough to aligned position
-      if (this.scrollOffset < this.velocity * 2) {
+      // CRITICAL: Must have completed at least 4 wraps for all symbols to be injected
+      const allSymbolsInjected = this.wrapCount >= 4
+      // Check if we're close enough to aligned position AND all symbols are ready
+      if (allSymbolsInjected && this.scrollOffset < this.velocity * 2) {
         this.finishStop()
       }
     }
@@ -377,10 +470,15 @@ export class ReelStrip {
   private finishStop(): void {
     Ticker.shared.remove(this.onTick, this)
 
-    // Snap to aligned position
-    this.scrollOffset = 0
+    // CRITICAL: Capture offset BEFORE setSymbols resets it to 0
+    // This allows playBounce() to animate from the actual stopping position
+    this.preBounceOffset = this.scrollOffset
 
-    // Ensure final symbols match target exactly
+    if (import.meta.env.DEV) {
+      console.log(`[ReelStrip] finishStop captured preBounceOffset=${this.preBounceOffset.toFixed(2)}, wrapCount=${this.wrapCount}`)
+    }
+
+    // Ensure final symbols match target exactly (this resets scrollOffset to 0)
     this.setSymbols(this.targetSymbols)
 
     this.state = 'idle'
@@ -393,31 +491,50 @@ export class ReelStrip {
     }
   }
 
-  /** Play bounce animation */
+  /**
+   * Play bounce/settle animation with 2 phases (GSAP-style timeline):
+   * Phase 1: OVERSHOOT - move down to +50px
+   * Phase 2: BOUNCE BACK - return to 0 using Back.out(1.5)
+   */
   private playBounce(): Promise<void> {
     return new Promise((resolve) => {
       this.state = 'bouncing'
       const startTime = performance.now()
-      const startOffset = this.scrollOffset
+
+      const overshoot = MotionPrefs.turboEnabled ? BOUNCE_OVERSHOOT_TURBO_PX : BOUNCE_OVERSHOOT_PX
+      const duration = MotionPrefs.turboEnabled ? BOUNCE_DURATION_MS * 0.6 : BOUNCE_DURATION_MS
+      const downDuration = duration * 0.4
+      const upDuration = duration - downDuration
+
+      if (import.meta.env.DEV) {
+        console.log(`[ReelStrip] playBounce overshoot=${overshoot}, duration=${duration}ms`)
+      }
+
+      let impactFired = false
 
       const animate = (): void => {
         const elapsed = performance.now() - startTime
-        const progress = Math.min(elapsed / BOUNCE_DURATION_MS, 1)
 
-        // Bounce: overshoot down, then settle back
-        let bounceOffset = 0
-        if (progress < 0.4) {
-          bounceOffset = BOUNCE_OVERSHOOT_PX * (progress / 0.4)
+        if (elapsed < downDuration) {
+          const t = elapsed / downDuration
+          const eased = t * t
+          this.scrollOffset = overshoot * eased
         } else {
-          const settleProgress = (progress - 0.4) / 0.6
-          const easeOut = 1 - Math.pow(1 - settleProgress, 2)
-          bounceOffset = BOUNCE_OVERSHOOT_PX * (1 - easeOut)
+          if (!impactFired) {
+            impactFired = true
+            if (this.onImpactCallback) {
+              this.onImpactCallback()
+            }
+          }
+
+          const t = Math.min((elapsed - downDuration) / upDuration, 1)
+          const eased = backOut(t, 1.5)
+          this.scrollOffset = overshoot * (1 - eased)
         }
 
-        this.scrollOffset = startOffset + bounceOffset
         this.updateSlotPositions()
 
-        if (progress < 1) {
+        if (elapsed < duration) {
           requestAnimationFrame(animate)
         } else {
           this.scrollOffset = 0
@@ -429,6 +546,39 @@ export class ReelStrip {
 
       requestAnimationFrame(animate)
     })
+  }
+
+  /**
+   * Get current velocity (for blur calculation)
+   */
+  getVelocity(): number {
+    return this.velocity
+  }
+
+  /**
+   * Get current spin phase for blur/effects coordination
+   * @returns Phase identifier: 'idle' | 'accel' | 'steady' | 'decel' | 'settle'
+   */
+  getSpinPhase(): 'idle' | 'accel' | 'steady' | 'decel' | 'settle' {
+    if (this.state === 'idle') return 'idle'
+    if (this.state === 'bouncing') return 'settle'
+
+    // During spinning state
+    if (this.state === 'spinning') {
+      const elapsed = performance.now() - this.spinStartTime
+      if (elapsed < ACCEL_DURATION_MS) return 'accel'
+      return 'steady'
+    }
+
+    // During stopping state
+    if (this.state === 'stopping') {
+      // Check if we've started decelerating (past min wraps)
+      const minWraps = this.quickStopRequested ? 2 : 4
+      if (this.wrapCount < minWraps) return 'steady'
+      return 'decel'
+    }
+
+    return 'idle'
   }
 
   /**
